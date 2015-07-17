@@ -1020,6 +1020,14 @@ int main(int argc, char** argv) {
 
 	fseek(fp, 0x0, SEEK_SET);
 
+	int count = 0;
+	for (i = 0; i < 256; i++) {
+		if (lutseenwild[i]) {
+			count++;
+		}
+	}
+	fprintf(stderr, "Total tables reversed: %d out of 128\n", count);
+
 	switch (c0) {
 	case 0x00:
 		fprintf(stderr, "Success! easy one\n");
