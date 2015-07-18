@@ -798,18 +798,20 @@ int main(int argc, char** argv) {
 			}
 		}
 		
-		for (i = 0; i < 64; i++) {
-			xor[i] ^= (lut[li][i] * 0x40);
-		}
+		if (lutseenwild[li]) {
+			for (i = 0; i < 64; i++) {
+				xor[i] ^= (lut[li][i] * 0x40);
+			}
 
-		int inv = 0;
-		for (i = 128; i < 192; i++) {
-			inv = (lut[li][i-128] == 3) ? 1 : 3;
-			xor[i] ^= (inv * 0x40);
-		}
-
-		for (i = 192; i < 256; i++) {
-			xor[i] ^= 0x80;
+			int inv = 0;
+			for (i = 128; i < 192; i++) {
+				inv = (lut[li][i-128] == 3) ? 1 : 3;
+				xor[i] ^= (inv * 0x40);
+			}
+	
+			for (i = 192; i < 256; i++) {
+				xor[i] ^= 0x80;
+			}
 		}
 
 		px = xor[0];
