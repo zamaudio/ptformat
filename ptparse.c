@@ -122,13 +122,17 @@ int main(int argc, char** argv) {
 				}
 
 			}
-			int samplebytes1 = ptf[j+3] & 0xf;
-			int samplebytes2 = (ptf[j+3] & 0xf0) >> 4;
+			int samplebytes1 = (ptf[j+3] & 0xf);
+			unsigned char samplebytehigh = ptf[j+16];
+
+			if ((samplebytes1 == 3) && (samplebytehigh == 0xfe)) {
+				samplebytes1 = 4;
+			}
+			//int samplebytes2 = (ptf[j+1] & 0xf0) >> 4;
+			//printf("sbh=0x%x\n", samplebytehigh);
 			int samplebytes = samplebytes1;
-			if (		(samplebytes1 == samplebytes2) &&
-					(type == SAMPLES)) {
-				uint32_t offset;
-				offset = (uint32_t)(ptf[j+8]);
+			if (type == SAMPLES) {
+				uint32_t offset = 0;
 				switch (samplebytes) {
 				case 4:
 					offset |= (uint32_t)(ptf[j+11] << 24);
@@ -136,10 +140,12 @@ int main(int argc, char** argv) {
 					offset |= (uint32_t)(ptf[j+10] << 16);
 				case 2:
 					offset |= (uint32_t)(ptf[j+9] << 8);
+				case 1:
+					offset |= (uint32_t)(ptf[j+8]);
 				default:
 					break;
 				}
-				//printf("%s sampleoffset = %04x = %d\n", name, offset, offset);
+				//printf("%s sampleoffset = %08x = %d\n", name, offset, offset);
 				printf("%s\t%u\n", name, offset);
 			}
 		}
