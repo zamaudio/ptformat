@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
 					break;
 				}
 				//printf("%s sampleoffset = %04x = %d\n", name, offset, offset);
-				printf("%s\t%d\n", name, offset);
+				printf("%s\t%u\n", name, offset);
 			}
 		}
 	}
