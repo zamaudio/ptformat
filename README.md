@@ -9,5 +9,7 @@ Usage:
 
 	make
 	./ptunxor file.ptf > file.out
+	./ptparse file.out
 
-Still a work in progress.
+Outputs WAV filenames and start offset in samples
+to recording per track where file was created.
