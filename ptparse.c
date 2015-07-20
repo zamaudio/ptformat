@@ -120,7 +120,6 @@ int main(int argc, char** argv) {
 					name[j-(i+13)] = 0x00;
 					break;
 				}
-
 			}
 			int samplebytes1 = (ptf[j+3] & 0xf);
 			unsigned char samplebytehigh = ptf[j+16];
