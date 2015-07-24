@@ -1,5 +1,5 @@
-ptf2ardour
-==========
+ptftool
+=======
 
 Idea is to make ardour open ptf sessions.
 
