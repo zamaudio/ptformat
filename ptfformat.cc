@@ -68,7 +68,7 @@ PTFFormat::load(std::string path) {
 	
 	switch (c0) {
 	case 0x00:
-		//fprintf(stderr, "Success! easy one\n");
+		// Success! easy one
 		xxor[0] = c0;
 		xxor[1] = c1;
 		for (i = 2; i < 64; i++) {
@@ -95,7 +95,7 @@ PTFFormat::load(std::string path) {
 		}
 		break;
 	case 0x80:
-		//fprintf(stderr, "Success! easy two\n");
+		//Success! easy two
 		xxor[0] = c0;
 		xxor[1] = c1;
 		for (i = 2; i < 256; i++) {
@@ -135,9 +135,9 @@ PTFFormat::load(std::string path) {
 	case 0xc0:
 		li = c1;
 		if (ptflutseenwild[li]) {
-			//fprintf(stderr, "Success! Found lookup table 0x%x\n", li);
+			//Success! [li]
 		} else {
-			//fprintf(stderr, "Can't find lookup table for c1=0x%x\n", li);
+			//Can't find lookup table for c1=li
 			free(ptfunxored);
 			fclose(fp);
 			return li;
@@ -184,7 +184,7 @@ PTFFormat::load(std::string path) {
 		break;
 		break;
 	default:
-		//fprintf(stderr, "Failed c[0] c[1]: %02x %02x\n", c0, c1);
+		//Should not happen, failed c[0] c[1]
 		return -1;
 		break;
 	}
@@ -217,6 +217,7 @@ PTFFormat::parse(void) {
 	j = 0;
 	l = 0;
 
+	// Find actual wav names
 	char wavname[256];
 	for (i = k; i > 4; i--) {
 		if (		(ptfunxored[i  ] == 'W') &&
@@ -267,8 +268,6 @@ PTFFormat::parse(void) {
 			if ((samplebytes1 == 3) && (samplebytehigh == 0xfe)) {
 				samplebytes1 = 4;
 			}
-			//int samplebytes2 = (ptfunxored[j+1] & 0xf0) >> 4;
-			//printf("sbh=0x%x\n", samplebytehigh);
 			int samplebytes = samplebytes1;
 			if (type == 1) {
 				uint32_t offset = 0;
@@ -284,14 +283,15 @@ PTFFormat::parse(void) {
 				default:
 					break;
 				}
-				//printf("%s sampleoffset = %08x = %d\n", name, offset, offset);
-				//printf("%s\t%u\n", name, offset);
 				std::string filename = string(name) + ".wav";
 				files_t f = { filename, (int64_t)offset };
 				vector<files_t>::iterator start = this->actualwavs.begin();
 				vector<files_t>::iterator finish = this->actualwavs.end();
+				// Add file to list only if it is an actual wav
 				if (std::find(start, finish, f) != finish) {
 					this->audiofiles.push_back(f);
+				} else {
+					this->othertracks.push_back(f);
 				}
 			}
 		}

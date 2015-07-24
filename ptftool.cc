@@ -35,9 +35,16 @@ int main (int argc, char **argv) {
 		break;
 	case 0:
 		if (ptf.audiofiles.size() > 0) {
+			printf("Audio file @ offset:\n");
 			for (vector<PTFFormat::files_t>::iterator
 					a = ptf.audiofiles.begin();
 					a != ptf.audiofiles.end(); ++a) {
+				printf("%s @ %ld\n", a->filename.c_str(), a->posabsolute);
+			}
+			printf("\nOther track @ offset:\n");
+			for (vector<PTFFormat::files_t>::iterator
+					a = ptf.othertracks.begin();
+					a != ptf.othertracks.end(); ++a) {
 				printf("%s @ %ld\n", a->filename.c_str(), a->posabsolute);
 			}
 		} else {

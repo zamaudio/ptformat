@@ -932,6 +932,7 @@ public:
 
 
 	std::vector<files_t> audiofiles;
+	std::vector<files_t> othertracks;
 	std::vector<files_t> actualwavs;
 
 private:
