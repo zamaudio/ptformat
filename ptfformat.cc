@@ -266,9 +266,9 @@ PTFFormat::parse(void) {
 					break;
 				}
 			}
-			startbytes = (ptfunxored[j+3] & 0xf);
-			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
-			offsetbytes = (ptfunxored[j+2] & 0xf);
+			lengthbytes = (ptfunxored[j+3] & 0xf0) >> 4;
+			startbytes = (ptfunxored[j+2] & 0xf0) >> 4;
+			offsetbytes = (ptfunxored[j+3] & 0xf);
 			
 			if (type == 1) {
 				uint32_t start = 0;
@@ -316,8 +316,8 @@ PTFFormat::parse(void) {
 				files_t f = { 
 						filename,
 						(int64_t)sampleoffset,
-						(int64_t)length,
-						(int64_t)start
+						(int64_t)start,
+						(int64_t)length
 				};
 				vector<files_t>::iterator begin = this->actualwavs.begin();
 				vector<files_t>::iterator finish = this->actualwavs.end();
