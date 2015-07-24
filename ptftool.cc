@@ -39,13 +39,17 @@ int main (int argc, char **argv) {
 			for (vector<PTFFormat::files_t>::iterator
 					a = ptf.audiofiles.begin();
 					a != ptf.audiofiles.end(); ++a) {
-				printf("%s @ %ld\n", a->filename.c_str(), a->posabsolute);
+				//printf("%s @ 0x%08x + 0x%08x, len=0x%08x\n", a->filename.c_str(),
+				printf("%s @ %lu + %lu, len=%lu\n", a->filename.c_str(),
+					a->posabsolute, a->sampleoffset, a->length);
 			}
 			printf("\nOther track @ offset:\n");
 			for (vector<PTFFormat::files_t>::iterator
 					a = ptf.othertracks.begin();
 					a != ptf.othertracks.end(); ++a) {
-				printf("%s @ %ld\n", a->filename.c_str(), a->posabsolute);
+				//printf("%s @ 0x%08x + 0x%08x, len=0x%08x\n", a->filename.c_str(),
+				printf("%s @ %lu + %lu, len=%lu\n", a->filename.c_str(),
+					a->posabsolute, a->sampleoffset, a->length);
 			}
 		} else {
 			printf("No audio files in session, quit\n");

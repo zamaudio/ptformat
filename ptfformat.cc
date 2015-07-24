@@ -239,6 +239,10 @@ PTFFormat::parse(void) {
 		}
 	}
 
+	uint32_t startbytes = 0;
+	uint32_t lengthbytes = 0;
+	uint32_t offsetbytes = 0;
+
 	while (		(ptfunxored[k  ] != 0x5a) &&
 			(ptfunxored[k+1] != 0x01) &&
 			(ptfunxored[k+2] != 0x00)) {
@@ -262,33 +266,63 @@ PTFFormat::parse(void) {
 					break;
 				}
 			}
-			int samplebytes1 = (ptfunxored[j+3] & 0xf);
-			unsigned char samplebytehigh = ptfunxored[j+16];
-
-			if ((samplebytes1 == 3) && (samplebytehigh == 0xfe)) {
-				samplebytes1 = 4;
-			}
-			int samplebytes = samplebytes1;
+			startbytes = (ptfunxored[j+3] & 0xf);
+			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
+			offsetbytes = (ptfunxored[j+2] & 0xf);
+			
 			if (type == 1) {
-				uint32_t offset = 0;
-				switch (samplebytes) {
+				uint32_t start = 0;
+				switch (startbytes) {
 				case 4:
-					offset |= (uint32_t)(ptfunxored[j+11] << 24);
+					start |= (uint32_t)(ptfunxored[j+8] << 24);
 				case 3:
-					offset |= (uint32_t)(ptfunxored[j+10] << 16);
+					start |= (uint32_t)(ptfunxored[j+7] << 16);
 				case 2:
-					offset |= (uint32_t)(ptfunxored[j+9] << 8);
+					start |= (uint32_t)(ptfunxored[j+6] << 8);
 				case 1:
-					offset |= (uint32_t)(ptfunxored[j+8]);
+					start |= (uint32_t)(ptfunxored[j+5]);
+				default:
+					break;
+				}
+				j+=startbytes;
+				uint32_t length = 0;
+				switch (lengthbytes) {
+				case 4:
+					length |= (uint32_t)(ptfunxored[j+8] << 24);
+				case 3:
+					length |= (uint32_t)(ptfunxored[j+7] << 16);
+				case 2:
+					length |= (uint32_t)(ptfunxored[j+6] << 8);
+				case 1:
+					length |= (uint32_t)(ptfunxored[j+5]);
+				default:
+					break;
+				}
+				j+=lengthbytes;
+				uint32_t sampleoffset = 0;
+				switch (offsetbytes) {
+				case 4:
+					sampleoffset |= (uint32_t)(ptfunxored[j+8] << 24);
+				case 3:
+					sampleoffset |= (uint32_t)(ptfunxored[j+7] << 16);
+				case 2:
+					sampleoffset |= (uint32_t)(ptfunxored[j+6] << 8);
+				case 1:
+					sampleoffset |= (uint32_t)(ptfunxored[j+5]);
 				default:
 					break;
 				}
 				std::string filename = string(name) + ".wav";
-				files_t f = { filename, (int64_t)offset };
-				vector<files_t>::iterator start = this->actualwavs.begin();
+				files_t f = { 
+						filename,
+						(int64_t)sampleoffset,
+						(int64_t)length,
+						(int64_t)start
+				};
+				vector<files_t>::iterator begin = this->actualwavs.begin();
 				vector<files_t>::iterator finish = this->actualwavs.end();
 				// Add file to list only if it is an actual wav
-				if (std::find(start, finish, f) != finish) {
+				if (std::find(begin, finish, f) != finish) {
 					this->audiofiles.push_back(f);
 				} else {
 					this->othertracks.push_back(f);
@@ -296,4 +330,59 @@ PTFFormat::parse(void) {
 			}
 		}
 	}
+
+	//  Number of other tracks
+	int n = this->othertracks.size();
+	uint32_t offset;
+	k = 0;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x15) &&
+				(ptfunxored[k+2] == 0x00)) {
+			break;
+		}	
+		k++;
+	}
+/*
+	for (i = k; i < len-(80+n*8); i++) {
+		if (		(ptfunxored[i  ] == 0x5a) &&
+				(ptfunxored[i+1] == 0x01) &&
+				(ptfunxored[i+2] == 0x00)) {
+			
+			j = i+79;
+			for (vector<files_t>::iterator of = 
+					this->othertracks.begin();
+					of != this->othertracks.end();
+					of++) {
+
+				//offset
+				offset = 0;
+				offset |= (uint32_t)(ptfunxored[j]);
+				offset |= (uint32_t)(ptfunxored[j+1] << 8);
+				offset |= (uint32_t)(ptfunxored[j+2] << 16);
+				offset |= (uint32_t)(ptfunxored[j+3] << 24);
+				of->posabsolute = (uint32_t)offset;
+				j+=8;
+				//start
+				offset = 0;
+				offset |= (uint32_t)(ptfunxored[j]);
+				offset |= (uint32_t)(ptfunxored[j+1] << 8);
+				offset |= (uint32_t)(ptfunxored[j+2] << 16);
+				offset |= (uint32_t)(ptfunxored[j+3] << 24);
+				of->sampleoffset = (uint32_t)offset;
+				j+=8;
+				//length
+				offset = 0;
+				offset |= (uint32_t)(ptfunxored[j]);
+				offset |= (uint32_t)(ptfunxored[j+1] << 8);
+				offset |= (uint32_t)(ptfunxored[j+2] << 16);
+				offset |= (uint32_t)(ptfunxored[j+3] << 24);
+				of->length = (uint32_t)offset;
+				j+=8;
+			}
+			break;
+		}
+		break;
+	}
+*/
 }

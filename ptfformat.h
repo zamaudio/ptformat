@@ -925,6 +925,8 @@ public:
 	typedef struct files {
 		std::string filename;
 		int64_t     posabsolute;
+		int64_t     length;
+		int64_t     sampleoffset;
 		bool operator ==(const struct files& other) {
 			return (this->filename == other.filename);
 		}
