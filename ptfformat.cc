@@ -266,9 +266,9 @@ PTFFormat::parse(void) {
 					break;
 				}
 			}
-			startbytes = (ptfunxored[j+3] & 0xf);
+			startbytes = 0;
 			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
-			offsetbytes = (ptfunxored[j+2] & 0xf);
+			offsetbytes = (ptfunxored[j+3] & 0xf);
 			
 			if (type == 1) {
 				uint32_t start = 0;
