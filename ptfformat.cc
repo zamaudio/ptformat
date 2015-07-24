@@ -331,58 +331,33 @@ PTFFormat::parse(void) {
 		}
 	}
 
-	//  Number of other tracks
-	int n = this->othertracks.size();
-	uint32_t offset;
-	k = 0;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x15) &&
-				(ptfunxored[k+2] == 0x00)) {
+				(ptfunxored[k+1] == 0x06)) {
 			break;
 		}	
 		k++;
 	}
-/*
-	for (i = k; i < len-(80+n*8); i++) {
-		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x01) &&
-				(ptfunxored[i+2] == 0x00)) {
-			
-			j = i+79;
-			for (vector<files_t>::iterator of = 
-					this->othertracks.begin();
-					of != this->othertracks.end();
-					of++) {
+	//  Number of other tracks
+	uint32_t offset;
+	for (vector<files_t>::iterator of = 
+			this->othertracks.begin();
+			of != this->othertracks.end();) {
 
-				//offset
-				offset = 0;
-				offset |= (uint32_t)(ptfunxored[j]);
-				offset |= (uint32_t)(ptfunxored[j+1] << 8);
-				offset |= (uint32_t)(ptfunxored[j+2] << 16);
-				offset |= (uint32_t)(ptfunxored[j+3] << 24);
-				of->posabsolute = (uint32_t)offset;
-				j+=8;
-				//start
-				offset = 0;
-				offset |= (uint32_t)(ptfunxored[j]);
-				offset |= (uint32_t)(ptfunxored[j+1] << 8);
-				offset |= (uint32_t)(ptfunxored[j+2] << 16);
-				offset |= (uint32_t)(ptfunxored[j+3] << 24);
-				of->sampleoffset = (uint32_t)offset;
-				j+=8;
-				//length
-				offset = 0;
-				offset |= (uint32_t)(ptfunxored[j]);
-				offset |= (uint32_t)(ptfunxored[j+1] << 8);
-				offset |= (uint32_t)(ptfunxored[j+2] << 16);
-				offset |= (uint32_t)(ptfunxored[j+3] << 24);
-				of->length = (uint32_t)offset;
-				j+=8;
-			}
-			break;
+		if (	(ptfunxored[k  ] == 0x5a) &&
+			(ptfunxored[k+1] == 0x07)) {
+			
+			j = k+16;
+
+			//offset
+			offset = 0;
+			offset |= (uint32_t)(ptfunxored[j]);
+			offset |= (uint32_t)(ptfunxored[j+1] << 8);
+			offset |= (uint32_t)(ptfunxored[j+2] << 16);
+			offset |= (uint32_t)(ptfunxored[j+3] << 24);
+			of->posabsolute = (uint32_t)offset;
+			of++;
 		}
-		break;
+		k++;
 	}
-*/
 }
