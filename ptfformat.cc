@@ -351,10 +351,20 @@ PTFFormat::parse(void) {
 
 			//offset
 			offset = 0;
-			offset |= (uint32_t)(ptfunxored[j]);
-			offset |= (uint32_t)(ptfunxored[j+1] << 8);
-			offset |= (uint32_t)(ptfunxored[j+2] << 16);
-			offset |= (uint32_t)(ptfunxored[j+3] << 24);
+			startbytes = (ptfunxored[k+3] & 0xf0) >> 4;
+
+			switch (startbytes) {
+			case 4:
+				offset |= (uint32_t)(ptfunxored[j+3] << 24);
+			case 3:
+				offset |= (uint32_t)(ptfunxored[j+2] << 16);
+			case 2:
+				offset |= (uint32_t)(ptfunxored[j+1] << 8);
+			case 1:
+				offset |= (uint32_t)(ptfunxored[j]);
+			default:
+				break;
+			}
 			of->posabsolute = (uint32_t)offset;
 			of++;
 		}
