@@ -1,6 +1,5 @@
 all:
-	$(CC) ptunxor.c -o ptunxor
-	$(CC) ptparse.c -o ptparse
-
+	$(CXX) -o ptftool ptftool.cc ptfformat.cc
+	$(CC) -o ptunxor ptunxor.c
 clean:
-	rm ptunxor ptparse
+	rm ptftool ptunxor

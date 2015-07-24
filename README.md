@@ -3,13 +3,14 @@ ptf2ardour
 
 Idea is to make ardour open ptf sessions.
 
-First step, decrypt the .ptf files.
+First step, decrypt and parse the .ptf files.
 
 Usage:
 
 	make
-	./ptunxor file.ptf > file.out
-	./ptparse file.out
+	./ptftool file.ptf
 
-Outputs WAV filenames and start offset in samples
-to recording per track where file was created.
+If the parsing fails due to missing lookup,
+work out the lookup table from:
+
+	./ptunxor file.ptf
