@@ -15,7 +15,6 @@
 
 #include "ptfformat.h"
 using namespace std;
-using std::string;
 
 PTFFormat::PTFFormat() {
 }
@@ -200,7 +199,7 @@ PTFFormat::parse(void) {
 	int i;
 	int j;
 	int k;
-	//int l;
+	int l;
 	int type;
 
 	// Find end of wav file list
@@ -216,9 +215,9 @@ PTFFormat::parse(void) {
 	}
 
 	j = 0;
-	//l = 0;
-/*
-	unsigned char wavname[256] = {0};
+	l = 0;
+
+	char wavname[256];
 	for (i = k; i > 4; i--) {
 		if (		(ptfunxored[i  ] == 'W') &&
 				(ptfunxored[i-1] == 'A') &&
@@ -233,10 +232,11 @@ PTFFormat::parse(void) {
 			}
 			wavname[l] = 0;
 			std::string wav = string(wavname);
-			wav.reverse();
+			std::reverse(wav.begin(), wav.end());
+			files_t f = { wav, (int64_t)0 };
+			actualwavs.push_back(f);
 		}
 	}
-*/
 
 	while (		(ptfunxored[k  ] != 0x5a) &&
 			(ptfunxored[k+1] != 0x01) &&
@@ -288,7 +288,11 @@ PTFFormat::parse(void) {
 				//printf("%s\t%u\n", name, offset);
 				std::string filename = string(name) + ".wav";
 				files_t f = { filename, (int64_t)offset };
-				this->audiofiles.push_back(f);
+				vector<files_t>::iterator start = this->actualwavs.begin();
+				vector<files_t>::iterator finish = this->actualwavs.end();
+				if (std::find(start, finish, f) != finish) {
+					this->audiofiles.push_back(f);
+				}
 			}
 		}
 	}

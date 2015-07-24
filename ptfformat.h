@@ -12,10 +12,14 @@
     GNU General Public License for more details.
 
 */
+#ifndef PTFFORMAT_H
+#define PTFFORMAT_H
 
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string>
+#include <cstring>
+#include <algorithm>
 #include <vector>
 #include <cstdio>
 
@@ -906,6 +910,7 @@ static const unsigned char ptflut[256][64] = {
 	}
 };
 
+
 class PTFFormat {
 public:
 	PTFFormat();
@@ -917,12 +922,17 @@ public:
 	*/
 	int load(std::string path);
 
-	typedef struct {
+	typedef struct files {
 		std::string filename;
 		int64_t     posabsolute;
+		bool operator ==(const struct files& other) {
+			return (this->filename == other.filename);
+		}
 	} files_t;
 
+
 	std::vector<files_t> audiofiles;
+	std::vector<files_t> actualwavs;
 
 private:
 	void parse(void);
@@ -931,3 +941,5 @@ private:
 	unsigned char c1;
 	int len;
 };
+
+#endif
