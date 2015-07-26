@@ -314,10 +314,16 @@ PTFFormat::parse(void) {
 				}
 				std::string filename = string(name) + ".wav";
 				files_t f = { 
-						filename,
-						(int64_t)sampleoffset,
-						(int64_t)start,
-						(int64_t)length
+					filename,
+					(int64_t)sampleoffset,
+					(int64_t)start,
+					(int64_t)length
+				};
+				files_t r = {
+					name,
+					(int64_t)sampleoffset,
+					(int64_t)length,
+					(int64_t)start,
 				};
 				vector<files_t>::iterator begin = this->actualwavs.begin();
 				vector<files_t>::iterator finish = this->actualwavs.end();
@@ -325,7 +331,7 @@ PTFFormat::parse(void) {
 				if (std::find(begin, finish, f) != finish) {
 					this->audiofiles.push_back(f);
 				} else {
-					this->othertracks.push_back(f);
+					this->regions.push_back(r);
 				}
 			}
 		}
@@ -338,11 +344,11 @@ PTFFormat::parse(void) {
 		}	
 		k++;
 	}
-	//  Number of other tracks
+	//  Regions
 	uint32_t offset;
 	for (vector<files_t>::iterator of = 
-			this->othertracks.begin();
-			of != this->othertracks.end();) {
+			this->regions.begin();
+			of != this->regions.end();) {
 
 		if (	(ptfunxored[k  ] == 0x5a) &&
 			(ptfunxored[k+1] == 0x07)) {

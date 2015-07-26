@@ -934,11 +934,11 @@ public:
 
 
 	std::vector<files_t> audiofiles;
-	std::vector<files_t> othertracks;
-	std::vector<files_t> actualwavs;
+	std::vector<files_t> regions;
 
 private:
 	void parse(void);
+	std::vector<files_t> actualwavs;
 	unsigned char *ptfunxored;
 	unsigned char c0;
 	unsigned char c1;
