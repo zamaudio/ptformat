@@ -39,20 +39,36 @@ int main (int argc, char **argv) {
 			for (vector<PTFFormat::wav_t>::iterator
 					a = ptf.audiofiles.begin();
 					a != ptf.audiofiles.end(); ++a) {
-				//printf("%s @ 0x%08x + 0x%08x, len=0x%08x\n", a->filename.c_str(),
-				printf("%s @ %lu, len=%lu\n", a->filename.c_str(),
-					a->posabsolute, a->length);
+				//printf("%s @ %lu, len=%lu\n", a->filename.c_str(),
+				printf("%d %s @ 0x%08x, len=0x%08x\n",
+					a->index,
+					a->filename.c_str(),
+					a->posabsolute,
+					a->length);
 			}
-			printf("\nRegion (WAV file) @ absolute + into-sample, length:\n");
+			
+			printf("\nRegion (WAV file) @ into-sample, length:\n");
 			for (vector<PTFFormat::region_t>::iterator
 					a = ptf.regions.begin();
 					a != ptf.regions.end(); ++a) {
-				//printf("%s @ 0x%08x + 0x%08x, len=0x%08x\n", a->filename.c_str(),
-				printf("%s (%s) @ %lu + %lu, len=%lu\n", a->name.c_str(),
-					a->wave.filename.c_str(),
-					a->wave.posabsolute,
-					a->wave.sampleoffset,
-					a->wave.length);
+				//printf("%s (%s) @ %lu + %lu, len=%lu\n", a->name.c_str(),
+				printf("%d %s (%d) @ 0x%08x, len=0x%08x\n",
+					a->index,
+					a->name.c_str(),
+					a->wave.index,
+					a->sampleoffset,
+					a->length);
+			}
+
+			printf("\nTrack (region#) @ absolute:\n");
+			for (vector<PTFFormat::track_t>::iterator
+					a = ptf.tracks.begin();
+					a != ptf.tracks.end(); ++a) {
+				//printf("%s (%s) @ %lu + %lu, len=%lu\n", a->name.c_str(),
+				printf("%s (%d) @ 0x%08x\n",
+					a->name.c_str(),
+					a->reg.index,
+					a->startpos);
 			}
 		} else {
 			printf("No audio files in session, quit\n");

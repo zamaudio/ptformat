@@ -925,8 +925,9 @@ public:
 
 	typedef struct wav {
 		std::string filename;
+		uint8_t     index;
+
 		int64_t     posabsolute;
-		int64_t     sampleoffset;
 		int64_t     length;
 
 		bool operator ==(const struct wav& other) {
@@ -937,11 +938,21 @@ public:
 
 	typedef struct region {
 		std::string name;
-		wav_t wave;
+		uint8_t     index;
+		int64_t     sampleoffset;
+		int64_t     length;
+		wav_t       wave;
 	} region_t;
 
+	typedef struct track {
+		std::string name;
+		int64_t     startpos;
+		region_t    reg;
+	} track_t;
+		
 	std::vector<wav_t> audiofiles;
 	std::vector<region_t> regions;
+	std::vector<track_t> tracks;
 
 private:
 	void parse(void);
