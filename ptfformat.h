@@ -17,6 +17,7 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <string.h>
 #include <string>
 #include <cstring>
 #include <algorithm>
@@ -922,23 +923,29 @@ public:
 	*/
 	int load(std::string path);
 
-	typedef struct files {
+	typedef struct wav {
 		std::string filename;
 		int64_t     posabsolute;
-		int64_t     length;
 		int64_t     sampleoffset;
-		bool operator ==(const struct files& other) {
+		int64_t     length;
+
+		bool operator ==(const struct wav& other) {
 			return (this->filename == other.filename);
 		}
-	} files_t;
 
+	} wav_t;
 
-	std::vector<files_t> audiofiles;
-	std::vector<files_t> regions;
+	typedef struct region {
+		std::string name;
+		wav_t wave;
+	} region_t;
+
+	std::vector<wav_t> audiofiles;
+	std::vector<region_t> regions;
 
 private:
 	void parse(void);
-	std::vector<files_t> actualwavs;
+	std::vector<wav_t> actualwavs;
 	unsigned char *ptfunxored;
 	unsigned char c0;
 	unsigned char c1;

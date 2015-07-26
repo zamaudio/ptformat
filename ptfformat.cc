@@ -232,9 +232,9 @@ PTFFormat::parse(void) {
 				j--;
 			}
 			wavname[l] = 0;
-			std::string wav = string(wavname);
-			std::reverse(wav.begin(), wav.end());
-			files_t f = { wav, (int64_t)0 };
+			std::string wave = string(wavname);
+			std::reverse(wave.begin(), wave.end());
+			wav_t f = { wave, 0, 0, 0 };
 			actualwavs.push_back(f);
 		}
 	}
@@ -313,24 +313,37 @@ PTFFormat::parse(void) {
 					break;
 				}
 				std::string filename = string(name) + ".wav";
-				files_t f = { 
+				wav_t f = { 
 					filename,
-					(int64_t)sampleoffset,
 					(int64_t)start,
-					(int64_t)length
-				};
-				files_t r = {
-					name,
 					(int64_t)sampleoffset,
 					(int64_t)length,
-					(int64_t)start,
 				};
-				vector<files_t>::iterator begin = this->actualwavs.begin();
-				vector<files_t>::iterator finish = this->actualwavs.end();
+
+				vector<wav_t>::iterator begin = this->actualwavs.begin();
+				vector<wav_t>::iterator finish = this->actualwavs.end();
 				// Add file to list only if it is an actual wav
 				if (std::find(begin, finish, f) != finish) {
+					f.filename = string(f.filename);
+					int64_t tmp = f.posabsolute;
+					f.posabsolute = f.length;
+					f.length = tmp;
 					this->audiofiles.push_back(f);
 				} else {
+					char str2[256] = {0};
+					char *pch;
+					char *str = &filename[0];
+					pch = strrchr(str, '-');
+					if (pch == 0) {
+						continue;
+					}
+					strncpy(str2, str, pch - str);
+					string regionaudiofile = string(str2) + ".wav";
+					f.filename = regionaudiofile;
+					region_t r = {
+						name,
+						f
+					};
 					this->regions.push_back(r);
 				}
 			}
@@ -346,7 +359,7 @@ PTFFormat::parse(void) {
 	}
 	//  Regions
 	uint32_t offset;
-	for (vector<files_t>::iterator of = 
+	for (vector<region_t>::iterator of = 
 			this->regions.begin();
 			of != this->regions.end();) {
 
@@ -371,7 +384,7 @@ PTFFormat::parse(void) {
 			default:
 				break;
 			}
-			of->posabsolute = (uint32_t)offset;
+			of->wave.posabsolute = (uint32_t)offset;
 			of++;
 		}
 		k++;
