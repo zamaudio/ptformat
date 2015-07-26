@@ -35,7 +35,7 @@ int main (int argc, char **argv) {
 		break;
 	case 0:
 		if (ptf.audiofiles.size() > 0) {
-			printf("Audio file @ offset:\n");
+			printf("Audio file recorded @ offset:\n");
 			for (vector<PTFFormat::files_t>::iterator
 					a = ptf.audiofiles.begin();
 					a != ptf.audiofiles.end(); ++a) {
@@ -43,7 +43,7 @@ int main (int argc, char **argv) {
 				printf("%s @ %lu, len=%lu\n", a->filename.c_str(),
 					a->posabsolute, a->length);
 			}
-			printf("\nOther track @ offset:\n");
+			printf("\nRegion @ absolute + inter-sample, length:\n");
 			for (vector<PTFFormat::files_t>::iterator
 					a = ptf.othertracks.begin();
 					a != ptf.othertracks.end(); ++a) {
