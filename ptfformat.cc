@@ -450,12 +450,18 @@ PTFFormat::parse(void) {
 			
 			tr.name = string(name);
 
-			j = k+16;
 
 			//offset
 			offset = 0;
-			startbytes = (ptfunxored[k+3] & 0xf0) >> 4;
+			for (l = k; l < len; l++) {
+				if (	(ptfunxored[l  ] == 0x5a) &&
+					(ptfunxored[l+1] == 0x07)) {
+					break;
+				}
+			}
+			startbytes = (ptfunxored[l+3] & 0xf0) >> 4;
 
+			j = l+16;
 			switch (startbytes) {
 			case 4:
 				offset |= (uint32_t)(ptfunxored[j+3] << 24);
