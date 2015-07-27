@@ -218,6 +218,8 @@ PTFFormat::parse(void) {
 	l = 0;
 
 	// Find actual wav names
+	bool first = true;
+	uint32_t numberofwavs;
 	char wavname[256];
 	for (i = k; i > 4; i--) {
 		if (		(ptfunxored[i  ] == 'W') &&
@@ -232,15 +234,39 @@ PTFFormat::parse(void) {
 				j--;
 			}
 			wavname[l] = 0;
-			uint8_t playlist = ptfunxored[j-2];
+			uint8_t playlist = ptfunxored[j-8];
+
+			if (first) {
+				first = false;
+				for (j = k; j > 4; j--) {
+					if (	(ptfunxored[j  ] == 0x01) &&
+						(ptfunxored[j-1] == 0x5a)) {
+					
+					
+						numberofwavs = 0;
+						numberofwavs |= (uint32_t)(ptfunxored[j-2] << 24);
+						numberofwavs |= (uint32_t)(ptfunxored[j-3] << 16);
+						numberofwavs |= (uint32_t)(ptfunxored[j-4] << 8);
+						numberofwavs |= (uint32_t)(ptfunxored[j-5]);
+						printf("%d wavs\n", numberofwavs);
+						break;
+					}
+				k--;
+				}
+			}
 
 			std::string wave = string(wavname);
 			std::reverse(wave.begin(), wave.end());
-			wav_t f = { wave, playlist, 0 };
+			wav_t f = { wave, numberofwavs - 1, 0 };
 			actualwavs.push_back(f);
+
+			numberofwavs--;
+			if (numberofwavs <= 0)
+				break;
 		}
 	}
 
+	// Find Regions
 	uint8_t startbytes = 0;
 	uint8_t lengthbytes = 0;
 	uint8_t offsetbytes = 0;
@@ -258,8 +284,9 @@ PTFFormat::parse(void) {
 		k++;
 	}
 	uint8_t numberofregions = 0;
-	bool first = true;
+	first = true;
 	uint32_t rindex = 0;
+	uint32_t findex = 0;
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
 				(ptfunxored[i+1] == 0x0c) &&
@@ -267,6 +294,7 @@ PTFFormat::parse(void) {
 			if (first == true) {
 				first = false;
 				numberofregions = ptfunxored[i-32];
+				printf("%d regions\n",numberofregions);
 			}
 
 			uint8_t lengthofname = ptfunxored[i+9];
@@ -284,14 +312,13 @@ PTFFormat::parse(void) {
 			lengthbytes = (ptfunxored[j+3] & 0xf0) >> 4;
 			offsetbytes = (ptfunxored[j+3] & 0xf);
 			skipbytes = ptfunxored[j+4];
-			index = ptfunxored[j+5
+			findex = ptfunxored[j+5
 					+somethingbytes
 					+lengthbytes
 					+startbytes
 					+offsetbytes
 					+skipbytes
 					+40];
-			
 			uint32_t start = 0;
 			switch (startbytes) {
 			case 4:
@@ -337,17 +364,30 @@ PTFFormat::parse(void) {
 			std::string filename = string(name) + ".wav";
 			wav_t f = { 
 				filename,
-				index,
+				0,
 				(int64_t)length,
 				(int64_t)start,
 			};
 
 			vector<wav_t>::iterator begin = this->actualwavs.begin();
 			vector<wav_t>::iterator finish = this->actualwavs.end();
+			vector<wav_t>::iterator found;
 			// Add file to list only if it is an actual wav
-			if (std::find(begin, finish, f) != finish) {
+			if ((found = std::find(begin, finish, f)) != finish) {
+				f.index = (*found).index;
 				this->audiofiles.push_back(f);
+				// Also add plain wav as region
+				region_t r = {
+					name,
+					rindex,
+					sampleoffset,
+					f.length,
+					f
+				};
+				this->regions.push_back(r);
+			// Region only
 			} else {
+				f.index = findex;
 				region_t r = {
 					name,
 					rindex,
@@ -381,10 +421,9 @@ PTFFormat::parse(void) {
 
 			if (first) {
 				for (j = k-1; j > 0; j--) {
-					if (	(ptfunxored[j  ] == 0xff) &&
-						(ptfunxored[j+1] == 0x5a) &&
-						(ptfunxored[j+2] == 0x01)) {
-						numberoftracks = ptfunxored[j+4];
+					if (	(ptfunxored[j  ] == 0x5a) &&
+						(ptfunxored[j+1] == 0x02)) {
+						numberoftracks = ptfunxored[j-4];
 					}
 				}
 				first = false;
