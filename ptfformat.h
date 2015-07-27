@@ -925,7 +925,7 @@ public:
 
 	typedef struct wav {
 		std::string filename;
-		uint8_t     index;
+		uint16_t    index;
 
 		int64_t     posabsolute;
 		int64_t     length;
@@ -938,7 +938,7 @@ public:
 
 	typedef struct region {
 		std::string name;
-		uint8_t     index;
+		uint16_t    index;
 		int64_t     sampleoffset;
 		int64_t     length;
 		wav_t       wave;

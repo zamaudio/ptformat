@@ -248,7 +248,7 @@ PTFFormat::parse(void) {
 						numberofwavs |= (uint32_t)(ptfunxored[j-3] << 16);
 						numberofwavs |= (uint32_t)(ptfunxored[j-4] << 8);
 						numberofwavs |= (uint32_t)(ptfunxored[j-5]);
-						printf("%d wavs\n", numberofwavs);
+						//printf("%d wavs\n", numberofwavs);
 						break;
 					}
 				k--;
@@ -272,7 +272,7 @@ PTFFormat::parse(void) {
 	uint8_t offsetbytes = 0;
 	uint8_t somethingbytes = 0;
 	uint8_t skipbytes = 0;
-	uint8_t index = 0;
+	uint32_t index = 0;
 
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 'S') &&
@@ -283,7 +283,7 @@ PTFFormat::parse(void) {
 		}	
 		k++;
 	}
-	uint8_t numberofregions = 0;
+	uint32_t numberofregions = 0;
 	first = true;
 	uint32_t rindex = 0;
 	uint32_t findex = 0;
@@ -294,7 +294,7 @@ PTFFormat::parse(void) {
 			if (first == true) {
 				first = false;
 				numberofregions = ptfunxored[i-32];
-				printf("%d regions\n",numberofregions);
+				//printf("%d regions\n",numberofregions);
 			}
 
 			uint8_t lengthofname = ptfunxored[i+9];
@@ -403,41 +403,49 @@ PTFFormat::parse(void) {
 		}
 	}
 	
+	uint8_t numberoftracks = 0;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x06)) {
-			break;
+				(ptfunxored[k+1] == 0x03)) {
+				break;
 		}	
 		k++;
 	}
-	
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x02)) {
+				break;
+		}	
+		k++;
+	}
+	k++;
+
 	//  Tracks
 	uint32_t offset;
-	first = true;
-	uint8_t numberoftracks = 0;
+	uint32_t tracknumber = 0;
 	for (;k < len; k++) {
 		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x07)) {
-
-			if (first) {
-				for (j = k-1; j > 0; j--) {
-					if (	(ptfunxored[j  ] == 0x5a) &&
-						(ptfunxored[j+1] == 0x02)) {
-						numberoftracks = ptfunxored[j-4];
-					}
-				}
-				first = false;
+			(ptfunxored[k+1] == 0x04)) {
+			break;
+		}
+		if (	(ptfunxored[k  ] == 0x5a) &&
+			(ptfunxored[k+1] == 0x02)) {
+			
+			uint8_t lengthofname = 0;
+			lengthofname = ptfunxored[k+9];
+			if (lengthofname == 0) {
+				continue;
 			}
-
 			track_t tr;
-			tr.reg.index = ptfunxored[k+11];
+			tr.reg.index = 0;
+			//tr.reg.index |= (uint16_t)(ptfunxored[k+39] << 8);
+			tr.reg.index |= (uint16_t)(ptfunxored[k+38]);
 
-			uint8_t lengthofname = ptfunxored[k-18];
 			char name[256] = {0};
-			for (j = 0; j < lengthofname; j++) {
-				name[j] = ptfunxored[k-14+j];
+			for (l = 0; l < lengthofname; l++) {
+				name[l] = ptfunxored[l+k+13];
 			}
-			name[j] = '\0';
+			name[l] = '\0';
 			
 			tr.name = string(name);
 
@@ -461,11 +469,10 @@ PTFFormat::parse(void) {
 			}
 			tr.startpos = (uint32_t)offset;
 			this->tracks.push_back(tr);
-			numberoftracks--;
-			if (numberoftracks == 0) break;
+			tracknumber++;
 		}
 	}
-
+/*
 	k = 0;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0x5a) &&
@@ -483,5 +490,5 @@ PTFFormat::parse(void) {
 			//printf("r=%d\n", regionnumber);
 		}
 	}
-
+*/
 }

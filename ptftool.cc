@@ -35,7 +35,12 @@ int main (int argc, char **argv) {
 		break;
 	case 0:
 		if (ptf.audiofiles.size() > 0) {
-			printf("Audio file recorded @ offset, length:\n");
+			printf("%d wavs, %d regions, %d tracks\n\n",
+				ptf.audiofiles.size(),
+				ptf.regions.size(),
+				ptf.tracks.size()
+				);
+			printf("Audio file @ offset, length:\n");
 			for (vector<PTFFormat::wav_t>::iterator
 					a = ptf.audiofiles.begin();
 					a != ptf.audiofiles.end(); ++a) {
