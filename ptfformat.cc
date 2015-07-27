@@ -437,9 +437,8 @@ PTFFormat::parse(void) {
 				continue;
 			}
 			track_t tr;
-			tr.reg.index = 0;
-			//tr.reg.index |= (uint16_t)(ptfunxored[k+39] << 8);
-			tr.reg.index |= (uint16_t)(ptfunxored[k+38]);
+			tr.playlist = 0;
+			tr.playlist |= (uint8_t)(ptfunxored[k+13+lengthofname]);
 
 			char name[256] = {0};
 			for (l = 0; l < lengthofname; l++) {
