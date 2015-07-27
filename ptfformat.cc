@@ -202,8 +202,21 @@ PTFFormat::parse(void) {
 	int l;
 	int type;
 
-	// Find end of wav file list
+	// Find session sample rate
 	k = 0;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x05)) {
+			break;
+		}	
+		k++;
+	}
+	this->sessionrate = 0;
+	this->sessionrate |= ptfunxored[k+11];
+	this->sessionrate |= ptfunxored[k+12] << 8;
+	this->sessionrate |= ptfunxored[k+13] << 16;
+
+	// Find end of wav file list
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0xff) &&
 				(ptfunxored[k+1] == 0xff) &&
@@ -479,7 +492,7 @@ PTFFormat::parse(void) {
 			tracknumber++;
 		}
 	}
-/*
+	
 	k = 0;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0x5a) &&
@@ -492,10 +505,10 @@ PTFFormat::parse(void) {
 	uint8_t regionnumber = 0;
 	for (;k < len; k++) {
 		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x03)) {
-			regionnumber = ptfunxored[k+30];
+			(ptfunxored[k+1] == 0x05)) {
+			int length = ptfunxored[k+9];
+			regionnumber = (ptfunxored[k+13+length+9]);
 			//printf("r=%d\n", regionnumber);
 		}
 	}
-*/
 }

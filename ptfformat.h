@@ -955,6 +955,8 @@ public:
 	std::vector<region_t> regions;
 	std::vector<track_t> tracks;
 
+	uint32_t sessionrate;
+
 private:
 	void parse(void);
 	std::vector<wav_t> actualwavs;
