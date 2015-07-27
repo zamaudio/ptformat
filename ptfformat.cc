@@ -433,12 +433,14 @@ PTFFormat::parse(void) {
 			
 			uint8_t lengthofname = 0;
 			lengthofname = ptfunxored[k+9];
-			if (lengthofname == 0) {
+			if (lengthofname == 0x5a) {
 				continue;
 			}
 			track_t tr;
 			tr.playlist = 0;
 			tr.playlist |= (uint8_t)(ptfunxored[k+13+lengthofname]);
+			tr.reg.index = (uint8_t)(ptfunxored[k+13+lengthofname+2]);
+			
 
 			char name[256] = {0};
 			for (l = 0; l < lengthofname; l++) {
