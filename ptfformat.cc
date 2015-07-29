@@ -332,14 +332,14 @@ PTFFormat::parse(void) {
 					+somethingbytes
 					+skipbytes
 					+40];
-			rindex = ptfunxored[j+5
+			/*rindex = ptfunxored[j+5
 					+startbytes
 					+lengthbytes
 					+offsetbytes
 					+somethingbytes
 					+skipbytes
 					+24];
-
+			*/
 			uint32_t start = 0;
 			switch (startbytes) {
 			case 4:
@@ -432,7 +432,7 @@ PTFFormat::parse(void) {
 				};
 				this->regions.push_back(r);
 			}
-			//rindex++;
+			rindex++;
 			numberofregions--;
 			if (numberofregions <= 0) break;
 		}
