@@ -326,12 +326,20 @@ PTFFormat::parse(void) {
 			offsetbytes = (ptfunxored[j+3] & 0xf);
 			skipbytes = ptfunxored[j+4];
 			findex = ptfunxored[j+5
-					+somethingbytes
-					+lengthbytes
 					+startbytes
+					+lengthbytes
 					+offsetbytes
+					+somethingbytes
 					+skipbytes
 					+40];
+			rindex = ptfunxored[j+5
+					+startbytes
+					+lengthbytes
+					+offsetbytes
+					+somethingbytes
+					+skipbytes
+					+24];
+
 			uint32_t start = 0;
 			switch (startbytes) {
 			case 4:
@@ -374,6 +382,20 @@ PTFFormat::parse(void) {
 				break;
 			}
 			j+=lengthbytes;
+			uint32_t something = 0;
+			switch (somethingbytes) {
+			case 4:
+				something |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				something |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				something |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				something |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=somethingbytes;
 			std::string filename = string(name) + ".wav";
 			wav_t f = { 
 				filename,
@@ -381,13 +403,14 @@ PTFFormat::parse(void) {
 				(int64_t)length,
 				(int64_t)start,
 			};
+			
+			f.index = findex;
 
 			vector<wav_t>::iterator begin = this->actualwavs.begin();
 			vector<wav_t>::iterator finish = this->actualwavs.end();
 			vector<wav_t>::iterator found;
 			// Add file to list only if it is an actual wav
 			if ((found = std::find(begin, finish, f)) != finish) {
-				f.index = (*found).index;
 				this->audiofiles.push_back(f);
 				// Also add plain wav as region
 				region_t r = {
@@ -400,7 +423,6 @@ PTFFormat::parse(void) {
 				this->regions.push_back(r);
 			// Region only
 			} else {
-				f.index = findex;
 				region_t r = {
 					name,
 					rindex,
@@ -410,7 +432,7 @@ PTFFormat::parse(void) {
 				};
 				this->regions.push_back(r);
 			}
-			rindex++;
+			//rindex++;
 			numberofregions--;
 			if (numberofregions <= 0) break;
 		}
@@ -452,17 +474,13 @@ PTFFormat::parse(void) {
 			track_t tr;
 			tr.playlist = 0;
 			tr.playlist |= (uint8_t)(ptfunxored[k+13+lengthofname]);
-			tr.reg.index = (uint8_t)(ptfunxored[k+13+lengthofname+2]);
 			
-
 			char name[256] = {0};
 			for (l = 0; l < lengthofname; l++) {
 				name[l] = ptfunxored[l+k+13];
 			}
 			name[l] = '\0';
-			
 			tr.name = string(name);
-
 
 			//offset
 			offset = 0;
@@ -472,24 +490,30 @@ PTFFormat::parse(void) {
 					break;
 				}
 			}
-			startbytes = (ptfunxored[l+3] & 0xf0) >> 4;
+			if (tr.playlist == 0) {
+				//tr.index = (uint8_t)ptfunxored[k+13+lengthofname+5];
+			} else {
+				tr.reg.index = (uint8_t)(ptfunxored[l+11]);
 
-			j = l+16;
-			switch (startbytes) {
-			case 4:
-				offset |= (uint32_t)(ptfunxored[j+3] << 24);
-			case 3:
-				offset |= (uint32_t)(ptfunxored[j+2] << 16);
-			case 2:
-				offset |= (uint32_t)(ptfunxored[j+1] << 8);
-			case 1:
-				offset |= (uint32_t)(ptfunxored[j]);
-			default:
-				break;
+				startbytes = (ptfunxored[l+3] & 0xf0) >> 4;
+
+				j = l+16;
+				switch (startbytes) {
+				case 4:
+					offset |= (uint32_t)(ptfunxored[j+3] << 24);
+				case 3:
+					offset |= (uint32_t)(ptfunxored[j+2] << 16);
+				case 2:
+					offset |= (uint32_t)(ptfunxored[j+1] << 8);
+				case 1:
+					offset |= (uint32_t)(ptfunxored[j]);
+				default:
+					break;
+				}
+				tr.startpos = (uint32_t)offset;
+				this->tracks.push_back(tr);
+				tracknumber++;
 			}
-			tr.startpos = (uint32_t)offset;
-			this->tracks.push_back(tr);
-			tracknumber++;
 		}
 	}
 	

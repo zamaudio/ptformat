@@ -946,6 +946,7 @@ public:
 
 	typedef struct track {
 		std::string name;
+		uint16_t    index;
 		uint8_t     playlist;
 		int64_t     startpos;
 		region_t    reg;
