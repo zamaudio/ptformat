@@ -25,6 +25,16 @@ PTFFormat::~PTFFormat() {
 	}
 }
 
+bool
+PTFFormat::foundin(std::string haystack, std::string needle) {
+	size_t found = haystack.find(needle);
+	if (found != std::string::npos) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 /* Return values:	0            success
 			0x01 to 0xff value of missing lut
 			-1           could not open file as ptf
@@ -302,13 +312,11 @@ PTFFormat::parse(void) {
 	uint32_t findex = 0;
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x0c) &&
-				(ptfunxored[i+2] == 0x00)) {
-			if (first == true) {
-				first = false;
-				numberofregions = ptfunxored[i-32];
-				//printf("%d regions\n",numberofregions);
-			}
+				(ptfunxored[i+1] == 0x0a)) {
+				break;
+		}
+		if (		(ptfunxored[i  ] == 0x5a) &&
+				(ptfunxored[i+1] == 0x0c)) {
 
 			uint8_t lengthofname = ptfunxored[i+9];
 			
@@ -423,6 +431,9 @@ PTFFormat::parse(void) {
 				this->regions.push_back(r);
 			// Region only
 			} else {
+				if (foundin(filename, string(".grp"))) {
+					continue;
+				}
 				region_t r = {
 					name,
 					rindex,
@@ -433,8 +444,6 @@ PTFFormat::parse(void) {
 				this->regions.push_back(r);
 			}
 			rindex++;
-			numberofregions--;
-			if (numberofregions <= 0) break;
 		}
 	}
 	
@@ -491,7 +500,7 @@ PTFFormat::parse(void) {
 				}
 			}
 			if (tr.playlist == 0) {
-				//tr.index = (uint8_t)ptfunxored[k+13+lengthofname+5];
+			//	tr.reg.index = (uint8_t)ptfunxored[k+13+lengthofname+5];
 			} else {
 				tr.reg.index = (uint8_t)(ptfunxored[l+11]);
 

@@ -959,6 +959,7 @@ public:
 	uint32_t sessionrate;
 
 private:
+	bool foundin(std::string haystack, std::string needle);
 	void parse(void);
 	std::vector<wav_t> actualwavs;
 	unsigned char *ptfunxored;
