@@ -36,7 +36,7 @@ int main (int argc, char **argv) {
 	case 0:
 		printf("PT8 Session: Samplerate = %dHz\n\n", ptf.sessionrate);
 		if (ptf.audiofiles.size() > 0) {
-			printf("%d wavs, %d regions, %d tracks\n\n",
+			printf("%d wavs, %d regions, %d active regions\n\n",
 				ptf.audiofiles.size(),
 				ptf.regions.size(),
 				ptf.tracks.size()
@@ -66,15 +66,14 @@ int main (int argc, char **argv) {
 					a->length);
 			}
 
-			printf("\nTrack name (Track#) (Playlist#) (Region#) @ Absolute:\n");
+			printf("\nTrack name (Track#) (Region#) @ Absolute:\n");
 			for (vector<PTFFormat::track_t>::iterator
 					a = ptf.tracks.begin();
 					a != ptf.tracks.end(); ++a) {
 				//printf("%s (%s) @ %lu + %lu, len=%lu\n", a->name.c_str(),
-				printf("`%s` t(%d) p(%d) r(%d) @ 0x%08x\n",
+				printf("`%s` t(%d) r(%d) @ 0x%08x\n",
 					a->name.c_str(),
 					a->index,
-					a->playlist,
 					a->reg.index,
 					a->reg.startpos);
 			}
