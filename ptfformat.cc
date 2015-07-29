@@ -488,7 +488,7 @@ PTFFormat::parse(void) {
 
 			regionspertrack = (uint8_t)(ptfunxored[k+13+lengthofname]);
 	
-			printf("regions/track=%d\n", regionspertrack);
+			//printf("regions/track=%d\n", regionspertrack);
 			char name[256] = {0};
 			for (j = 0; j < lengthofname; j++) {
 				name[j] = ptfunxored[j+k+13];
