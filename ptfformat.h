@@ -931,7 +931,7 @@ public:
 		int64_t     length;
 
 		bool operator ==(const struct wav& other) {
-			return (this->filename == other.filename);
+			return (this->index == other.index);
 		}
 
 	} wav_t;
@@ -939,16 +939,20 @@ public:
 	typedef struct region {
 		std::string name;
 		uint16_t    index;
+		int64_t     startpos;
 		int64_t     sampleoffset;
 		int64_t     length;
 		wav_t       wave;
+		
+		bool operator ==(const struct region& other) {
+			return (this->index == other.index);
+		}
 	} region_t;
 
 	typedef struct track {
 		std::string name;
 		uint16_t    index;
 		uint8_t     playlist;
-		int64_t     startpos;
 		region_t    reg;
 	} track_t;
 		

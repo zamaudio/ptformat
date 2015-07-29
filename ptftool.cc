@@ -66,16 +66,17 @@ int main (int argc, char **argv) {
 					a->length);
 			}
 
-			printf("\nTrack name (Playlist#) (Region#) @ Absolute:\n");
+			printf("\nTrack name (Track#) (Playlist#) (Region#) @ Absolute:\n");
 			for (vector<PTFFormat::track_t>::iterator
 					a = ptf.tracks.begin();
 					a != ptf.tracks.end(); ++a) {
 				//printf("%s (%s) @ %lu + %lu, len=%lu\n", a->name.c_str(),
-				printf("`%s` p(%d) r(%d) @ 0x%08x\n",
+				printf("`%s` t(%d) p(%d) r(%d) @ 0x%08x\n",
 					a->name.c_str(),
+					a->index,
 					a->playlist,
 					a->reg.index,
-					a->startpos);
+					a->reg.startpos);
 			}
 		} else {
 			printf("No audio files in session, quit\n");

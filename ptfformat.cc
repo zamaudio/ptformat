@@ -425,6 +425,7 @@ PTFFormat::parse(void) {
 				region_t r = {
 					name,
 					rindex,
+					0,
 					sampleoffset,
 					f.length,
 					f
@@ -438,6 +439,7 @@ PTFFormat::parse(void) {
 				region_t r = {
 					name,
 					rindex,
+					0,
 					length,
 					sampleoffset,
 					f
@@ -468,6 +470,7 @@ PTFFormat::parse(void) {
 	//  Tracks
 	uint32_t offset;
 	uint32_t tracknumber = 0;
+	uint32_t regionspertrack = 0;
 	for (;k < len; k++) {
 		if (	(ptfunxored[k  ] == 0x5a) &&
 			(ptfunxored[k+1] == 0x04)) {
@@ -482,47 +485,60 @@ PTFFormat::parse(void) {
 				continue;
 			}
 			track_t tr;
-			tr.playlist = 0;
-			tr.playlist |= (uint8_t)(ptfunxored[k+13+lengthofname]);
-			
+
+			regionspertrack = (uint8_t)(ptfunxored[k+13+lengthofname]);
+	
+			printf("regions/track=%d\n", regionspertrack);
 			char name[256] = {0};
-			for (l = 0; l < lengthofname; l++) {
-				name[l] = ptfunxored[l+k+13];
+			for (j = 0; j < lengthofname; j++) {
+				name[j] = ptfunxored[j+k+13];
 			}
-			name[l] = '\0';
+			name[j] = '\0';
 			tr.name = string(name);
+			tr.index++;
 
-			//offset
-			offset = 0;
-			for (l = k; l < len; l++) {
-				if (	(ptfunxored[l  ] == 0x5a) &&
-					(ptfunxored[l+1] == 0x07)) {
-					break;
+			for (j = k; regionspertrack > 0 && j < len; j++) {
+				for (l = j; l < len; l++) {
+					if (	(ptfunxored[l  ] == 0x5a) &&
+						(ptfunxored[l+1] == 0x07)) {
+						j = l;
+						break;
+					}
 				}
-			}
-			if (tr.playlist == 0) {
-			//	tr.reg.index = (uint8_t)ptfunxored[k+13+lengthofname+5];
-			} else {
-				tr.reg.index = (uint8_t)(ptfunxored[l+11]);
+				
 
-				startbytes = (ptfunxored[l+3] & 0xf0) >> 4;
-
-				j = l+16;
-				switch (startbytes) {
-				case 4:
-					offset |= (uint32_t)(ptfunxored[j+3] << 24);
-				case 3:
-					offset |= (uint32_t)(ptfunxored[j+2] << 16);
-				case 2:
-					offset |= (uint32_t)(ptfunxored[j+1] << 8);
-				case 1:
-					offset |= (uint32_t)(ptfunxored[j]);
-				default:
+				if (regionspertrack == 0) {
+				//	tr.reg.index = (uint8_t)ptfunxored[j+13+lengthofname+5];
 					break;
+				} else {
+
+					tr.reg.index = (uint8_t)(ptfunxored[l+11]);
+					vector<region_t>::iterator begin = this->regions.begin();
+					vector<region_t>::iterator finish = this->regions.end();
+					vector<region_t>::iterator found;
+					if ((found = std::find(begin, finish, tr.reg)) != finish) {
+						tr.reg = (*found);
+					}
+					startbytes = (ptfunxored[l+3] & 0xf0) >> 4;
+
+					i = l+16;
+					offset = 0;
+					switch (startbytes) {
+					case 4:
+						offset |= (uint32_t)(ptfunxored[i+3] << 24);
+					case 3:
+						offset |= (uint32_t)(ptfunxored[i+2] << 16);
+					case 2:
+						offset |= (uint32_t)(ptfunxored[i+1] << 8);
+					case 1:
+						offset |= (uint32_t)(ptfunxored[i]);
+					default:
+						break;
+					}
+					tr.reg.startpos = (int64_t)offset;
+					this->tracks.push_back(tr);
+					regionspertrack--;
 				}
-				tr.startpos = (uint32_t)offset;
-				this->tracks.push_back(tr);
-				tracknumber++;
 			}
 		}
 	}
