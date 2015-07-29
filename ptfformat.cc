@@ -348,6 +348,20 @@ PTFFormat::parse(void) {
 					+skipbytes
 					+24];
 			*/
+			uint32_t something = 0;
+			switch (somethingbytes) {
+			case 4:
+				something |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				something |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				something |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				something |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=somethingbytes;
 			uint32_t start = 0;
 			switch (startbytes) {
 			case 4:
@@ -390,20 +404,6 @@ PTFFormat::parse(void) {
 				break;
 			}
 			j+=lengthbytes;
-			uint32_t something = 0;
-			switch (somethingbytes) {
-			case 4:
-				something |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				something |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				something |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				something |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=somethingbytes;
 			std::string filename = string(name) + ".wav";
 			wav_t f = { 
 				filename,
@@ -413,6 +413,7 @@ PTFFormat::parse(void) {
 			};
 			
 			f.index = findex;
+			//printf("something=%08x\n", something);
 
 			vector<wav_t>::iterator begin = this->actualwavs.begin();
 			vector<wav_t>::iterator finish = this->actualwavs.end();
