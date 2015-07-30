@@ -495,7 +495,7 @@ PTFFormat::parse(void) {
 			}
 			name[j] = '\0';
 			tr.name = string(name);
-			tr.index++;
+			tr.index = tracknumber++;
 
 			for (j = k; regionspertrack > 0 && j < len; j++) {
 				for (l = j; l < len; l++) {
