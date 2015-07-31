@@ -281,6 +281,11 @@ PTFFormat::parse(void) {
 			std::string wave = string(wavname);
 			std::reverse(wave.begin(), wave.end());
 			wav_t f = { wave, numberofwavs - 1, 0 };
+
+			if (foundin(wave, string(".grp"))) {
+				continue;
+			}
+
 			actualwavs.push_back(f);
 
 			numberofwavs--;
