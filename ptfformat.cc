@@ -351,20 +351,6 @@ PTFFormat::parse(void) {
 					+skipbytes
 					+24];
 			*/
-			uint32_t something = 0;
-			switch (somethingbytes) {
-			case 4:
-				something |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				something |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				something |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				something |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=somethingbytes;
 			uint32_t start = 0;
 			switch (startbytes) {
 			case 4:
@@ -407,6 +393,20 @@ PTFFormat::parse(void) {
 				break;
 			}
 			j+=lengthbytes;
+			uint32_t something = 0;
+			switch (somethingbytes) {
+			case 4:
+				something |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				something |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				something |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				something |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=somethingbytes;
 			std::string filename = string(name) + ".wav";
 			wav_t f = { 
 				filename,
@@ -429,8 +429,8 @@ PTFFormat::parse(void) {
 					name,
 					rindex,
 					0,
+					start,
 					sampleoffset,
-					f.length,
 					f
 				};
 				this->regions.push_back(r);
@@ -444,7 +444,7 @@ PTFFormat::parse(void) {
 					rindex,
 					0,
 					length,
-					sampleoffset,
+					start,
 					f
 				};
 				this->regions.push_back(r);

@@ -36,7 +36,7 @@ int main (int argc, char **argv) {
 	case 0:
 		printf("PT8 Session: Samplerate = %dHz\n\n", ptf.sessionrate);
 		if (ptf.audiofiles.size() > 0) {
-			printf("%d wavs, %d regions, %d active regions\n\n",
+			printf("%lu wavs, %lu regions, %lu active regions\n\n",
 				ptf.audiofiles.size(),
 				ptf.regions.size(),
 				ptf.tracks.size()
