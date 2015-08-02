@@ -331,9 +331,9 @@ PTFFormat::parse(void) {
 			j += i+13;
 			//uint8_t disabled = ptfunxored[j];
 
-			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
-			startbytes = (ptfunxored[j+2] & 0xf0) >> 4;
-			lengthbytes = (ptfunxored[j+3] & 0xf0) >> 4;
+			startbytes = (ptfunxored[j+1] & 0xf0) >> 4;
+			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
+			offsetbytes = (ptfunxored[j+3] & 0xf0) >> 4;
 			somethingbytes = (ptfunxored[j+3] & 0xf);
 			skipbytes = ptfunxored[j+4];
 			findex = ptfunxored[j+5
@@ -365,20 +365,6 @@ PTFFormat::parse(void) {
 				break;
 			}
 			j+=startbytes;
-			uint32_t sampleoffset = 0;
-			switch (offsetbytes) {
-			case 4:
-				sampleoffset |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				sampleoffset |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				sampleoffset |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				sampleoffset |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=offsetbytes;
 			uint32_t length = 0;
 			switch (lengthbytes) {
 			case 4:
@@ -393,6 +379,20 @@ PTFFormat::parse(void) {
 				break;
 			}
 			j+=lengthbytes;
+			uint32_t sampleoffset = 0;
+			switch (offsetbytes) {
+			case 4:
+				sampleoffset |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				sampleoffset |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				sampleoffset |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				sampleoffset |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=offsetbytes;
 			uint32_t something = 0;
 			switch (somethingbytes) {
 			case 4:
@@ -411,8 +411,8 @@ PTFFormat::parse(void) {
 			wav_t f = { 
 				filename,
 				0,
-				(int64_t)length,
 				(int64_t)start,
+				(int64_t)length,
 			};
 
 			f.index = findex;
@@ -429,8 +429,8 @@ PTFFormat::parse(void) {
 					name,
 					rindex,
 					0,
-					start,
 					sampleoffset,
+					length,
 					f
 				};
 				this->regions.push_back(r);
@@ -443,8 +443,8 @@ PTFFormat::parse(void) {
 					name,
 					rindex,
 					0,
+					sampleoffset,
 					length,
-					start,
 					f
 				};
 				this->regions.push_back(r);
