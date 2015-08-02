@@ -331,9 +331,9 @@ PTFFormat::parse(void) {
 			j += i+13;
 			//uint8_t disabled = ptfunxored[j];
 
-			startbytes = (ptfunxored[j+1] & 0xf0) >> 4;
+			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
 			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
-			offsetbytes = (ptfunxored[j+3] & 0xf0) >> 4;
+			startbytes = (ptfunxored[j+3] & 0xf0) >> 4;
 			somethingbytes = (ptfunxored[j+3] & 0xf);
 			skipbytes = ptfunxored[j+4];
 			findex = ptfunxored[j+5
@@ -351,34 +351,6 @@ PTFFormat::parse(void) {
 					+skipbytes
 					+24];
 			*/
-			uint32_t start = 0;
-			switch (startbytes) {
-			case 4:
-				start |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				start |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				start |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				start |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=startbytes;
-			uint32_t length = 0;
-			switch (lengthbytes) {
-			case 4:
-				length |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				length |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				length |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				length |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=lengthbytes;
 			uint32_t sampleoffset = 0;
 			switch (offsetbytes) {
 			case 4:
@@ -393,6 +365,34 @@ PTFFormat::parse(void) {
 				break;
 			}
 			j+=offsetbytes;
+			uint32_t length = 0;
+			switch (lengthbytes) {
+			case 4:
+				length |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				length |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				length |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				length |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=lengthbytes;
+			uint32_t start = 0;
+			switch (startbytes) {
+			case 4:
+				start |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				start |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				start |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				start |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=startbytes;
 			uint32_t something = 0;
 			switch (somethingbytes) {
 			case 4:
