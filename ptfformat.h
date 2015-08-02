@@ -943,7 +943,7 @@ public:
 		int64_t     sampleoffset;
 		int64_t     length;
 		wav_t       wave;
-		
+
 		bool operator ==(const struct region& other) {
 			return (this->index == other.index);
 		}
@@ -954,11 +954,54 @@ public:
 		uint16_t    index;
 		uint8_t     playlist;
 		region_t    reg;
+
+		bool operator ==(const struct track& other) {
+			return (this->index == other.index);
+		}
 	} track_t;
-		
+
 	std::vector<wav_t> audiofiles;
 	std::vector<region_t> regions;
 	std::vector<track_t> tracks;
+
+	static bool trackexistsin(std::vector<track_t> tr, uint16_t index) {
+		std::vector<track_t>::iterator begin = tr.begin();
+		std::vector<track_t>::iterator finish = tr.end();
+		std::vector<track_t>::iterator found;
+
+		track_t f = { std::string(""), index };
+
+		if ((found = std::find(begin, finish, f)) != finish) {
+			return true;
+		}
+		return false;
+	}
+
+	static bool regionexistsin(std::vector<region_t> reg, uint16_t index) {
+		std::vector<region_t>::iterator begin = reg.begin();
+		std::vector<region_t>::iterator finish = reg.end();
+		std::vector<region_t>::iterator found;
+
+		region_t r = { std::string(""), index };
+
+		if ((found = std::find(begin, finish, r)) != finish) {
+			return true;
+		}
+		return false;
+	}
+
+	static bool wavexistsin(std::vector<wav_t> wv, uint16_t index) {
+		std::vector<wav_t>::iterator begin = wv.begin();
+		std::vector<wav_t>::iterator finish = wv.end();
+		std::vector<wav_t>::iterator found;
+
+		wav_t w = { std::string(""), index };
+
+		if ((found = std::find(begin, finish, w)) != finish) {
+			return true;
+		}
+		return false;
+	}
 
 	uint32_t sessionrate;
 
@@ -971,5 +1014,6 @@ private:
 	unsigned char c1;
 	int len;
 };
+
 
 #endif

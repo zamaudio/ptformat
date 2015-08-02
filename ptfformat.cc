@@ -35,6 +35,8 @@ PTFFormat::foundin(std::string haystack, std::string needle) {
 	}
 }
 
+
+
 /* Return values:	0            success
 			0x01 to 0xff value of missing lut
 			-1           could not open file as ptf
@@ -54,7 +56,7 @@ PTFFormat::load(std::string path) {
 	if (! (fp = fopen(path.c_str(), "rb"))) {
 		return -1;
 	}
-	
+
 	fseek(fp, 0, SEEK_END);
 	len = ftell(fp);
 	if (len < 0x40) {
@@ -64,7 +66,7 @@ PTFFormat::load(std::string path) {
 	fseek(fp, 0x40, SEEK_SET);
 	fread(&c0, 1, 1, fp);
 	fread(&c1, 1, 1, fp);
-	
+
 	if (! (ptfunxored = (unsigned char*) malloc(len * sizeof(unsigned char)))) {
 		/* Silently fail -- out of memory*/
 		fclose(fp);
@@ -75,7 +77,7 @@ PTFFormat::load(std::string path) {
 	i = 2;
 
 	fseek(fp, 0x0, SEEK_SET);
-	
+
 	switch (c0) {
 	case 0x00:
 		// Success! easy one
@@ -199,7 +201,7 @@ PTFFormat::load(std::string path) {
 		break;
 	}
 	fclose(fp);
-	
+
 	parse();
 	return 0;
 }
@@ -210,7 +212,6 @@ PTFFormat::parse(void) {
 	int j;
 	int k;
 	int l;
-	int type;
 
 	// Find session sample rate
 	k = 0;
@@ -218,7 +219,7 @@ PTFFormat::parse(void) {
 		if (		(ptfunxored[k  ] == 0x5a) &&
 				(ptfunxored[k+1] == 0x05)) {
 			break;
-		}	
+		}
 		k++;
 	}
 	this->sessionrate = 0;
@@ -233,7 +234,7 @@ PTFFormat::parse(void) {
 				(ptfunxored[k+2] == 0xff) &&
 				(ptfunxored[k+3] == 0xff)) {
 			break;
-		}	
+		}
 		k++;
 	}
 
@@ -242,7 +243,7 @@ PTFFormat::parse(void) {
 
 	// Find actual wav names
 	bool first = true;
-	uint32_t numberofwavs;
+	uint16_t numberofwavs;
 	char wavname[256];
 	for (i = k; i > 4; i--) {
 		if (		(ptfunxored[i  ] == 'W') &&
@@ -257,15 +258,14 @@ PTFFormat::parse(void) {
 				j--;
 			}
 			wavname[l] = 0;
-			uint8_t playlist = ptfunxored[j-8];
+			//uint8_t playlist = ptfunxored[j-8];
 
 			if (first) {
 				first = false;
 				for (j = k; j > 4; j--) {
 					if (	(ptfunxored[j  ] == 0x01) &&
 						(ptfunxored[j-1] == 0x5a)) {
-					
-					
+
 						numberofwavs = 0;
 						numberofwavs |= (uint32_t)(ptfunxored[j-2] << 24);
 						numberofwavs |= (uint32_t)(ptfunxored[j-3] << 16);
@@ -280,7 +280,7 @@ PTFFormat::parse(void) {
 
 			std::string wave = string(wavname);
 			std::reverse(wave.begin(), wave.end());
-			wav_t f = { wave, numberofwavs - 1, 0 };
+			wav_t f = { wave, (uint16_t)(numberofwavs - 1), 0 };
 
 			if (foundin(wave, string(".grp"))) {
 				continue;
@@ -300,7 +300,6 @@ PTFFormat::parse(void) {
 	uint8_t offsetbytes = 0;
 	uint8_t somethingbytes = 0;
 	uint8_t skipbytes = 0;
-	uint32_t index = 0;
 
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 'S') &&
@@ -308,12 +307,11 @@ PTFFormat::parse(void) {
 				(ptfunxored[k+2] == 'a') &&
 				(ptfunxored[k+3] == 'p')) {
 			break;
-		}	
+		}
 		k++;
 	}
-	uint32_t numberofregions = 0;
 	first = true;
-	uint32_t rindex = 0;
+	uint16_t rindex = 0;
 	uint32_t findex = 0;
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
@@ -324,19 +322,19 @@ PTFFormat::parse(void) {
 				(ptfunxored[i+1] == 0x0c)) {
 
 			uint8_t lengthofname = ptfunxored[i+9];
-			
+
 			char name[256] = {0};
 			for (j = 0; j < lengthofname; j++) {
 				name[j] = ptfunxored[i+13+j];
 			}
 			name[j] = '\0';
 			j += i+13;
-			uint8_t disabled = ptfunxored[j];
+			//uint8_t disabled = ptfunxored[j];
 
-			somethingbytes = (ptfunxored[j+1] & 0xf0) >> 4;
+			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
 			startbytes = (ptfunxored[j+2] & 0xf0) >> 4;
 			lengthbytes = (ptfunxored[j+3] & 0xf0) >> 4;
-			offsetbytes = (ptfunxored[j+3] & 0xf);
+			somethingbytes = (ptfunxored[j+3] & 0xf);
 			skipbytes = ptfunxored[j+4];
 			findex = ptfunxored[j+5
 					+startbytes
@@ -416,7 +414,7 @@ PTFFormat::parse(void) {
 				(int64_t)length,
 				(int64_t)start,
 			};
-			
+
 			f.index = findex;
 			//printf("something=%08x\n", something);
 
@@ -454,20 +452,19 @@ PTFFormat::parse(void) {
 			rindex++;
 		}
 	}
-	
-	uint8_t numberoftracks = 0;
+
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0x5a) &&
 				(ptfunxored[k+1] == 0x03)) {
 				break;
-		}	
+		}
 		k++;
 	}
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0x5a) &&
 				(ptfunxored[k+1] == 0x02)) {
 				break;
-		}	
+		}
 		k++;
 	}
 	k++;
@@ -483,7 +480,7 @@ PTFFormat::parse(void) {
 		}
 		if (	(ptfunxored[k  ] == 0x5a) &&
 			(ptfunxored[k+1] == 0x02)) {
-			
+
 			uint8_t lengthofname = 0;
 			lengthofname = ptfunxored[k+9];
 			if (lengthofname == 0x5a) {
@@ -492,7 +489,7 @@ PTFFormat::parse(void) {
 			track_t tr;
 
 			regionspertrack = (uint8_t)(ptfunxored[k+13+lengthofname]);
-	
+
 			//printf("regions/track=%d\n", regionspertrack);
 			char name[256] = {0};
 			for (j = 0; j < lengthofname; j++) {
@@ -510,7 +507,7 @@ PTFFormat::parse(void) {
 						break;
 					}
 				}
-				
+
 
 				if (regionspertrack == 0) {
 				//	tr.reg.index = (uint8_t)ptfunxored[j+13+lengthofname+5];
@@ -541,29 +538,12 @@ PTFFormat::parse(void) {
 						break;
 					}
 					tr.reg.startpos = (int64_t)offset;
-					this->tracks.push_back(tr);
+					if (tr.reg.length > 0) {
+						this->tracks.push_back(tr);
+					}
 					regionspertrack--;
 				}
 			}
-		}
-	}
-	
-	k = 0;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x08)) {
-			break;
-		}	
-		k++;
-	}
-
-	uint8_t regionnumber = 0;
-	for (;k < len; k++) {
-		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x05)) {
-			int length = ptfunxored[k+9];
-			regionnumber = (ptfunxored[k+13+length+9]);
-			//printf("r=%d\n", regionnumber);
 		}
 	}
 }

@@ -45,8 +45,8 @@ int main (int argc, char **argv) {
 			for (vector<PTFFormat::wav_t>::iterator
 					a = ptf.audiofiles.begin();
 					a != ptf.audiofiles.end(); ++a) {
-				//printf("%s @ %lu, len=%lu\n", a->filename.c_str(),
-				printf("`%s` w(%d) @ 0x%08x, len=0x%08x\n",
+				//printf("%s @ %lu, %lu\n", a->filename.c_str(),
+				printf("`%s` w(%d) @ %lu, %lu\n",
 					a->filename.c_str(),
 					a->index,
 					a->posabsolute,
@@ -57,8 +57,8 @@ int main (int argc, char **argv) {
 			for (vector<PTFFormat::region_t>::iterator
 					a = ptf.regions.begin();
 					a != ptf.regions.end(); ++a) {
-				//printf("%s (%s) @ %lu + %lu, len=%lu\n", a->name.c_str(),
-				printf("`%s` r(%d) w(%d) @ 0x%08x, len=0x%08x\n",
+				//printf("%s (%s) @ %lu + %lu, %lu\n", a->name.c_str(),
+				printf("`%s` r(%d) w(%d) @ %lu, %lu\n",
 					a->name.c_str(),
 					a->index,
 					a->wave.index,
@@ -70,13 +70,29 @@ int main (int argc, char **argv) {
 			for (vector<PTFFormat::track_t>::iterator
 					a = ptf.tracks.begin();
 					a != ptf.tracks.end(); ++a) {
-				//printf("%s (%s) @ %lu + %lu, len=%lu\n", a->name.c_str(),
-				printf("`%s` t(%d) r(%d) @ 0x%08x\n",
+				//printf("%s (%s) @ %lu + %lu, %lu\n", a->name.c_str(),
+				printf("`%s` t(%d) r(%d) @ %lu\n",
 					a->name.c_str(),
 					a->index,
 					a->reg.index,
 					a->reg.startpos);
 			}
+
+			printf("\nTrack name (Track#) (WAV filename) @ Absolute + Into-sample, Length:\n");
+			for (vector<PTFFormat::track_t>::iterator
+					a = ptf.tracks.begin();
+					a != ptf.tracks.end(); ++a) {
+				//printf("%s (%s) @ %lu + %lu, %lu\n", a->name.c_str(),
+				printf("`%s` t(%d) (%s) @ %lu + %lu, %lu\n",
+					a->name.c_str(),
+					a->index,
+					a->reg.wave.filename.c_str(),
+					a->reg.startpos,
+					a->reg.sampleoffset,
+					a->reg.length
+					);
+			}
+
 		} else {
 			printf("No audio files in session, quit\n");
 		}
