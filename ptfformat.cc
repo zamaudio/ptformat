@@ -411,12 +411,12 @@ PTFFormat::parse(void) {
 			wav_t f = { 
 				filename,
 				0,
-				(int64_t)(sampleoffset > length) ? 0 : sampleoffset,
+				(int64_t)start,
 				(int64_t)length,
 			};
 
 			f.index = findex;
-			printf("something=%d\n", something);
+			//printf("something=%d\n", something);
 
 			vector<wav_t>::iterator begin = this->actualwavs.begin();
 			vector<wav_t>::iterator finish = this->actualwavs.end();
@@ -429,7 +429,7 @@ PTFFormat::parse(void) {
 					name,
 					rindex,
 					start,
-					(sampleoffset > f.length) ? 0 : sampleoffset,
+					sampleoffset,
 					length,
 					f
 				};
