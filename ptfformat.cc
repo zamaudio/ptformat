@@ -325,7 +325,7 @@ PTFFormat::parse8(void) {
 						numberofwavs |= (uint32_t)(ptfunxored[j-3] << 16);
 						numberofwavs |= (uint32_t)(ptfunxored[j-4] << 8);
 						numberofwavs |= (uint32_t)(ptfunxored[j-5]);
-						//printf("%d wavs\n", numberofwavs);
+						printf("%d wavs\n", numberofwavs);
 						break;
 					}
 				k--;
