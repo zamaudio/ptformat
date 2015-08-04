@@ -1,12 +1,16 @@
-ptfformat
+ptformat
 =========
 
-ptfformat currently opens *every* .ptf file
-and collects audio source/region/track information.
+ptformat currently opens *every* .ptf file
+but does not yet open any .ptx files.
 
-The idea is to make ardour open ptf sessions.
+Audio source/region/track information is extracted.
 
-Decrypt and parse a .ptf file:
+The idea is to make ardour open pt sessions.
+
+Current functionality:
+
+Decrypt and parse any .ptf file:
 
 	make
 	./ptftool file.ptf
