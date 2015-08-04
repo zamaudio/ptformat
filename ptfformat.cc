@@ -146,14 +146,6 @@ PTFFormat::load(std::string path) {
 	case 0x40:
 	case 0xc0:
 		li = c1;
-		if (ptflutseenwild[li]) {
-			//Success! [li]
-		} else {
-			//Can't find lookup table for c1=li
-			free(ptfunxored);
-			fclose(fp);
-			return li;
-		}
 		xxor[0] = c0;
 		xxor[1] = c1;
 		for (i = 2; i < 256; i++) {
@@ -171,8 +163,13 @@ PTFFormat::load(std::string path) {
 			inv = (ptflut[li][i-128] == 3) ? 1 : 3;
 			xxor[i] ^= (inv * 0x40);
 		}
-		for (i = 192; i < 256; i++) {
-			xxor[i] ^= 0x80;
+		
+		// Leave an artifact for us to decrypt by hand
+		// the ones that we still dont know
+		if (ptflutseenwild[li]) {
+			for (i = 192; i < 256; i++) {
+				xxor[i] ^= 0x80;
+			}
 		}
 		px = xxor[0];
 		fread(&ct, 1, 1, fp);
@@ -201,7 +198,8 @@ PTFFormat::load(std::string path) {
 		break;
 	}
 	fclose(fp);
-
+	if (!ptflutseenwild[li])
+		return li;
 	parse();
 	return 0;
 }
