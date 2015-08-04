@@ -206,11 +206,67 @@ PTFFormat::load(std::string path) {
 
 void
 PTFFormat::parse(void) {
+	this->version = ptfunxored[61];
+
+	if (this->version == 8) {
+		parse8();
+	} else if (this->version == 9) {
+		parse8();
+	} else {
+		// Should not occur
+	}	
+}
+
+void
+PTFFormat::parse9(void)
+{
+/*
+	int i;
+	int j;
+	int l;
+*/
+	int k;
+	// Find session sample rate
+	k = 0;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x05)) {
+			break;
+		}
+		k++;
+	}
+	this->sessionrate = ptfunxored[k+11];
+	switch (this->sessionrate) {
+	case SR44100:
+		this->sessionrate = 44100;
+		break;
+	case SR48000:
+		this->sessionrate = 48000;
+		break;
+	case SR88200:
+		this->sessionrate = 88200;
+		break;
+	case SR96000:
+		this->sessionrate = 96000;
+		break;
+	case SR176400:
+		this->sessionrate = 176400;
+		break;
+	case SR192000:
+		this->sessionrate = 192000;
+		break;
+	default:
+		this->sessionrate = 0;
+		break;
+	}
+}
+
+void
+PTFFormat::parse8(void) {
 	int i;
 	int j;
 	int k;
 	int l;
-
 	// Find session sample rate
 	k = 0;
 	while (k < len) {

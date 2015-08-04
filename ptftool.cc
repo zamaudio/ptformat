@@ -34,7 +34,7 @@ int main (int argc, char **argv) {
 		exit(-1);
 		break;
 	case 0:
-		printf("PT8 Session: Samplerate = %dHz\n\n", ptf.sessionrate);
+		printf("ProTools %d Session: Samplerate = %dHz\n\n", ptf.version, ptf.sessionrate);
 		if (ptf.audiofiles.size() > 0) {
 			printf("%lu wavs, %lu regions, %lu active regions\n\n",
 				ptf.audiofiles.size(),

@@ -468,7 +468,7 @@ static const unsigned char ptflut[256][64] = {
 		1, 1, 3, 1, 3, 1, 3, 1, 3, 1, 1, 3, 1, 3, 1, 3,
 		1, 3, 1, 1, 3, 1, 3, 1, 3, 1, 3, 1, 1, 3, 1, 3,
 		1, 3, 1, 3, 1, 1, 3, 1, 3, 1, 3, 1, 3, 1, 1, 3,
-		1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3,
+		1, 3, 1, 3, 1, 3, 1, 1, 3, 1, 3, 1, 3, 1, 3, 1,
 	},
 /*7a */	{},
 /*7b */	{
@@ -1024,6 +1024,7 @@ public:
 	}
 
 	uint32_t sessionrate;
+	uint8_t version;
 
 	unsigned char c0;
 	unsigned char c1;
@@ -1033,7 +1034,17 @@ public:
 private:
 	bool foundin(std::string haystack, std::string needle);
 	void parse(void);
+	void parse8(void);
+	void parse9(void);
 	std::vector<wav_t> actualwavs;
+	enum samplerates {
+		SR44100 = 1,
+		SR48000,
+		SR88200,
+		SR96000,
+		SR176400,
+		SR192000
+	};
 };
 
 
