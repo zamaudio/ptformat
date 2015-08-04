@@ -198,7 +198,7 @@ PTFFormat::load(std::string path) {
 		break;
 	}
 	fclose(fp);
-	if (!ptflutseenwild[li])
+	if ((c0 == 0x40 || c0 == 0xc0) && !ptflutseenwild[li])
 		return li;
 	parse();
 	return 0;
