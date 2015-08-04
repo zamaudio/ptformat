@@ -1,5 +1,6 @@
 /*
     Copyright (C) 2015  Damien Zammit
+    Copyright (C) 2015  Robin Gareus
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,6 +16,62 @@
 
 #include "ptfformat.h"
 using namespace std;
+
+static const uint32_t baselut[16] = {
+	0xaaaaaaaa, 0xaa955555, 0xa9554aaa, 0xa552a955,
+	0xb56ad5aa, 0x95a95a95, 0x94a5294a, 0x9696b4b5,
+	0xd2d25a5a, 0xd24b6d25, 0xdb6db6da, 0xd9249b6d,
+	0xc9b64d92, 0xcd93264d, 0xccd99b32, 0xcccccccd
+};
+
+static const uint32_t xorlut[16] = {
+	0x00000000, 0x00000b00, 0x000100b0, 0x00b0b010,
+	0x010b0b01, 0x0b10b10b, 0x01bb101b, 0x0111bbbb,
+	0x1111bbbb, 0x1bbb10bb, 0x1bb0bb0b, 0xbb0b0bab,
+	0xbab0b0ba, 0xb0abaaba, 0xba0aabaa, 0xbaaaaaaa
+};
+
+static const uint32_t swapbytes32 (const uint32_t v) {
+	uint32_t rv = 0;
+	rv |= ((v >>  0) & 0xf) << 28;
+	rv |= ((v >>  4) & 0xf) << 24;
+	rv |= ((v >>  8) & 0xf) << 20;
+	rv |= ((v >> 12) & 0xf) << 16;
+	rv |= ((v >> 16) & 0xf) << 12;
+	rv |= ((v >> 20) & 0xf) <<  8;
+	rv |= ((v >> 24) & 0xf) <<  4;
+	rv |= ((v >> 28) & 0xf) <<  0;
+	return rv;
+}
+
+static const uint64_t gen_secret (int i) {
+	assert (i > 0 && i < 256);
+	int iwrap = i & 0x7f; // wrap at 0x80;
+	uint32_t xor_lo = 0;  // 0x40 flag
+	int idx;              // mirror at 0x40;
+
+	if (iwrap & 0x40) {
+		xor_lo = 0x1;
+		idx    = 0x80 - iwrap;
+	} else {
+		idx    = iwrap;
+	}
+
+	int i16 = (idx >> 1) & 0xf;
+	if (idx & 0x20) {
+		i16 = 15 - i16;
+	}
+
+	uint32_t lo = baselut [i16];
+	uint32_t xk = xorlut  [i16];
+
+	if (idx & 0x20) {
+		lo ^= 0xaaaaaaab;
+		xk ^= 0x10000000; 
+	}
+	uint32_t hi = swapbytes32 (lo) ^ xk;
+	return  ((uint64_t)hi << 32) | (lo ^ xor_lo);
+}
 
 PTFFormat::PTFFormat() {
 }
@@ -34,8 +91,6 @@ PTFFormat::foundin(std::string haystack, std::string needle) {
 		return false;
 	}
 }
-
-
 
 /* Return values:	0            success
 			0x01 to 0xff value of missing lut
@@ -226,14 +281,15 @@ PTFFormat::parse8header(void) {
 		}
 		k++;
 	}
+
 	this->sessionrate = 0;
 	this->sessionrate |= ptfunxored[k+11];
 	this->sessionrate |= ptfunxored[k+12] << 8;
 	this->sessionrate |= ptfunxored[k+13] << 16;
 }
+
 void
-PTFFormat::parse9header(void)
-{
+PTFFormat::parse9header(void) {
 	int k;
 
 	// Find session sample rate
@@ -253,11 +309,11 @@ PTFFormat::parse9header(void)
 }
 
 void
-PTFFormat::parserest(void)
-{
+PTFFormat::parserest(void) {
 	int i,j,k,l;
-
+	
 	// Find end of wav file list
+	k = 0;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0xff) &&
 				(ptfunxored[k+1] == 0xff) &&
