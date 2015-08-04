@@ -15,6 +15,11 @@
 */
 
 #include "ptfformat.h"
+
+#include <stdio.h>
+#include <string>
+#include <assert.h>
+
 using namespace std;
 
 static const uint32_t baselut[16] = {
@@ -102,9 +107,9 @@ PTFFormat::load(std::string path) {
 	unsigned char xxor[256];
 	unsigned char ct;
 	unsigned char px;
+	uint64_t key;
 	uint16_t i;
 	int j;
-	int li;
 	int inv;
 	unsigned char message;
 
@@ -200,7 +205,6 @@ PTFFormat::load(std::string path) {
 		break;
 	case 0x40:
 	case 0xc0:
-		li = c1;
 		xxor[0] = c0;
 		xxor[1] = c1;
 		for (i = 2; i < 256; i++) {
@@ -210,12 +214,13 @@ PTFFormat::load(std::string path) {
 				xxor[i] = ((xxor[i-1] + c1 - c0) & 0xff);
 			}
 		}
+
+		key = gen_secret(c1);
 		for (i = 0; i < 64; i++) {
-			xxor[i] ^= (((gen_secret(li) >> i) & 1) * 2 * 0x40) + 0x40;
+			xxor[i] ^= (((key >> i) & 1) * 2 * 0x40) + 0x40;
 		}
-		inv = 0;
 		for (i = 128; i < 192; i++) {
-			inv = (((gen_secret(li) >> i) & 1) == 1) ? 1 : 3;
+			inv = (((key >> (i-128)) & 1) == 1) ? 1 : 3;
 			xxor[i] ^= (inv * 0x40);
 		}
 		

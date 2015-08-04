@@ -14,6 +14,8 @@
 */
 
 #include "ptfformat.h"
+#include <cstdio>
+
 using namespace std;
 using std::string;
 

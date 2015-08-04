@@ -15,16 +15,10 @@
 #ifndef PTFFORMAT_H
 #define PTFFORMAT_H
 
-#include <stdlib.h>
-#include <string.h>
 #include <string>
-#include <cstring>
 #include <algorithm>
 #include <vector>
-#include <cstdio>
 #include <stdint.h>
-#include <stdbool.h>
-#include <assert.h>
 
 class PTFFormat {
 public:
