@@ -40,11 +40,13 @@ int main(int argc, char** argv) {
 		for (i = 0; i < ptf.len; i++) {
 			printf("%c", ptf.ptfunxored[i]);
 		}
+		break;
 	case 0x80:
 		fprintf(stderr, "Success! easy two\n");
 		for (i = 0; i < ptf.len; i++) {
 			printf("%c", ptf.ptfunxored[i]);
 		}
+		break;
 	case 0x40:
 	case 0xc0:
 		li = ptf.c1;
