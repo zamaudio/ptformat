@@ -156,20 +156,16 @@ PTFFormat::load(std::string path) {
 			}
 		}
 		for (i = 0; i < 64; i++) {
-			xxor[i] ^= (ptflut[li][i] * 0x40);
+			xxor[i] ^= (((gen_secret(li) >> i) & 1) * 2 * 0x40) + 0x40;
 		}
 		inv = 0;
 		for (i = 128; i < 192; i++) {
-			inv = (ptflut[li][i-128] == 3) ? 1 : 3;
+			inv = (((gen_secret(li) >> i) & 1) == 1) ? 1 : 3;
 			xxor[i] ^= (inv * 0x40);
 		}
 		
-		// Leave an artifact for us to decrypt by hand
-		// the ones that we still dont know
-		if (ptflutseenwild[li]) {
-			for (i = 192; i < 256; i++) {
-				xxor[i] ^= 0x80;
-			}
+		for (i = 192; i < 256; i++) {
+			xxor[i] ^= 0x80;
 		}
 		px = xxor[0];
 		fread(&ct, 1, 1, fp);
@@ -198,8 +194,6 @@ PTFFormat::load(std::string path) {
 		break;
 	}
 	fclose(fp);
-	if ((c0 == 0x40 || c0 == 0xc0) && !ptflutseenwild[li])
-		return li;
 	parse();
 	return 0;
 }

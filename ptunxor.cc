@@ -18,7 +18,7 @@
 
 int main(int argc, char** argv) {
 	
-	int count, i, li;
+	int i, li;
 	PTFFormat ptf;
 
 	if (argc < 2 || ptf.load(argv[1]) == -1) {
@@ -26,14 +26,6 @@ int main(int argc, char** argv) {
 		exit(1);
 	}
 	
-	count = 0;
-	for (i = 0; i < 256; i++) {
-		if (ptflutseenwild[i]) {
-			count++;
-		}
-	}
-	fprintf(stderr, "Total tables reversed: %d out of 128\n", count);
-
 	switch (ptf.c0) {
 	case 0x00:
 		fprintf(stderr, "Success! easy one\n");
@@ -50,18 +42,9 @@ int main(int argc, char** argv) {
 	case 0x40:
 	case 0xc0:
 		li = ptf.c1;
-		if (ptflutseenwild[li]) {
-			fprintf(stderr, "Success! Found lookup table 0x%x\n", li);
-			for (i = 0; i < ptf.len; i++) {
-				printf("%c", ptf.ptfunxored[i]);
-			}
-		} else {
-			fprintf(stderr, "Can't find lookup table for c1=0x%x\n", li);
-			for (i = 0; i < ptf.len; i++) {
-				printf("%02x ", ptf.ptfunxored[i]);
-				if (i%16 == 15)
-					printf("\n");
-			}
+		fprintf(stderr, "Success! Decrypted 0x%x\n", li);
+		for (i = 0; i < ptf.len; i++) {
+			printf("%c", ptf.ptfunxored[i]);
 		}
 		break;
 	default:
