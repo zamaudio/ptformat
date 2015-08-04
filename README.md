@@ -1,7 +1,10 @@
-ptftool
-=======
+ptfformat
+=========
 
-Idea is to make ardour open ptf sessions.
+ptfformat currently opens 98% of .ptf files
+and collects audio source/region/track information.
+
+The idea is to make ardour open ptf sessions.
 
 First step, decrypt and parse the .ptf files.
 
