@@ -1048,17 +1048,10 @@ public:
 private:
 	bool foundin(std::string haystack, std::string needle);
 	void parse(void);
-	void parse8(void);
-	void parse9(void);
+	void parse8header(void);
+	void parse9header(void);
+	void parserest(void);
 	std::vector<wav_t> actualwavs;
-	enum samplerates {
-		SR44100 = 1,
-		SR48000,
-		SR88200,
-		SR96000,
-		SR176400,
-		SR192000
-	};
 };
 
 

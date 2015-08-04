@@ -209,64 +209,20 @@ PTFFormat::parse(void) {
 	this->version = ptfunxored[61];
 
 	if (this->version == 8) {
-		parse8();
+		parse8header();
+		parserest();
 	} else if (this->version == 9) {
-		parse8();
+		parse9header();
+		parserest();
 	} else {
 		// Should not occur
 	}	
 }
 
 void
-PTFFormat::parse9(void)
-{
-/*
-	int i;
-	int j;
-	int l;
-*/
+PTFFormat::parse8header(void) {
 	int k;
-	// Find session sample rate
-	k = 0;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x05)) {
-			break;
-		}
-		k++;
-	}
-	this->sessionrate = ptfunxored[k+11];
-	switch (this->sessionrate) {
-	case SR44100:
-		this->sessionrate = 44100;
-		break;
-	case SR48000:
-		this->sessionrate = 48000;
-		break;
-	case SR88200:
-		this->sessionrate = 88200;
-		break;
-	case SR96000:
-		this->sessionrate = 96000;
-		break;
-	case SR176400:
-		this->sessionrate = 176400;
-		break;
-	case SR192000:
-		this->sessionrate = 192000;
-		break;
-	default:
-		this->sessionrate = 0;
-		break;
-	}
-}
 
-void
-PTFFormat::parse8(void) {
-	int i;
-	int j;
-	int k;
-	int l;
 	// Find session sample rate
 	k = 0;
 	while (k < len) {
@@ -280,6 +236,32 @@ PTFFormat::parse8(void) {
 	this->sessionrate |= ptfunxored[k+11];
 	this->sessionrate |= ptfunxored[k+12] << 8;
 	this->sessionrate |= ptfunxored[k+13] << 16;
+}
+void
+PTFFormat::parse9header(void)
+{
+	int k;
+
+	// Find session sample rate
+	k = 0x100;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x06)) {
+			break;
+		}
+		k++;
+	}
+
+	this->sessionrate = 0;
+	this->sessionrate |= ptfunxored[k+11];
+	this->sessionrate |= ptfunxored[k+12] << 8;
+	this->sessionrate |= ptfunxored[k+13] << 16;
+}
+
+void
+PTFFormat::parserest(void)
+{
+	int i,j,k,l;
 
 	// Find end of wav file list
 	while (k < len) {
@@ -325,7 +307,7 @@ PTFFormat::parse8(void) {
 						numberofwavs |= (uint32_t)(ptfunxored[j-3] << 16);
 						numberofwavs |= (uint32_t)(ptfunxored[j-4] << 8);
 						numberofwavs |= (uint32_t)(ptfunxored[j-5]);
-						printf("%d wavs\n", numberofwavs);
+						//printf("%d wavs\n", numberofwavs);
 						break;
 					}
 				k--;
