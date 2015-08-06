@@ -348,10 +348,10 @@ PTFFormat::parserest(void) {
 	uint16_t numberofwavs;
 	char wavname[256];
 	for (i = k; i > 4; i--) {
-		if (		(ptfunxored[i  ] == 'W') &&
-				(ptfunxored[i-1] == 'A') &&
-				(ptfunxored[i-2] == 'V') &&
-				(ptfunxored[i-3] == 'E')) {
+		if (		((ptfunxored[i  ] == 'W') || (ptfunxored[i  ] == 'A')) &&
+				((ptfunxored[i-1] == 'A') || (ptfunxored[i-1] == 'I')) &&
+				((ptfunxored[i-2] == 'V') || (ptfunxored[i-2] == 'F')) &&
+				((ptfunxored[i-3] == 'E') || (ptfunxored[i-3] == 'F'))) {
 			j = i-4;
 			l = 0;
 			while (ptfunxored[j] != '\0') {
@@ -360,6 +360,11 @@ PTFFormat::parserest(void) {
 				j--;
 			}
 			wavname[l] = 0;
+			if (ptfunxored[i] == 'W') {
+				extension = string(".wav");
+			} else {
+				extension = string(".aif");
+			}
 			//uint8_t playlist = ptfunxored[j-8];
 
 			if (first) {
@@ -509,7 +514,7 @@ PTFFormat::parserest(void) {
 				break;
 			}
 			j+=somethingbytes;
-			std::string filename = string(name) + ".wav";
+			std::string filename = string(name) + extension;
 			wav_t f = { 
 				filename,
 				0,

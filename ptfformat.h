@@ -128,6 +128,7 @@ private:
 	void parserest(void);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
+	std::string extension;
 };
 
 
