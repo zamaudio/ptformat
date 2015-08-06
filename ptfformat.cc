@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <string>
+#include <string.h>
 #include <assert.h>
 
 using namespace std;
@@ -725,7 +726,16 @@ PTFFormat::parserest10(void) {
 	}
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x03)) {
+				(ptfunxored[i+1] == 0x02)) {
+				k = i;
+				break;
+		}
+	}
+	k++;
+	for (i = k; i < len-70; i++) {
+		if (		(ptfunxored[i  ] == 0x5a) &&
+				(ptfunxored[i+1] == 0x02)) {
+				k = i;
 				break;
 		}
 	}
@@ -734,14 +744,16 @@ PTFFormat::parserest10(void) {
 	uint32_t findex = 0;
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x04)) {
+				(ptfunxored[i+1] == 0x08)) {
 				break;
 		}
 		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x03)) {
+				(ptfunxored[i+1] == 0x01)) {
 
 			uint8_t lengthofname = ptfunxored[i+9];
-
+			if (ptfunxored[i+13] == 0x5a) {
+				continue;
+			}
 			char name[256] = {0};
 			for (j = 0; j < lengthofname; j++) {
 				name[j] = ptfunxored[i+13+j];
@@ -762,7 +774,7 @@ PTFFormat::parserest10(void) {
 					+offsetbytes
 					+somethingbytes
 					+skipbytes
-					+40];
+					+37];
 			/*rindex = ptfunxored[j+5
 					+startbytes
 					+lengthbytes
@@ -835,6 +847,12 @@ PTFFormat::parserest10(void) {
 				(int64_t)(length*this->ratefactor),
 			};
 
+			if (strlen(name) == 0) {
+				continue;
+			}
+			if (length == 0) {
+				continue;
+			}
 			f.index = findex;
 			//printf("something=%d\n", something);
 
@@ -900,7 +918,7 @@ PTFFormat::parserest10(void) {
 			break;
 		}
 		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x02)) {
+			(ptfunxored[k+1] == 0x03)) {
 
 			uint8_t lengthofname = 0;
 			lengthofname = ptfunxored[k+9];
