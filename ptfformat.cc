@@ -435,7 +435,7 @@ PTFFormat::parseaudio(void) {
 						numberofwavs |= (uint32_t)(ptfunxored[j-3] << 16);
 						numberofwavs |= (uint32_t)(ptfunxored[j-4] << 8);
 						numberofwavs |= (uint32_t)(ptfunxored[j-5]);
-						printf("%d wavs\n", numberofwavs);
+						//printf("%d wavs\n", numberofwavs);
 						break;
 					}
 				k--;
@@ -761,7 +761,7 @@ PTFFormat::parserest10(void) {
 			name[j] = '\0';
 			j += i+13;
 			//uint8_t disabled = ptfunxored[j];
-			printf("%s\n", name);
+			//printf("%s\n", name);
 
 			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
 			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
@@ -888,7 +888,7 @@ PTFFormat::parserest10(void) {
 				this->regions.push_back(r);
 			}
 			rindex++;
-			printf("%s\n", name);
+			//printf("%s\n", name);
 		}
 	}
 
