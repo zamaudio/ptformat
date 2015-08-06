@@ -931,8 +931,8 @@ PTFFormat::parserest10(void) {
 			for (j = k; regionspertrack > 0 && j < len; j++) {
 				for (l = j; l < len; l++) {
 					if (	(ptfunxored[l  ] == 0x5a) &&
-						(ptfunxored[l+1] == 0x07)) {
-						j = l;
+						(ptfunxored[l+1] == 0x03)) {
+						l = j;
 						break;
 					}
 				}
