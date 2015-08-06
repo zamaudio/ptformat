@@ -891,34 +891,24 @@ PTFFormat::parserest10(void) {
 			//printf("%s\n", name);
 		}
 	}
-
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x03)) {
-				break;
-		}
-		k++;
-	}
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x02)) {
-				break;
-		}
-		k++;
-	}
-	k++;
-
 	//  Tracks
 	uint32_t offset;
 	uint32_t tracknumber = 0;
 	uint32_t regionspertrack = 0;
 	for (;k < len; k++) {
 		if (	(ptfunxored[k  ] == 0x5a) &&
+			(ptfunxored[k+1] == 0x08)) {
+			break;
+		}
+	}
+	k++;
+	for (;k < len; k++) {
+		if (	(ptfunxored[k  ] == 0x5a) &&
 			(ptfunxored[k+1] == 0x04)) {
 			break;
 		}
 		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x03)) {
+			(ptfunxored[k+1] == 0x02)) {
 
 			uint8_t lengthofname = 0;
 			lengthofname = ptfunxored[k+9];
