@@ -28,7 +28,7 @@ int main (int argc, char **argv) {
 		exit(0);
 	}
 
-	ok = ptf.load(argv[1]);
+	ok = ptf.load(argv[1], 48000);
 
 	switch (ok) {
 	case -1:
@@ -36,7 +36,7 @@ int main (int argc, char **argv) {
 		exit(-1);
 		break;
 	case 0:
-		printf("ProTools %d Session: Samplerate = %dHz\n\n", ptf.version, ptf.sessionrate);
+		printf("ProTools %d Session: Samplerate = %ldHz\nTarget samplerate = 48000\n\n", ptf.version, ptf.sessionrate);
 		if (ptf.audiofiles.size() > 0) {
 			printf("%lu wavs, %lu regions, %lu active regions\n\n",
 				ptf.audiofiles.size(),
