@@ -623,22 +623,12 @@ PTFFormat::parserest(void) {
 					if ((found = std::find(begin, finish, tr.reg)) != finish) {
 						tr.reg = (*found);
 					}
-					//startbytes = (ptfunxored[l+3] & 0xf0) >> 4;
-					startbytes = 4;
 					i = l+16;
 					offset = 0;
-					switch (startbytes) {
-					case 4:
-						offset |= (uint32_t)(ptfunxored[i+3] << 24);
-					case 3:
-						offset |= (uint32_t)(ptfunxored[i+2] << 16);
-					case 2:
-						offset |= (uint32_t)(ptfunxored[i+1] << 8);
-					case 1:
-						offset |= (uint32_t)(ptfunxored[i]);
-					default:
-						break;
-					}
+					offset |= (uint32_t)(ptfunxored[i+3] << 24);
+					offset |= (uint32_t)(ptfunxored[i+2] << 16);
+					offset |= (uint32_t)(ptfunxored[i+1] << 8);
+					offset |= (uint32_t)(ptfunxored[i]);
 					tr.reg.startpos = (int64_t)(offset*this->ratefactor);
 					if (tr.reg.length > 0) {
 						this->tracks.push_back(tr);
