@@ -919,7 +919,7 @@ PTFFormat::parserest10(void) {
 
 			regionspertrack = (uint8_t)(ptfunxored[k+13+lengthofname]);
 
-			//printf("regions/track=%d\n", regionspertrack);
+			printf("regions/track=%d\n", regionspertrack);
 			char name[256] = {0};
 			for (j = 0; j < lengthofname; j++) {
 				name[j] = ptfunxored[j+k+13];
@@ -931,8 +931,8 @@ PTFFormat::parserest10(void) {
 			for (j = k; regionspertrack > 0 && j < len; j++) {
 				for (l = j; l < len; l++) {
 					if (	(ptfunxored[l  ] == 0x5a) &&
-						(ptfunxored[l+1] == 0x03)) {
-						l = j;
+						(ptfunxored[l+1] == 0x08)) {
+						j = l+1;
 						break;
 					}
 				}
