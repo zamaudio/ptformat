@@ -122,13 +122,19 @@ public:
 private:
 	bool foundin(std::string haystack, std::string needle);
 	void parse(void);
+	void unxor10(void);
 	void setrates(void);
 	void parse8header(void);
 	void parse9header(void);
-	void parserest(void);
+	void parse10header(void);
+	void parserest89(void);
+	void parserest10(void);
+	void parseaudio(void);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
 	std::string extension;
+	unsigned char key10a;
+	unsigned char key10b;
 };
 
 

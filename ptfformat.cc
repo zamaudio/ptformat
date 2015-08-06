@@ -143,8 +143,11 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		// Success! easy one
 		xxor[0] = c0;
 		xxor[1] = c1;
+		//fprintf(stderr, "%02x %02x", c0, c1);
+		
 		for (i = 2; i < 64; i++) {
 			xxor[i] = (xxor[i-1] + c1 - c0) & 0xff;
+			//fprintf(stderr, "%02x ", xxor[i]);
 		}
 		px = xxor[0];
 		fread(&ct, 1, 1, fp);
@@ -260,17 +263,50 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 }
 
 void
+PTFFormat::unxor10(void)
+{
+	this->key10a = ptfunxored[0x9f];
+	this->key10b = ptfunxored[0x9e] - ptfunxored[0x9b];
+	int j, k, currkey;
+
+	k = 0x1000;
+	for (j = k; j < k + 0x1000 && j < len; j++) {
+		ptfunxored[j] ^= key10a;
+	}
+	k = 0x2000;
+	for (j = k; j < k + 0x1000 && j < len; j++) {
+		ptfunxored[j] ^= key10b;
+	}
+	currkey = key10b;
+	while (k < len) {
+		k += 0x1000;
+		currkey = (this->key10a + currkey) & 0xff;
+		for (j = k; j < k + 0x1000 && j < len; j++) {
+			ptfunxored[j] ^= currkey;
+		}
+	}
+}
+
+void
 PTFFormat::parse(void) {
 	this->version = ptfunxored[61];
 
 	if (this->version == 8) {
 		parse8header();
 		setrates();
-		parserest();
+		parseaudio();
+		parserest89();
 	} else if (this->version == 9) {
 		parse9header();
 		setrates();
-		parserest();
+		parseaudio();
+		parserest89();
+	} else if (this->version == 10) {
+		unxor10();
+		parse10header();
+		setrates();
+		parseaudio();
+		parserest10();
 	} else {
 		// Should not occur
 	}	
@@ -325,7 +361,27 @@ PTFFormat::parse9header(void) {
 }
 
 void
-PTFFormat::parserest(void) {
+PTFFormat::parse10header(void) {
+	int k;
+
+	// Find session sample rate
+	k = 0;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x09)) {
+			break;
+		}
+		k++;
+	}
+
+	this->sessionrate = 0;
+	this->sessionrate |= ptfunxored[k+11];
+	this->sessionrate |= ptfunxored[k+12] << 8;
+	this->sessionrate |= ptfunxored[k+13] << 16;
+}
+
+void
+PTFFormat::parseaudio(void) {
 	int i,j,k,l;
 	
 	// Find end of wav file list
@@ -378,7 +434,7 @@ PTFFormat::parserest(void) {
 						numberofwavs |= (uint32_t)(ptfunxored[j-3] << 16);
 						numberofwavs |= (uint32_t)(ptfunxored[j-4] << 8);
 						numberofwavs |= (uint32_t)(ptfunxored[j-5]);
-						//printf("%d wavs\n", numberofwavs);
+						printf("%d wavs\n", numberofwavs);
 						break;
 					}
 				k--;
@@ -400,7 +456,11 @@ PTFFormat::parserest(void) {
 				break;
 		}
 	}
+}
 
+void
+PTFFormat::parserest89(void) {
+	int i,j,k,l;
 	// Find Regions
 	uint8_t startbytes = 0;
 	uint8_t lengthbytes = 0;
@@ -417,7 +477,6 @@ PTFFormat::parserest(void) {
 		}
 		k++;
 	}
-	first = true;
 	uint16_t rindex = 0;
 	uint32_t findex = 0;
 	for (i = k; i < len-70; i++) {
@@ -557,6 +616,261 @@ PTFFormat::parserest(void) {
 				this->regions.push_back(r);
 			}
 			rindex++;
+		}
+	}
+
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x03)) {
+				break;
+		}
+		k++;
+	}
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x02)) {
+				break;
+		}
+		k++;
+	}
+	k++;
+
+	//  Tracks
+	uint32_t offset;
+	uint32_t tracknumber = 0;
+	uint32_t regionspertrack = 0;
+	for (;k < len; k++) {
+		if (	(ptfunxored[k  ] == 0x5a) &&
+			(ptfunxored[k+1] == 0x04)) {
+			break;
+		}
+		if (	(ptfunxored[k  ] == 0x5a) &&
+			(ptfunxored[k+1] == 0x02)) {
+
+			uint8_t lengthofname = 0;
+			lengthofname = ptfunxored[k+9];
+			if (lengthofname == 0x5a) {
+				continue;
+			}
+			track_t tr;
+
+			regionspertrack = (uint8_t)(ptfunxored[k+13+lengthofname]);
+
+			//printf("regions/track=%d\n", regionspertrack);
+			char name[256] = {0};
+			for (j = 0; j < lengthofname; j++) {
+				name[j] = ptfunxored[j+k+13];
+			}
+			name[j] = '\0';
+			tr.name = string(name);
+			tr.index = tracknumber++;
+
+			for (j = k; regionspertrack > 0 && j < len; j++) {
+				for (l = j; l < len; l++) {
+					if (	(ptfunxored[l  ] == 0x5a) &&
+						(ptfunxored[l+1] == 0x07)) {
+						j = l;
+						break;
+					}
+				}
+
+
+				if (regionspertrack == 0) {
+				//	tr.reg.index = (uint8_t)ptfunxored[j+13+lengthofname+5];
+					break;
+				} else {
+
+					tr.reg.index = (uint8_t)(ptfunxored[l+11]);
+					vector<region_t>::iterator begin = this->regions.begin();
+					vector<region_t>::iterator finish = this->regions.end();
+					vector<region_t>::iterator found;
+					if ((found = std::find(begin, finish, tr.reg)) != finish) {
+						tr.reg = (*found);
+					}
+					i = l+16;
+					offset = 0;
+					offset |= (uint32_t)(ptfunxored[i+3] << 24);
+					offset |= (uint32_t)(ptfunxored[i+2] << 16);
+					offset |= (uint32_t)(ptfunxored[i+1] << 8);
+					offset |= (uint32_t)(ptfunxored[i]);
+					tr.reg.startpos = (int64_t)(offset*this->ratefactor);
+					if (tr.reg.length > 0) {
+						this->tracks.push_back(tr);
+					}
+					regionspertrack--;
+				}
+			}
+		}
+	}
+}
+
+void
+PTFFormat::parserest10(void) {
+	int i,j,k,l;
+	// Find Regions
+	uint8_t startbytes = 0;
+	uint8_t lengthbytes = 0;
+	uint8_t offsetbytes = 0;
+	uint8_t somethingbytes = 0;
+	uint8_t skipbytes = 0;
+
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 'S') &&
+				(ptfunxored[k+1] == 'n') &&
+				(ptfunxored[k+2] == 'a') &&
+				(ptfunxored[k+3] == 'p')) {
+			break;
+		}
+		k++;
+	}
+	for (i = k; i < len-70; i++) {
+		if (		(ptfunxored[i  ] == 0x5a) &&
+				(ptfunxored[i+1] == 0x03)) {
+				break;
+		}
+	}
+	k++;
+	uint16_t rindex = 0;
+	uint32_t findex = 0;
+	for (i = k; i < len-70; i++) {
+		if (		(ptfunxored[i  ] == 0x5a) &&
+				(ptfunxored[i+1] == 0x04)) {
+				break;
+		}
+		if (		(ptfunxored[i  ] == 0x5a) &&
+				(ptfunxored[i+1] == 0x03)) {
+
+			uint8_t lengthofname = ptfunxored[i+9];
+
+			char name[256] = {0};
+			for (j = 0; j < lengthofname; j++) {
+				name[j] = ptfunxored[i+13+j];
+			}
+			name[j] = '\0';
+			j += i+13;
+			//uint8_t disabled = ptfunxored[j];
+			printf("%s\n", name);
+
+			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
+			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
+			startbytes = (ptfunxored[j+3] & 0xf0) >> 4;
+			somethingbytes = (ptfunxored[j+3] & 0xf);
+			skipbytes = ptfunxored[j+4];
+			findex = ptfunxored[j+5
+					+startbytes
+					+lengthbytes
+					+offsetbytes
+					+somethingbytes
+					+skipbytes
+					+40];
+			/*rindex = ptfunxored[j+5
+					+startbytes
+					+lengthbytes
+					+offsetbytes
+					+somethingbytes
+					+skipbytes
+					+24];
+			*/
+			uint32_t sampleoffset = 0;
+			switch (offsetbytes) {
+			case 4:
+				sampleoffset |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				sampleoffset |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				sampleoffset |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				sampleoffset |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=offsetbytes;
+			uint32_t length = 0;
+			switch (lengthbytes) {
+			case 4:
+				length |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				length |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				length |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				length |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=lengthbytes;
+			uint32_t start = 0;
+			switch (startbytes) {
+			case 4:
+				start |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				start |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				start |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				start |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=startbytes;
+			uint32_t something = 0;
+			switch (somethingbytes) {
+			case 4:
+				something |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				something |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				something |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				something |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=somethingbytes;
+			std::string filename = string(name) + extension;
+			wav_t f = { 
+				filename,
+				0,
+				(int64_t)(start*this->ratefactor),
+				(int64_t)(length*this->ratefactor),
+			};
+
+			f.index = findex;
+			//printf("something=%d\n", something);
+
+			vector<wav_t>::iterator begin = this->actualwavs.begin();
+			vector<wav_t>::iterator finish = this->actualwavs.end();
+			vector<wav_t>::iterator found;
+			// Add file to list only if it is an actual wav
+			if ((found = std::find(begin, finish, f)) != finish) {
+				this->audiofiles.push_back(f);
+				// Also add plain wav as region
+				region_t r = {
+					name,
+					rindex,
+					(int64_t)(start*this->ratefactor),
+					(int64_t)(sampleoffset*this->ratefactor),
+					(int64_t)(length*this->ratefactor),
+					f
+				};
+				this->regions.push_back(r);
+			// Region only
+			} else {
+				if (foundin(filename, string(".grp"))) {
+					continue;
+				}
+				region_t r = {
+					name,
+					rindex,
+					(int64_t)(start*this->ratefactor),
+					(int64_t)(sampleoffset*this->ratefactor),
+					(int64_t)(length*this->ratefactor),
+					f
+				};
+				this->regions.push_back(r);
+			}
+			rindex++;
+			printf("%s\n", name);
 		}
 	}
 
