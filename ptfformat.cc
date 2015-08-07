@@ -258,7 +258,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		break;
 	}
 	fclose(fp);
-	this->targetrate = targetsr;
+	targetrate = targetsr;
 	parse();
 	return 0;
 }
@@ -266,8 +266,8 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 void
 PTFFormat::unxor10(void)
 {
-	this->key10a = ptfunxored[0x9f];
-	this->key10b = ptfunxored[0x9e] - ptfunxored[0x9b];
+	key10a = ptfunxored[0x9f];
+	key10b = ptfunxored[0x9e] - ptfunxored[0x9b];
 	int j, k, currkey;
 
 	k = 0x1000;
@@ -281,7 +281,7 @@ PTFFormat::unxor10(void)
 	currkey = key10b;
 	while (k < len) {
 		k += 0x1000;
-		currkey = (this->key10a + currkey) & 0xff;
+		currkey = (key10a + currkey) & 0xff;
 		for (j = k; j < k + 0x1000 && j < len; j++) {
 			ptfunxored[j] ^= currkey;
 		}
@@ -290,19 +290,19 @@ PTFFormat::unxor10(void)
 
 void
 PTFFormat::parse(void) {
-	this->version = ptfunxored[61];
+	version = ptfunxored[61];
 
-	if (this->version == 8) {
+	if (version == 8) {
 		parse8header();
 		setrates();
 		parseaudio();
 		parserest89();
-	} else if (this->version == 9) {
+	} else if (version == 9) {
 		parse9header();
 		setrates();
 		parseaudio();
 		parserest89();
-	} else if (this->version == 10) {
+	} else if (version == 10) {
 		unxor10();
 		parse10header();
 		setrates();
@@ -315,9 +315,9 @@ PTFFormat::parse(void) {
 
 void
 PTFFormat::setrates(void) {
-	this->ratefactor = 1.f;
+	ratefactor = 1.f;
 	if (sessionrate != 0) {
-		this->ratefactor = (float)this->targetrate / this->sessionrate;
+		ratefactor = (float)targetrate / sessionrate;
 	}
 }
 
@@ -335,10 +335,10 @@ PTFFormat::parse8header(void) {
 		k++;
 	}
 
-	this->sessionrate = 0;
-	this->sessionrate |= ptfunxored[k+11];
-	this->sessionrate |= ptfunxored[k+12] << 8;
-	this->sessionrate |= ptfunxored[k+13] << 16;
+	sessionrate = 0;
+	sessionrate |= ptfunxored[k+11];
+	sessionrate |= ptfunxored[k+12] << 8;
+	sessionrate |= ptfunxored[k+13] << 16;
 }
 
 void
@@ -355,10 +355,10 @@ PTFFormat::parse9header(void) {
 		k++;
 	}
 
-	this->sessionrate = 0;
-	this->sessionrate |= ptfunxored[k+11];
-	this->sessionrate |= ptfunxored[k+12] << 8;
-	this->sessionrate |= ptfunxored[k+13] << 16;
+	sessionrate = 0;
+	sessionrate |= ptfunxored[k+11];
+	sessionrate |= ptfunxored[k+12] << 8;
+	sessionrate |= ptfunxored[k+13] << 16;
 }
 
 void
@@ -375,10 +375,10 @@ PTFFormat::parse10header(void) {
 		k++;
 	}
 
-	this->sessionrate = 0;
-	this->sessionrate |= ptfunxored[k+11];
-	this->sessionrate |= ptfunxored[k+12] << 8;
-	this->sessionrate |= ptfunxored[k+13] << 16;
+	sessionrate = 0;
+	sessionrate |= ptfunxored[k+11];
+	sessionrate |= ptfunxored[k+12] << 8;
+	sessionrate |= ptfunxored[k+13] << 16;
 }
 
 void
@@ -578,29 +578,29 @@ PTFFormat::parserest89(void) {
 			wav_t f = { 
 				filename,
 				0,
-				(int64_t)(start*this->ratefactor),
-				(int64_t)(length*this->ratefactor),
+				(int64_t)(start*ratefactor),
+				(int64_t)(length*ratefactor),
 			};
 
 			f.index = findex;
 			//printf("something=%d\n", something);
 
-			vector<wav_t>::iterator begin = this->actualwavs.begin();
-			vector<wav_t>::iterator finish = this->actualwavs.end();
+			vector<wav_t>::iterator begin = actualwavs.begin();
+			vector<wav_t>::iterator finish = actualwavs.end();
 			vector<wav_t>::iterator found;
 			// Add file to list only if it is an actual wav
 			if ((found = std::find(begin, finish, f)) != finish) {
-				this->audiofiles.push_back(f);
+				audiofiles.push_back(f);
 				// Also add plain wav as region
 				region_t r = {
 					name,
 					rindex,
-					(int64_t)(start*this->ratefactor),
-					(int64_t)(sampleoffset*this->ratefactor),
-					(int64_t)(length*this->ratefactor),
+					(int64_t)(start*ratefactor),
+					(int64_t)(sampleoffset*ratefactor),
+					(int64_t)(length*ratefactor),
 					f
 				};
-				this->regions.push_back(r);
+				regions.push_back(r);
 			// Region only
 			} else {
 				if (foundin(filename, string(".grp"))) {
@@ -609,12 +609,12 @@ PTFFormat::parserest89(void) {
 				region_t r = {
 					name,
 					rindex,
-					(int64_t)(start*this->ratefactor),
-					(int64_t)(sampleoffset*this->ratefactor),
-					(int64_t)(length*this->ratefactor),
+					(int64_t)(start*ratefactor),
+					(int64_t)(sampleoffset*ratefactor),
+					(int64_t)(length*ratefactor),
 					f
 				};
-				this->regions.push_back(r);
+				regions.push_back(r);
 			}
 			rindex++;
 		}
@@ -682,8 +682,8 @@ PTFFormat::parserest89(void) {
 				} else {
 
 					tr.reg.index = (uint8_t)(ptfunxored[l+11]);
-					vector<region_t>::iterator begin = this->regions.begin();
-					vector<region_t>::iterator finish = this->regions.end();
+					vector<region_t>::iterator begin = regions.begin();
+					vector<region_t>::iterator finish = regions.end();
 					vector<region_t>::iterator found;
 					if ((found = std::find(begin, finish, tr.reg)) != finish) {
 						tr.reg = (*found);
@@ -694,9 +694,9 @@ PTFFormat::parserest89(void) {
 					offset |= (uint32_t)(ptfunxored[i+2] << 16);
 					offset |= (uint32_t)(ptfunxored[i+1] << 8);
 					offset |= (uint32_t)(ptfunxored[i]);
-					tr.reg.startpos = (int64_t)(offset*this->ratefactor);
+					tr.reg.startpos = (int64_t)(offset*ratefactor);
 					if (tr.reg.length > 0) {
-						this->tracks.push_back(tr);
+						tracks.push_back(tr);
 					}
 					regionspertrack--;
 				}
@@ -843,8 +843,8 @@ PTFFormat::parserest10(void) {
 			wav_t f = { 
 				filename,
 				0,
-				(int64_t)(start*this->ratefactor),
-				(int64_t)(length*this->ratefactor),
+				(int64_t)(start*ratefactor),
+				(int64_t)(length*ratefactor),
 			};
 
 			if (strlen(name) == 0) {
@@ -856,22 +856,22 @@ PTFFormat::parserest10(void) {
 			f.index = findex;
 			//printf("something=%d\n", something);
 
-			vector<wav_t>::iterator begin = this->actualwavs.begin();
-			vector<wav_t>::iterator finish = this->actualwavs.end();
+			vector<wav_t>::iterator begin = actualwavs.begin();
+			vector<wav_t>::iterator finish = actualwavs.end();
 			vector<wav_t>::iterator found;
 			// Add file to list only if it is an actual wav
 			if ((found = std::find(begin, finish, f)) != finish) {
-				this->audiofiles.push_back(f);
+				audiofiles.push_back(f);
 				// Also add plain wav as region
 				region_t r = {
 					name,
 					rindex,
-					(int64_t)(start*this->ratefactor),
-					(int64_t)(sampleoffset*this->ratefactor),
-					(int64_t)(length*this->ratefactor),
+					(int64_t)(start*ratefactor),
+					(int64_t)(sampleoffset*ratefactor),
+					(int64_t)(length*ratefactor),
 					f
 				};
-				this->regions.push_back(r);
+				regions.push_back(r);
 			// Region only
 			} else {
 				if (foundin(filename, string(".grp"))) {
@@ -880,12 +880,12 @@ PTFFormat::parserest10(void) {
 				region_t r = {
 					name,
 					rindex,
-					(int64_t)(start*this->ratefactor),
-					(int64_t)(sampleoffset*this->ratefactor),
-					(int64_t)(length*this->ratefactor),
+					(int64_t)(start*ratefactor),
+					(int64_t)(sampleoffset*ratefactor),
+					(int64_t)(length*ratefactor),
 					f
 				};
-				this->regions.push_back(r);
+				regions.push_back(r);
 			}
 			rindex++;
 			//printf("%s\n", name);
@@ -944,8 +944,8 @@ PTFFormat::parserest10(void) {
 				} else {
 
 					tr.reg.index = (uint8_t)(ptfunxored[l+11]);
-					vector<region_t>::iterator begin = this->regions.begin();
-					vector<region_t>::iterator finish = this->regions.end();
+					vector<region_t>::iterator begin = regions.begin();
+					vector<region_t>::iterator finish = regions.end();
 					vector<region_t>::iterator found;
 					if ((found = std::find(begin, finish, tr.reg)) != finish) {
 						tr.reg = (*found);
@@ -956,9 +956,9 @@ PTFFormat::parserest10(void) {
 					offset |= (uint32_t)(ptfunxored[i+2] << 16);
 					offset |= (uint32_t)(ptfunxored[i+1] << 8);
 					offset |= (uint32_t)(ptfunxored[i]);
-					tr.reg.startpos = (int64_t)(offset*this->ratefactor);
+					tr.reg.startpos = (int64_t)(offset*ratefactor);
 					if (tr.reg.length > 0) {
-						this->tracks.push_back(tr);
+						tracks.push_back(tr);
 					}
 					regionspertrack--;
 				}
