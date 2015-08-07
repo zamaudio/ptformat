@@ -128,6 +128,10 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	fread(&c0, 1, 1, fp);
 	fread(&c1, 1, 1, fp);
 
+	// For version 7 support:
+	version = c0 & 0x0f;
+	c0 = c0 & 0xc0;
+
 	if (! (ptfunxored = (unsigned char*) malloc(len * sizeof(unsigned char)))) {
 		/* Silently fail -- out of memory*/
 		fclose(fp);
@@ -290,9 +294,14 @@ PTFFormat::unxor10(void)
 
 void
 PTFFormat::parse(void) {
-	version = ptfunxored[61];
+	version = (version == 0) ? ptfunxored[61] : version;
 
-	if (version == 8) {
+	if (version == 7) {
+		parse7header();
+		setrates();
+		parseaudio();
+		parserest89();
+	} else if (version == 8) {
 		parse8header();
 		setrates();
 		parseaudio();
@@ -319,6 +328,27 @@ PTFFormat::setrates(void) {
 	if (sessionrate != 0) {
 		ratefactor = (float)targetrate / sessionrate;
 	}
+}
+
+void
+PTFFormat::parse7header(void) {
+	int k;
+
+	// Find session sample rate
+	k = 0x100;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x00) &&
+				(ptfunxored[k+2] == 0x05)) {
+			break;
+		}
+		k++;
+	}
+
+	sessionrate = 0;
+	sessionrate |= ptfunxored[k+12] << 16;
+	sessionrate |= ptfunxored[k+13] << 8;
+	sessionrate |= ptfunxored[k+14];
 }
 
 void

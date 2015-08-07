@@ -124,6 +124,7 @@ private:
 	void parse(void);
 	void unxor10(void);
 	void setrates(void);
+	void parse7header(void);
 	void parse8header(void);
 	void parse9header(void);
 	void parse10header(void);
