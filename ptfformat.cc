@@ -139,8 +139,6 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		return -1;
 	}
 
-	i = 2;
-
 	fseek(fp, 0x0, SEEK_SET);
 
 	switch (c0) {
@@ -453,9 +451,6 @@ PTFFormat::parseaudio(void) {
 		k++;
 	}
 
-	j = 0;
-	l = 0;
-
 	// Find actual wav names
 	bool first = true;
 	uint16_t numberofwavs;
@@ -616,6 +611,7 @@ PTFFormat::parserest89(void) {
 				break;
 			}
 			j+=startbytes;
+			/*
 			uint32_t something = 0;
 			switch (somethingbytes) {
 			case 4:
@@ -630,6 +626,7 @@ PTFFormat::parserest89(void) {
 				break;
 			}
 			j+=somethingbytes;
+			*/
 			std::string filename = string(name) + extension;
 			wav_t f = { 
 				filename,
@@ -881,6 +878,7 @@ PTFFormat::parserest10(void) {
 				break;
 			}
 			j+=startbytes;
+			/*
 			uint32_t something = 0;
 			switch (somethingbytes) {
 			case 4:
@@ -895,6 +893,7 @@ PTFFormat::parserest10(void) {
 				break;
 			}
 			j+=somethingbytes;
+			*/
 			std::string filename = string(name) + extension;
 			wav_t f = { 
 				filename,
