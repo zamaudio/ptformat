@@ -75,8 +75,10 @@ public:
 		std::vector<track_t>::iterator begin = tr.begin();
 		std::vector<track_t>::iterator finish = tr.end();
 		std::vector<track_t>::iterator found;
-
-		track_t f = { std::string(""), index };
+	
+		wav_t w = { std::string(""), 0, 0, 0 };
+		region_t r = { std::string(""), 0, 0, 0, 0, w };
+		track_t f = { std::string(""), index, 0, r };
 
 		if ((found = std::find(begin, finish, f)) != finish) {
 			return true;
@@ -89,7 +91,8 @@ public:
 		std::vector<region_t>::iterator finish = reg.end();
 		std::vector<region_t>::iterator found;
 
-		region_t r = { std::string(""), index };
+		wav_t w = { std::string(""), 0, 0, 0 };
+		region_t r = { std::string(""), index, 0, 0, 0, w };
 
 		if ((found = std::find(begin, finish, r)) != finish) {
 			return true;
@@ -102,7 +105,7 @@ public:
 		std::vector<wav_t>::iterator finish = wv.end();
 		std::vector<wav_t>::iterator found;
 
-		wav_t w = { std::string(""), index };
+		wav_t w = { std::string(""), index, 0, 0 };
 
 		if ((found = std::find(begin, finish, w)) != finish) {
 			return true;
@@ -124,6 +127,7 @@ private:
 	void parse(void);
 	void unxor10(void);
 	void setrates(void);
+	void parse5header(void);
 	void parse7header(void);
 	void parse8header(void);
 	void parse9header(void);

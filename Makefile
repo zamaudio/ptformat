@@ -1,5 +1,7 @@
+STRICT=-Wall -Wcast-align -Wextra -Wwrite-strings -Wunsafe-loop-optimizations -Wlogical-op
+
 all:
-	$(CXX) -o ptftool -g -Wall ptftool.cc ptfformat.cc
-	$(CXX) -o ptunxor -g -Wall ptunxor.cc ptfformat.cc
+	$(CXX) -o ptftool -g ${STRICT} ptftool.cc ptfformat.cc
+	$(CXX) -o ptunxor -g ${STRICT} ptunxor.cc ptfformat.cc
 clean:
 	rm ptftool ptunxor

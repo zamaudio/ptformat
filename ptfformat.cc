@@ -37,7 +37,7 @@ static const uint32_t xorlut[16] = {
 	0xbab0b0ba, 0xb0abaaba, 0xba0aabaa, 0xbaaaaaaa
 };
 
-static const uint32_t swapbytes32 (const uint32_t v) {
+static uint32_t swapbytes32 (const uint32_t v) {
 	uint32_t rv = 0;
 	rv |= ((v >>  0) & 0xf) << 28;
 	rv |= ((v >>  4) & 0xf) << 24;
@@ -50,7 +50,7 @@ static const uint32_t swapbytes32 (const uint32_t v) {
 	return rv;
 }
 
-static const uint64_t gen_secret (int i) {
+static uint64_t gen_secret (int i) {
 	assert (i > 0 && i < 256);
 	int iwrap = i & 0x7f; // wrap at 0x80;
 	uint32_t xor_lo = 0;  // 0x40 flag
@@ -128,7 +128,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	fread(&c0, 1, 1, fp);
 	fread(&c1, 1, 1, fp);
 
-	// For version 7 support:
+	// For version <= 7 support:
 	version = c0 & 0x0f;
 	c0 = c0 & 0xc0;
 
@@ -296,7 +296,12 @@ void
 PTFFormat::parse(void) {
 	version = (version == 0) ? ptfunxored[61] : version;
 
-	if (version == 7) {
+	if (version == 5) {
+		parse5header();
+		setrates();
+		parseaudio();
+		parserest89();
+	} else if (version == 7) {
 		parse7header();
 		setrates();
 		parseaudio();
@@ -328,6 +333,27 @@ PTFFormat::setrates(void) {
 	if (sessionrate != 0) {
 		ratefactor = (float)targetrate / sessionrate;
 	}
+}
+
+void
+PTFFormat::parse5header(void) {
+	int k;
+
+	// Find session sample rate
+	k = 0x100;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x00) &&
+				(ptfunxored[k+2] == 0x02)) {
+			break;
+		}
+		k++;
+	}
+
+	sessionrate = 0;
+	sessionrate |= ptfunxored[k+12] << 16;
+	sessionrate |= ptfunxored[k+13] << 8;
+	sessionrate |= ptfunxored[k+14];
 }
 
 void
@@ -474,7 +500,7 @@ PTFFormat::parseaudio(void) {
 
 			std::string wave = string(wavname);
 			std::reverse(wave.begin(), wave.end());
-			wav_t f = { wave, (uint16_t)(numberofwavs - 1), 0 };
+			wav_t f = { wave, (uint16_t)(numberofwavs - 1), 0, 0 };
 
 			if (foundin(wave, string(".grp"))) {
 				continue;
