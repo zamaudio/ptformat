@@ -297,8 +297,8 @@ PTFFormat::parse(void) {
 	if (version == 5) {
 		parse5header();
 		setrates();
-		parseaudio();
-		parserest89();
+		parseaudio5();
+		parserest5();
 	} else if (version == 7) {
 		parse7header();
 		setrates();
@@ -433,6 +433,257 @@ PTFFormat::parse10header(void) {
 	sessionrate |= ptfunxored[k+11];
 	sessionrate |= ptfunxored[k+12] << 8;
 	sessionrate |= ptfunxored[k+13] << 16;
+}
+
+void
+PTFFormat::parserest5(void) {
+	int i, j, k;
+	int regionspertrack, lengthofname;
+	int startbytes, lengthbytes, offsetbytes, somethingbytes;
+	int tracknumber;
+	uint16_t findex;
+	uint16_t rindex;
+
+	k = 0;
+	for (i = 0; i < 5; i++) {
+		while (k < len) {
+			if (		(ptfunxored[k  ] == 0x5a) &&
+					(ptfunxored[k+1] == 0x00) &&
+					(ptfunxored[k+2] == 0x03)) {
+				break;
+			}
+			k++;
+		}
+		k++;
+	}
+	k--;
+	
+	for (i = 0; i < 2; i++) {
+		while (k > 0) {
+			if (		(ptfunxored[k  ] == 0x5a) &&
+					(ptfunxored[k+1] == 0x00) &&
+					(ptfunxored[k+2] == 0x01)) {
+				break;
+			}
+			k--;
+		}
+		k--;
+	}
+	k++;
+	
+	rindex = 0;
+	tracknumber = 0;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0xff) &&
+				(ptfunxored[k+1] == 0xff)) {
+			break;
+		}
+		while (k < len) {
+			if (		(ptfunxored[k  ] == 0x5a) &&
+					(ptfunxored[k+1] == 0x00) &&
+					(ptfunxored[k+2] == 0x01)) {
+				break;
+			}
+			k++;
+		}
+	
+		lengthofname = ptfunxored[k+12];
+		if (lengthofname <= 4 && ptfunxored[k+13] == 0x5a) {
+			k++;
+			break;
+		}
+		char name[256] = {0};
+		for (j = 0; j < lengthofname; j++) {
+			name[j] = ptfunxored[k+13+j];
+		}
+		name[j] = '\0';
+		regionspertrack = ptfunxored[k+13+j+3];
+		for (i = 0; i < regionspertrack; i++) {
+			while (k < len) {
+				if (		(ptfunxored[k  ] == 0x5a) &&
+						(ptfunxored[k+1] == 0x00) &&
+						(ptfunxored[k+2] == 0x03)) {
+					break;
+				}
+				k++;
+			}
+			j = k+16;
+			startbytes = (ptfunxored[j+3] & 0xf0) >> 4;
+			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
+			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
+			somethingbytes = (ptfunxored[j+1] & 0xf);
+			findex = ptfunxored[j+4
+					+startbytes
+					+lengthbytes
+					+offsetbytes
+					+somethingbytes
+					];
+			j--;
+			uint32_t start = 0;
+			switch (startbytes) {
+			case 4:
+				start |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				start |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				start |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				start |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=startbytes;
+			uint32_t length = 0;
+			switch (lengthbytes) {
+			case 4:
+				length |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				length |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				length |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				length |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=lengthbytes;
+			uint32_t sampleoffset = 0;
+			switch (offsetbytes) {
+			case 4:
+				sampleoffset |= (uint32_t)(ptfunxored[j+8] << 24);
+			case 3:
+				sampleoffset |= (uint32_t)(ptfunxored[j+7] << 16);
+			case 2:
+				sampleoffset |= (uint32_t)(ptfunxored[j+6] << 8);
+			case 1:
+				sampleoffset |= (uint32_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=offsetbytes;
+			
+			//printf("name=`%s` start=%04x length=%04x offset=%04x findex=%d\n", name,start,length,sampleoffset,findex);
+			
+			std::string filename = string(name) + extension;
+			wav_t f = { 
+				filename,
+				findex,
+				(int64_t)(start*ratefactor),
+				(int64_t)(length*ratefactor),
+			};
+
+			vector<wav_t>::iterator begin = actualwavs.begin();
+			vector<wav_t>::iterator finish = actualwavs.end();
+			vector<wav_t>::iterator found;
+			// Add file to list only if it is an actual wav
+			if ((found = std::find(begin, finish, f)) != finish) {
+				audiofiles.push_back(f);
+				// Also add plain wav as region
+				region_t r = {
+					"",
+					rindex,
+					(int64_t)(start*ratefactor),
+					(int64_t)(sampleoffset*ratefactor),
+					(int64_t)(length*ratefactor),
+					f
+				};
+				regions.push_back(r);
+				actualwavs.erase(found);
+			// Region only
+			} else {
+				if (foundin(filename, string(".grp"))) {
+					continue;
+				}
+				region_t r = {
+					"",
+					rindex,
+					(int64_t)(start*ratefactor),
+					(int64_t)(sampleoffset*ratefactor),
+					(int64_t)(length*ratefactor),
+					f
+				};
+				regions.push_back(r);
+			}
+			rindex++;
+			k++;
+		}
+		k++;
+	}
+}
+
+void
+PTFFormat::parseaudio5(void) {
+	int i,j,k,l;
+	
+	// Find end of wav file list
+	k = 0;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] == 0x00) &&
+				(ptfunxored[k+2] == 0x05)) {
+			break;
+		}
+		k++;
+	}
+
+	// Find actual wav names
+	bool first = true;
+	uint16_t numberofwavs;
+	char wavname[256];
+	for (i = k; i > 4; i--) {
+		if (		((ptfunxored[i  ] == 'W') || (ptfunxored[i  ] == 'F')) &&
+				((ptfunxored[i-1] == 'A') || (ptfunxored[i-1] == 'F')) &&
+				((ptfunxored[i-2] == 'V') || (ptfunxored[i-2] == 'I')) &&
+				((ptfunxored[i-3] == 'E') || (ptfunxored[i-3] == 'A'))) {
+			j = i-4;
+			l = 0;
+			while (ptfunxored[j] != '\0') {
+				wavname[l] = ptfunxored[j];
+				l++;
+				j--;
+			}
+			wavname[l] = 0;
+			if (ptfunxored[i] == 'W') {
+				extension = string(".wav");
+			} else {
+				extension = string(".aif");
+			}
+			//uint8_t playlist = ptfunxored[j-8];
+
+			if (first) {
+				first = false;
+				for (j = k; j > 4; j--) {
+					if (	(ptfunxored[j  ] == 0x01) &&
+						(ptfunxored[j-1] == 0x00) &&
+						(ptfunxored[j-2] == 0x5a)) {
+
+						numberofwavs = 0;
+						numberofwavs |= (uint32_t)(ptfunxored[j-6] << 24);
+						numberofwavs |= (uint32_t)(ptfunxored[j-5] << 16);
+						numberofwavs |= (uint32_t)(ptfunxored[j-4] << 8);
+						numberofwavs |= (uint32_t)(ptfunxored[j-3]);
+						//printf("%d wavs\n", numberofwavs);
+						break;
+					}
+				k--;
+				}
+			}
+
+			std::string wave = string(wavname);
+			std::reverse(wave.begin(), wave.end());
+			wav_t f = { wave, (uint16_t)(numberofwavs - 1), 0, 0 };
+
+			if (foundin(wave, string(".grp"))) {
+				continue;
+			}
+
+			actualwavs.push_back(f);
+			//printf("done\n");
+			numberofwavs--;
+			if (numberofwavs <= 0)
+				break;
+		}
+	}
 }
 
 void
