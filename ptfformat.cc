@@ -440,7 +440,7 @@ PTFFormat::parserest5(void) {
 	int i, j, k;
 	int regionspertrack, lengthofname;
 	int startbytes, lengthbytes, offsetbytes, somethingbytes;
-	int tracknumber;
+	uint16_t tracknumber = 0;
 	uint16_t findex;
 	uint16_t rindex;
 
@@ -574,13 +574,10 @@ PTFFormat::parserest5(void) {
 			vector<wav_t>::iterator begin = audiofiles.begin();
 			vector<wav_t>::iterator finish = audiofiles.end();
 			vector<wav_t>::iterator found;
-			// Add file to list only if isn't found before
+			// Add file to lists
 			if ((found = std::find(begin, finish, f)) != finish) {
-				if (foundin(filename, string(".grp"))) {
-					continue;
-				}
 				region_t r = {
-					"",
+					name,
 					rindex,
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
@@ -588,21 +585,26 @@ PTFFormat::parserest5(void) {
 					*found,
 				};
 				regions.push_back(r);
-				track_t tr = {
+				vector<track_t>::iterator ti;
+				vector<track_t>::iterator bt = tracks.begin();
+				vector<track_t>::iterator et = tracks.end();
+				track_t tr = { name, 0, 0, r };
+				if ((ti = std::find(bt, et, tr)) != et) {
+					tracknumber = (*ti).index;
+				} else {
+					tracknumber = tracks.size() + 1;
+				}	
+				track_t t = {
 					name,
 					(uint16_t)tracknumber,
 					uint8_t(0),
 					r
 				};
-				tracks.push_back(tr);
-				tracknumber++;
+				tracks.push_back(t);
 			} else {
 				audiofiles.push_back(f);
-				if (foundin(filename, string(".grp"))) {
-					continue;
-				}
 				region_t r = {
-					"",
+					name,
 					rindex,
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
@@ -610,14 +612,22 @@ PTFFormat::parserest5(void) {
 					f,
 				};
 				regions.push_back(r);
-				track_t tr = {
+				vector<track_t>::iterator ti;
+				vector<track_t>::iterator bt = tracks.begin();
+				vector<track_t>::iterator et = tracks.end();
+				track_t tr = { name, 0, 0, r };
+				if ((ti = std::find(bt, et, tr)) != et) {
+					tracknumber = (*ti).index;
+				} else {
+					tracknumber = tracks.size() + 1;
+				}	
+				track_t t = {
 					name,
 					(uint16_t)tracknumber,
 					uint8_t(0),
 					r
 				};
-				tracks.push_back(tr);
-				tracknumber++;
+				tracks.push_back(t);
 			}
 			rindex++;
 			k++;

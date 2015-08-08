@@ -72,21 +72,6 @@ public:
 	std::vector<region_t> regions;
 	std::vector<track_t> tracks;
 
-	static bool trackexistsin(std::vector<track_t> tr, std::string name) {
-		std::vector<track_t>::iterator begin = tr.begin();
-		std::vector<track_t>::iterator finish = tr.end();
-		std::vector<track_t>::iterator found;
-	
-		wav_t w = { std::string(""), 0, 0, 0 };
-		region_t r = { std::string(""), 0, 0, 0, 0, w };
-		track_t f = { name, 0, 0, r };
-
-		if ((found = std::find(begin, finish, f)) != finish) {
-			return true;
-		}
-		return false;
-	}
-
 	static bool regionexistsin(std::vector<region_t> reg, uint16_t index) {
 		std::vector<region_t>::iterator begin = reg.begin();
 		std::vector<region_t>::iterator finish = reg.end();
