@@ -561,7 +561,7 @@ PTFFormat::parserest5(void) {
 			}
 			j+=offsetbytes;
 			
-			printf("name=`%s` start=%04x length=%04x offset=%04x findex=%d\n", name,start,length,sampleoffset,findex);
+			//printf("name=`%s` start=%04x length=%04x offset=%04x findex=%d\n", name,start,length,sampleoffset,findex);
 			
 			std::string filename = string(name) + extension;
 			wav_t f = { 
