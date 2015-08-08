@@ -472,7 +472,6 @@ PTFFormat::parserest5(void) {
 	k++;
 	
 	rindex = 0;
-	tracknumber = 0;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0xff) &&
 				(ptfunxored[k+1] == 0xff)) {
@@ -488,7 +487,7 @@ PTFFormat::parserest5(void) {
 		}
 	
 		lengthofname = ptfunxored[k+12];
-		if (lengthofname <= 4 && ptfunxored[k+13] == 0x5a) {
+		if (ptfunxored[k+13] == 0x5a) {
 			k++;
 			break;
 		}
@@ -562,7 +561,7 @@ PTFFormat::parserest5(void) {
 			}
 			j+=offsetbytes;
 			
-			//printf("name=`%s` start=%04x length=%04x offset=%04x findex=%d\n", name,start,length,sampleoffset,findex);
+			printf("name=`%s` start=%04x length=%04x offset=%04x findex=%d\n", name,start,length,sampleoffset,findex);
 			
 			std::string filename = string(name) + extension;
 			wav_t f = { 
@@ -572,25 +571,11 @@ PTFFormat::parserest5(void) {
 				(int64_t)(length*ratefactor),
 			};
 
-			vector<wav_t>::iterator begin = actualwavs.begin();
-			vector<wav_t>::iterator finish = actualwavs.end();
+			vector<wav_t>::iterator begin = audiofiles.begin();
+			vector<wav_t>::iterator finish = audiofiles.end();
 			vector<wav_t>::iterator found;
-			// Add file to list only if it is an actual wav
+			// Add file to list only if isn't found before
 			if ((found = std::find(begin, finish, f)) != finish) {
-				audiofiles.push_back(f);
-				// Also add plain wav as region
-				region_t r = {
-					"",
-					rindex,
-					(int64_t)(start*ratefactor),
-					(int64_t)(sampleoffset*ratefactor),
-					(int64_t)(length*ratefactor),
-					f
-				};
-				regions.push_back(r);
-				actualwavs.erase(found);
-			// Region only
-			} else {
 				if (foundin(filename, string(".grp"))) {
 					continue;
 				}
@@ -600,9 +585,39 @@ PTFFormat::parserest5(void) {
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
-					f
+					*found,
 				};
 				regions.push_back(r);
+				track_t tr = {
+					name,
+					(uint16_t)tracknumber,
+					uint8_t(0),
+					r
+				};
+				tracks.push_back(tr);
+				tracknumber++;
+			} else {
+				audiofiles.push_back(f);
+				if (foundin(filename, string(".grp"))) {
+					continue;
+				}
+				region_t r = {
+					"",
+					rindex,
+					(int64_t)(start*ratefactor),
+					(int64_t)(sampleoffset*ratefactor),
+					(int64_t)(length*ratefactor),
+					f,
+				};
+				regions.push_back(r);
+				track_t tr = {
+					name,
+					(uint16_t)tracknumber,
+					uint8_t(0),
+					r
+				};
+				tracks.push_back(tr);
+				tracknumber++;
 			}
 			rindex++;
 			k++;
