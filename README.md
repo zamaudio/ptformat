@@ -1,16 +1,15 @@
 ptformat
 =========
 
-ptformat currently opens *every* .ptf file
-above and including version 8 but does not yet open any .ptx files.
+ptformat currently opens PT{5,8,9,10} files.
 
 Audio source/region/track information is extracted.
 
-The idea is to make ardour open pt sessions.
+The idea is to make ardour open PT sessions.
 
 Current functionality:
 
-Decrypt and parse a .ptf file:
+Decrypt and parse a PT file:
 
 	make
-	./ptftool file.ptf
+	./ptftool file.pt{s,f,5,7,x}
