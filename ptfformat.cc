@@ -147,7 +147,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		xxor[0] = c0;
 		xxor[1] = c1;
 		//fprintf(stderr, "%02x %02x", c0, c1);
-		
+
 		for (i = 2; i < 64; i++) {
 			xxor[i] = (xxor[i-1] + c1 - c0) & 0xff;
 			//fprintf(stderr, "%02x ", xxor[i]);
@@ -229,7 +229,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 			inv = (((key >> (i-128)) & 1) == 1) ? 1 : 3;
 			xxor[i] ^= (inv * 0x40);
 		}
-		
+
 		for (i = 192; i < 256; i++) {
 			xxor[i] ^= 0x80;
 		}
@@ -322,7 +322,7 @@ PTFFormat::parse(void) {
 		parserest10();
 	} else {
 		// Should not occur
-	}	
+	}
 }
 
 void
@@ -457,7 +457,7 @@ PTFFormat::parserest5(void) {
 		k++;
 	}
 	k--;
-	
+
 	for (i = 0; i < 2; i++) {
 		while (k > 0) {
 			if (		(ptfunxored[k  ] == 0x5a) &&
@@ -470,7 +470,7 @@ PTFFormat::parserest5(void) {
 		k--;
 	}
 	k++;
-	
+
 	rindex = 0;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0xff) &&
@@ -485,7 +485,7 @@ PTFFormat::parserest5(void) {
 			}
 			k++;
 		}
-	
+
 		lengthofname = ptfunxored[k+12];
 		if (ptfunxored[k+13] == 0x5a) {
 			k++;
@@ -560,9 +560,9 @@ PTFFormat::parserest5(void) {
 				break;
 			}
 			j+=offsetbytes;
-			
+
 			//printf("name=`%s` start=%04x length=%04x offset=%04x findex=%d\n", name,start,length,sampleoffset,findex);
-			
+
 			std::string filename = string(name) + extension;
 			wav_t f = { 
 				filename,
@@ -593,7 +593,7 @@ PTFFormat::parserest5(void) {
 					tracknumber = (*ti).index;
 				} else {
 					tracknumber = tracks.size() + 1;
-				}	
+				}
 				track_t t = {
 					name,
 					(uint16_t)tracknumber,
@@ -620,7 +620,7 @@ PTFFormat::parserest5(void) {
 					tracknumber = (*ti).index;
 				} else {
 					tracknumber = tracks.size() + 1;
-				}	
+				}
 				track_t t = {
 					name,
 					(uint16_t)tracknumber,
@@ -639,7 +639,7 @@ PTFFormat::parserest5(void) {
 void
 PTFFormat::parseaudio5(void) {
 	int i,j,k,l;
-	
+
 	// Find end of wav file list
 	k = 0;
 	while (k < len) {
@@ -714,7 +714,7 @@ PTFFormat::parseaudio5(void) {
 void
 PTFFormat::parseaudio(void) {
 	int i,j,k,l;
-	
+
 	// Find end of wav file list
 	k = 0;
 	while (k < len) {
