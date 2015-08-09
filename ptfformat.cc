@@ -511,13 +511,6 @@ PTFFormat::parserest5(void) {
 			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
 			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
 			//somethingbytes = (ptfunxored[j+1] & 0xf);
-			/*findex = ptfunxored[j+4
-					+startbytes
-					+lengthbytes
-					+offsetbytes
-					+somethingbytes
-					+7];
-			*/
 			findex = ptfunxored[k+14];
 			printf("findex=%x\n", findex);
 			j--;
