@@ -439,7 +439,7 @@ void
 PTFFormat::parserest5(void) {
 	int i, j, k;
 	int regionspertrack, lengthofname;
-	int startbytes, lengthbytes, offsetbytes, somethingbytes;
+	int startbytes, lengthbytes, offsetbytes;
 	uint16_t tracknumber = 0;
 	uint16_t findex;
 	uint16_t rindex;
@@ -510,7 +510,7 @@ PTFFormat::parserest5(void) {
 			startbytes = (ptfunxored[j+3] & 0xf0) >> 4;
 			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
 			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
-			somethingbytes = (ptfunxored[j+1] & 0xf);
+			//somethingbytes = (ptfunxored[j+1] & 0xf);
 			/*findex = ptfunxored[j+4
 					+startbytes
 					+lengthbytes
@@ -640,7 +640,7 @@ PTFFormat::parserest5(void) {
 
 void
 PTFFormat::parseaudio5(void) {
-	int i,j,k,l;
+	int i,k,l;
 	int lengthofname, wavnumber;
 
 	// Find end of wav file list
