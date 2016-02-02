@@ -16,6 +16,7 @@
 #define PTFFORMAT_H
 
 #include <string>
+#include <cstring>
 #include <algorithm>
 #include <vector>
 #include <stdint.h>
@@ -36,6 +37,11 @@ public:
 
 		int64_t     posabsolute;
 		int64_t     length;
+
+		bool operator <(const struct wav& other) {
+			return (strcmp(this->filename.c_str(),
+					other.filename.c_str()) < 0);
+		}
 
 		bool operator ==(const struct wav& other) {
 			return (this->filename == other.filename ||
@@ -123,6 +129,7 @@ private:
 	void parserest10(void);
 	void parseaudio5(void);
 	void parseaudio(void);
+	void resort(std::vector<wav_t> *ws);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
 	std::string extension;
