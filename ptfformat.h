@@ -39,7 +39,7 @@ public:
 		int64_t     length;
 
 		bool operator <(const struct wav& other) {
-			return (strcmp(this->filename.c_str(),
+			return (strcasecmp(this->filename.c_str(),
 					other.filename.c_str()) < 0);
 		}
 
