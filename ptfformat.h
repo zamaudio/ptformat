@@ -112,12 +112,12 @@ public:
 	unsigned char c0;
 	unsigned char c1;
 	unsigned char *ptfunxored;
-	int len;
+	uint64_t len;
 
 private:
 	bool foundin(std::string haystack, std::string needle);
 	void parse(void);
-	void unxor10(void);
+	void unxor10(uint8_t last);
 	void setrates(void);
 	void parse5header(void);
 	void parse7header(void);

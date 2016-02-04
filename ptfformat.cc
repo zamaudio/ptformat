@@ -107,12 +107,11 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	FILE *fp;
 	unsigned char xxor[256];
 	unsigned char ct;
-	unsigned char px;
+	unsigned char v;
 	uint64_t key;
-	uint16_t i;
-	int j;
+	uint64_t i;
+	uint64_t j;
 	int inv;
-	unsigned char message;
 
 	if (! (fp = fopen(path.c_str(), "rb"))) {
 		return -1;
@@ -139,8 +138,6 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		return -1;
 	}
 
-	fseek(fp, 0x0, SEEK_SET);
-
 	switch (c0) {
 	case 0x00:
 		// Success! easy one
@@ -148,28 +145,13 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		xxor[1] = c1;
 		//fprintf(stderr, "%02x %02x", c0, c1);
 
-		for (i = 2; i < 64; i++) {
-			xxor[i] = (xxor[i-1] + c1 - c0) & 0xff;
-			//fprintf(stderr, "%02x ", xxor[i]);
-		}
-		px = xxor[0];
-		fread(&ct, 1, 1, fp);
-		message = px ^ ct;
-		ptfunxored[0] = message;
-		px  = xxor[1];
-		fread(&ct, 1, 1, fp);
-		message = px ^ ct;
-		ptfunxored[1] = message;
-		i = 2;
-		j = 2;
-		while (fread(&ct, 1, 1, fp) != 0) {
+		for (i = 2; i < 256; i++) {
 			if (i%64 == 0) {
-				i = 0;
+				xxor[i] = c0;
+			} else {
+				xxor[i] = (xxor[i-1] + c1 - c0) & 0xff;
+				//fprintf(stderr, "%02x ", xxor[i]);
 			}
-			message = xxor[i] ^ ct;
-			ptfunxored[j] = message;
-			i++;
-			j++;
 		}
 		break;
 	case 0x80:
@@ -188,25 +170,6 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		}
 		for (i = 128; i < 192; i++) {
 			xxor[i] ^= 0x80;
-		}
-		px = xxor[0];
-		fread(&ct, 1, 1, fp);
-		message = px ^ ct;
-		ptfunxored[0] = message;
-		px  = xxor[1];
-		fread(&ct, 1, 1, fp);
-		message = px ^ ct;
-		ptfunxored[1] = message;
-		i = 2;
-		j = 2;
-		while (fread(&ct, 1, 1, fp) != 0) {
-			if (i%256 == 0) {
-				i = 0;
-			}
-			message = xxor[i] ^ ct;
-			ptfunxored[j] = message;
-			i++;
-			j++;
 		}
 		break;
 	case 0x40:
@@ -233,25 +196,6 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		for (i = 192; i < 256; i++) {
 			xxor[i] ^= 0x80;
 		}
-		px = xxor[0];
-		fread(&ct, 1, 1, fp);
-		message = px ^ ct;
-		ptfunxored[0] = message;
-		px  = xxor[1];
-		fread(&ct, 1, 1, fp);
-		message = px ^ ct;
-		ptfunxored[1] = message;
-		i = 2;
-		j = 2;
-		while (fread(&ct, 1, 1, fp) != 0) {
-			if (i%256 == 0) {
-				i = 0;
-			}
-			message = xxor[i] ^ ct;
-			ptfunxored[j] = message;
-			i++;
-			j++;
-		}
 		break;
 		break;
 	default:
@@ -259,40 +203,58 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		return -1;
 		break;
 	}
+
+	/* ptx support */
+	fseek(fp, 0x3d, SEEK_SET);
+	fread(&v, 1, 1, fp);
+	if (v == 10 || v == 11 || v == 12) {
+		version = v;
+	}
+
+	/* Read file */
+	i = 0;
+	fseek(fp, 0, SEEK_SET);
+	while (fread(&ct, 1, 1, fp) != 0) {
+		ptfunxored[i++] = ct;
+	}
 	fclose(fp);
+
+	/* Decipher */
+	if (version >= 10) {
+		unxor10(xxor[255]);
+	} else {
+		j = 0;
+		for (i = 0; i < len; i++) {
+			if (j%256 == 0) {
+				j = 0;
+			}
+			ptfunxored[i] ^= xxor[j];
+		}
+	}
+
 	targetrate = targetsr;
+	version = (version == 0) ? ptfunxored[61] : version;
+
 	parse();
 	return 0;
 }
 
 void
-PTFFormat::unxor10(void)
+PTFFormat::unxor10(uint8_t last)
 {
-	key10a = ptfunxored[0x9f];
-	key10b = ptfunxored[0x9e] - ptfunxored[0x9b];
-	int j, k, currkey;
+	uint64_t j;
+	uint8_t x = (last + 4) & 0xff;
 
-	k = 0x1000;
-	for (j = k; j < k + 0x1000 && j < len; j++) {
-		ptfunxored[j] ^= key10a;
-	}
-	k = 0x2000;
-	for (j = k; j < k + 0x1000 && j < len; j++) {
-		ptfunxored[j] ^= key10b;
-	}
-	currkey = key10b;
-	while (k < len) {
-		k += 0x1000;
-		currkey = (key10a + currkey) & 0xff;
-		for (j = k; j < k + 0x1000 && j < len; j++) {
-			ptfunxored[j] ^= currkey;
+	for (j = 0x1000; j < len; j++) {
+		if(j % 0x1000 == 0xfff) {
+			x = (x - 0x3f) & 0xff;
 		}
+		ptfunxored[j] ^= x;
 	}
 }
 
 void
 PTFFormat::parse(void) {
-	version = (version == 0) ? ptfunxored[61] : version;
 
 	if (version == 5) {
 		parse5header();
@@ -314,8 +276,7 @@ PTFFormat::parse(void) {
 		setrates();
 		parseaudio();
 		parserest89();
-	} else if (version == 10) {
-		unxor10();
+	} else if (version == 10 || version == 11 || version == 12) {
 		parse10header();
 		setrates();
 		parseaudio();
@@ -335,7 +296,7 @@ PTFFormat::setrates(void) {
 
 void
 PTFFormat::parse5header(void) {
-	int k;
+	uint64_t k;
 
 	// Find session sample rate
 	k = 0x100;
@@ -356,7 +317,7 @@ PTFFormat::parse5header(void) {
 
 void
 PTFFormat::parse7header(void) {
-	int k;
+	uint64_t k;
 
 	// Find session sample rate
 	k = 0x100;
@@ -377,7 +338,7 @@ PTFFormat::parse7header(void) {
 
 void
 PTFFormat::parse8header(void) {
-	int k;
+	uint64_t k;
 
 	// Find session sample rate
 	k = 0;
@@ -397,7 +358,7 @@ PTFFormat::parse8header(void) {
 
 void
 PTFFormat::parse9header(void) {
-	int k;
+	uint64_t k;
 
 	// Find session sample rate
 	k = 0x100;
@@ -417,7 +378,7 @@ PTFFormat::parse9header(void) {
 
 void
 PTFFormat::parse10header(void) {
-	int k;
+	uint64_t k;
 
 	// Find session sample rate
 	k = 0;
@@ -437,9 +398,9 @@ PTFFormat::parse10header(void) {
 
 void
 PTFFormat::parserest5(void) {
-	int i, j, k;
-	int regionspertrack, lengthofname;
-	int startbytes, lengthbytes, offsetbytes;
+	uint64_t i, j, k;
+	uint64_t regionspertrack, lengthofname;
+	uint64_t startbytes, lengthbytes, offsetbytes;
 	uint16_t tracknumber = 0;
 	uint16_t findex;
 	uint16_t rindex;
@@ -643,8 +604,8 @@ PTFFormat::resort(std::vector<wav_t> *ws) {
 
 void
 PTFFormat::parseaudio5(void) {
-	int i,k,l;
-	int lengthofname, wavnumber;
+	uint64_t i,k,l;
+	uint64_t lengthofname, wavnumber;
 
 	// Find end of wav file list
 	k = 0;
@@ -678,7 +639,7 @@ PTFFormat::parseaudio5(void) {
 			break;
 		}
 	}
-	
+
 	wavnumber = 0;
 	i+=16;
 	char ext[5];
@@ -733,7 +694,7 @@ PTFFormat::parseaudio5(void) {
 
 void
 PTFFormat::parseaudio(void) {
-	int i,j,k,l;
+	uint64_t i,j,k,l;
 
 	// Find end of wav file list
 	k = 0;
@@ -808,7 +769,7 @@ PTFFormat::parseaudio(void) {
 
 void
 PTFFormat::parserest89(void) {
-	int i,j,k,l;
+	uint64_t i,j,k,l;
 	// Find Regions
 	uint8_t startbytes = 0;
 	uint8_t lengthbytes = 0;
@@ -1057,7 +1018,7 @@ PTFFormat::parserest89(void) {
 
 void
 PTFFormat::parserest10(void) {
-	int i,j,k,l;
+	uint64_t i,j,k,l;
 	// Find Regions
 	uint8_t startbytes = 0;
 	uint8_t lengthbytes = 0;

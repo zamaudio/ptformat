@@ -18,7 +18,8 @@
 
 int main(int argc, char** argv) {
 	
-	int i, li;
+	uint64_t i;
+	int li;
 	PTFFormat ptf;
 
 	if (argc < 2 || ptf.load(argv[1], 48000) == -1) {
