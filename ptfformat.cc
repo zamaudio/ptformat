@@ -143,14 +143,14 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		// Success! easy one
 		xxor[0] = c0;
 		xxor[1] = c1;
-		//fprintf(stderr, "%02x %02x", c0, c1);
+		//fprintf(stderr, "0 %02x\n1 %02x\n", c0, c1);
 
 		for (i = 2; i < 256; i++) {
 			if (i%64 == 0) {
 				xxor[i] = c0;
 			} else {
 				xxor[i] = (xxor[i-1] + c1 - c0) & 0xff;
-				//fprintf(stderr, "%02x ", xxor[i]);
+				//fprintf(stderr, "%x %02x\n", i, xxor[i]);
 			}
 		}
 		break;
@@ -185,6 +185,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		}
 
 		key = gen_secret(c1);
+
 		for (i = 0; i < 64; i++) {
 			xxor[i] ^= (((key >> i) & 1) * 2 * 0x40) + 0x40;
 		}
@@ -221,7 +222,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 
 	/* Decipher */
 	if (version >= 10) {
-		unxor10(xxor[255]);
+		unxor10();
 	} else {
 		j = 0;
 		for (i = 0; i < len; i++) {
@@ -239,15 +240,37 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	return 0;
 }
 
+uint8_t
+PTFFormat::mostfrequent(uint32_t start, uint32_t stop)
+{
+	uint32_t counts[256] = {0};
+	uint64_t i;
+	uint32_t max = 0;
+	uint8_t maxi = 0;
+
+	for (i = start; i < stop; i++) {
+		counts[ptfunxored[i]]++;
+	}
+
+	for (i = 0; i < 256; i++) {
+		if (counts[i] > max) {
+			maxi = i;
+			max = counts[i];
+		}
+	}
+	return maxi;
+}
+
 void
-PTFFormat::unxor10(uint8_t last)
+PTFFormat::unxor10(void)
 {
 	uint64_t j;
-	uint8_t x = (last + 4) & 0xff;
+	uint8_t x = mostfrequent(0x1000, 0x2000);
+	uint8_t dx = 0x100-x;
 
 	for (j = 0x1000; j < len; j++) {
 		if(j % 0x1000 == 0xfff) {
-			x = (x - 0x3f) & 0xff;
+			x = (x - dx) & 0xff;
 		}
 		ptfunxored[j] ^= x;
 	}

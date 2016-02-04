@@ -117,7 +117,7 @@ public:
 private:
 	bool foundin(std::string haystack, std::string needle);
 	void parse(void);
-	void unxor10(uint8_t last);
+	void unxor10(void);
 	void setrates(void);
 	void parse5header(void);
 	void parse7header(void);
@@ -130,6 +130,7 @@ private:
 	void parseaudio5(void);
 	void parseaudio(void);
 	void resort(std::vector<wav_t> *ws);
+	uint8_t mostfrequent(uint32_t start, uint32_t stop);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
 	std::string extension;
