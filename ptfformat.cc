@@ -230,7 +230,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		unxor10();
 	}
 
-	if (version == 0) {
+	if (version == 0 || version == 5 || version == 7) {
 		/* Haven't detected version yet so decipher */
 		j = 0;
 		for (i = 0; i < len; i++) {
@@ -252,7 +252,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 			voff = 0;
 		}
 		v = ptfunxored[voff];
-		if (v == 8 || v == 9) {
+		if (v == 5 || v == 7 || v == 8 || v == 9) {
 			version = v;
 		}
 	}
@@ -340,7 +340,7 @@ PTFFormat::setrates(void) {
 
 void
 PTFFormat::parse5header(void) {
-	uint64_t k;
+	uint32_t k;
 
 	// Find session sample rate
 	k = 0x100;
@@ -464,7 +464,7 @@ PTFFormat::parserest5(void) {
 	k--;
 
 	for (i = 0; i < 2; i++) {
-		while (k > 0) {
+		while (k) {
 			if (		(ptfunxored[k  ] == 0x5a) &&
 					(ptfunxored[k+1] == 0x00) &&
 					(ptfunxored[k+2] == 0x01)) {
@@ -472,7 +472,8 @@ PTFFormat::parserest5(void) {
 			}
 			k--;
 		}
-		k--;
+		if (k)
+			k--;
 	}
 	k++;
 
