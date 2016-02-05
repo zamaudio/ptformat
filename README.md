@@ -1,7 +1,7 @@
 ptformat
 =========
 
-ptformat currently opens PT{5,8,9,10} files.
+ptformat currently opens PT{5,8,9,10,11} files.
 
 Audio source/region/track information is extracted.
 
