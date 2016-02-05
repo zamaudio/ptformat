@@ -108,6 +108,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	unsigned char xxor[256];
 	unsigned char ct;
 	unsigned char v;
+	unsigned char voff;
 	uint64_t key;
 	uint64_t i;
 	uint64_t j;
@@ -205,13 +206,6 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		break;
 	}
 
-	/* ptx support */
-	fseek(fp, 0x3d, SEEK_SET);
-	fread(&v, 1, 1, fp);
-	if (v == 10 || v == 11 || v == 12) {
-		version = v;
-	}
-
 	/* Read file */
 	i = 0;
 	fseek(fp, 0, SEEK_SET);
@@ -220,22 +214,50 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	}
 	fclose(fp);
 
-	/* Decipher */
-	if (version >= 10) {
-		unxor10();
+	/* version detection */
+	voff = 0x36;
+	v = ptfunxored[voff];
+	if (v == 0x20) {
+		voff += 7;
+	} else if (v == 0x03) {
+		voff += 4;
 	} else {
+		voff = 0;
+	}
+	v = ptfunxored[voff];
+	if (v == 10 || v == 11 || v == 12) {
+		version = v;
+		unxor10();
+	}
+
+	if (version == 0) {
+		/* Haven't detected version yet so decipher */
 		j = 0;
 		for (i = 0; i < len; i++) {
 			if (j%256 == 0) {
 				j = 0;
 			}
 			ptfunxored[i] ^= xxor[j];
+			j++;
+		}
+		
+		/* version detection */
+		voff = 0x36;
+		v = ptfunxored[voff];
+		if (v == 0x20) {
+			voff += 7;
+		} else if (v == 0x03) {
+			voff += 4;
+		} else {
+			voff = 0;
+		}
+		v = ptfunxored[voff];
+		if (v == 8 || v == 9) {
+			version = v;
 		}
 	}
-
+	
 	targetrate = targetsr;
-	version = (version == 0) ? ptfunxored[61] : version;
-
 	parse();
 	return 0;
 }
@@ -278,7 +300,6 @@ PTFFormat::unxor10(void)
 
 void
 PTFFormat::parse(void) {
-
 	if (version == 5) {
 		parse5header();
 		setrates();
@@ -404,7 +425,7 @@ PTFFormat::parse10header(void) {
 	uint64_t k;
 
 	// Find session sample rate
-	k = 0;
+	k = 0x100;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0x5a) &&
 				(ptfunxored[k+1] == 0x09)) {
