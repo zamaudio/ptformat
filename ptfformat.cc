@@ -637,11 +637,10 @@ PTFFormat::parserest5(void) {
 }
 
 void
-PTFFormat::resort(std::vector<wav_t> *ws) {
+PTFFormat::resort(std::vector<wav_t>& ws) {
 	int j = 0;
-	std::sort((*ws).begin(), (*ws).end());
-	for (std::vector<wav_t>::iterator i = (*ws).begin();
-			i != (*ws).end(); ++i) {
+	std::sort(ws.begin(), ws.end());
+	for (std::vector<wav_t>::iterator i = ws.begin(); i != ws.end(); ++i) {
 		(*i).index = j;
 		j++;
 	}
@@ -733,8 +732,8 @@ PTFFormat::parseaudio5(void) {
 		numberofwavs--;
 		i += 7;
 	}
-	resort(&actualwavs);
-	resort(&audiofiles);
+	resort(actualwavs);
+	resort(audiofiles);
 }
 
 void
@@ -1019,11 +1018,7 @@ PTFFormat::parserest89(void) {
 				name[j] = ptfunxored[j+k+13];
 			}
 			name[j] = '\0';
-			if (strlen(name) == 0) {
-				tr.name = "Track";
-			} else {
-				tr.name = string(name);
-			}
+			tr.name = string(name);
 			tr.index = tracknumber++;
 
 			for (j = k; regionspertrack > 0 && j < len; j++) {
@@ -1288,11 +1283,7 @@ PTFFormat::parserest10(void) {
 				name[j] = ptfunxored[j+k+13];
 			}
 			name[j] = '\0';
-			if (strlen(name) == 0) {
-				tr.name = "Track";
-			} else {
-				tr.name = string(name);
-			}
+			tr.name = string(name);
 			tr.index = tracknumber++;
 
 			for (j = k; regionspertrack > 0 && j < len; j++) {
