@@ -1019,7 +1019,11 @@ PTFFormat::parserest89(void) {
 				name[j] = ptfunxored[j+k+13];
 			}
 			name[j] = '\0';
-			tr.name = string(name);
+			if (strlen(name) == 0) {
+				tr.name = "Track";
+			} else {
+				tr.name = string(name);
+			}
 			tr.index = tracknumber++;
 
 			for (j = k; regionspertrack > 0 && j < len; j++) {
@@ -1284,7 +1288,11 @@ PTFFormat::parserest10(void) {
 				name[j] = ptfunxored[j+k+13];
 			}
 			name[j] = '\0';
-			tr.name = string(name);
+			if (strlen(name) == 0) {
+				tr.name = "Track";
+			} else {
+				tr.name = string(name);
+			}
 			tr.index = tracknumber++;
 
 			for (j = k; regionspertrack > 0 && j < len; j++) {
