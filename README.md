@@ -19,7 +19,12 @@ See ptftool.cc for example usage
 
 TODO
 ====
-PT6 support (?)
-PT7 support
 
-Investigate PT12 (feel free to send me some .ptx ProTools 12 session files)
+- MIDI parsing support
+
+- PT6 support (?)
+
+- PT7 support
+
+- Investigate PT12 (feel free to send me some .ptx ProTools 12 session files)
+
