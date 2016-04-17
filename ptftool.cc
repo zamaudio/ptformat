@@ -31,6 +31,7 @@ int main (int argc, char **argv) {
 	ok = ptf.load(argv[1], 48000);
 
 	switch (ok) {
+	default:
 	case -1:
 		printf("Cannot open ptf, quit\n");
 		exit(-1);
@@ -98,10 +99,6 @@ int main (int argc, char **argv) {
 		} else {
 			printf("No audio files in session, quit\n");
 		}
-		break;
-	default:
-		printf("Missing LUT 0x%02x, quit\n", ok);
-		exit(ok);
 		break;
 	}
 	exit(0);
