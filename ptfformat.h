@@ -109,6 +109,8 @@ public:
 	int64_t sessionrate;
 	int64_t targetrate;
 	uint8_t version;
+	uint8_t *product;
+
 
 	unsigned char c0;
 	unsigned char c1;
@@ -118,8 +120,8 @@ public:
 private:
 	bool foundin(std::string haystack, std::string needle);
 	int parse(void);
-	void unxor10(void);
-	void unxor_ptx_to_ptf(void);
+	bool parse_version();
+	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative);
 	void setrates(void);
 	void parse5header(void);
 	void parse7header(void);
@@ -132,7 +134,6 @@ private:
 	void parseaudio5(void);
 	void parseaudio(void);
 	void resort(std::vector<wav_t>& ws);
-	uint8_t mostfrequent(uint32_t start, uint32_t stop);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
 	std::string extension;

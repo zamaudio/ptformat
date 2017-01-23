@@ -37,49 +37,31 @@ static const uint32_t xorlut[16] = {
 	0xbab0b0ba, 0xb0abaaba, 0xba0aabaa, 0xbaaaaaaa
 };
 
-static uint32_t swapbytes32 (const uint32_t v) {
-	uint32_t rv = 0;
-	rv |= ((v >>  0) & 0xf) << 28;
-	rv |= ((v >>  4) & 0xf) << 24;
-	rv |= ((v >>  8) & 0xf) << 20;
-	rv |= ((v >> 12) & 0xf) << 16;
-	rv |= ((v >> 16) & 0xf) << 12;
-	rv |= ((v >> 20) & 0xf) <<  8;
-	rv |= ((v >> 24) & 0xf) <<  4;
-	rv |= ((v >> 28) & 0xf) <<  0;
-	return rv;
+#pragma GCC diagnostic ignored "-Wunused-function"
+static void
+hexdump(uint8_t *data, int len)
+{
+	int i,j,end,step=16;
+	
+	for (i = 0; i < len; i += step) {
+		printf("0x%02X: ", i);
+		end = i + step;
+		if (end > len) end = len;
+		for (j = i; j < end; j++) {
+			printf("0x%02X ", data[j]);
+		}
+		for (j = i; j < end; j++) {
+			if (data[j] < 128 && data[j] > 32)
+				printf("%c", data[j]);
+			else
+				printf(".");
+		}
+		printf("\n");
+	}
 }
+#pragma GCC diagnostic pop
 
-static uint64_t gen_secret (int i) {
-	assert (i > 0 && i < 256);
-	int iwrap = i & 0x7f; // wrap at 0x80;
-	uint32_t xor_lo = 0;  // 0x40 flag
-	int idx;              // mirror at 0x40;
-
-	if (iwrap & 0x40) {
-		xor_lo = 0x1;
-		idx    = 0x80 - iwrap;
-	} else {
-		idx    = iwrap;
-	}
-
-	int i16 = (idx >> 1) & 0xf;
-	if (idx & 0x20) {
-		i16 = 15 - i16;
-	}
-
-	uint32_t lo = baselut [i16];
-	uint32_t xk = xorlut  [i16];
-
-	if (idx & 0x20) {
-		lo ^= 0xaaaaaaab;
-		xk ^= 0x10000000;
-	}
-	uint32_t hi = swapbytes32 (lo) ^ xk;
-	return  ((uint64_t)hi << 32) | (lo ^ xor_lo);
-}
-
-PTFFormat::PTFFormat() {
+PTFFormat::PTFFormat() : version(0), product(NULL) {
 }
 
 PTFFormat::~PTFFormat() {
@@ -107,12 +89,11 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	FILE *fp;
 	unsigned char xxor[256];
 	unsigned char ct;
-	unsigned char v;
-	unsigned char voff;
-	uint64_t key;
 	uint64_t i;
-	uint64_t j;
-	int inv;
+	uint8_t xor_type;
+	uint8_t xor_value;
+	uint8_t xor_delta;
+	uint16_t xor_len;
 	int err;
 
 	if (! (fp = fopen(path.c_str(), "rb"))) {
@@ -121,17 +102,10 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 
 	fseek(fp, 0, SEEK_END);
 	len = ftell(fp);
-	if (len < 0x40) {
+	if (len < 0x13) {
 		fclose(fp);
 		return -1;
 	}
-	fseek(fp, 0x40, SEEK_SET);
-	fread(&c0, 1, 1, fp);
-	fread(&c1, 1, 1, fp);
-
-	// For version <= 7 support:
-	version = c0 & 0x0f;
-	c0 = c0 & 0xc0;
 
 	if (! (ptfunxored = (unsigned char*) malloc(len * sizeof(unsigned char)))) {
 		/* Silently fail -- out of memory*/
@@ -140,195 +114,129 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		return -1;
 	}
 
-	switch (c0) {
-	case 0x00:
-		// Success! easy one
-		xxor[0] = c0;
-		xxor[1] = c1;
-		//fprintf(stderr, "0 %02x\n1 %02x\n", c0, c1);
-
-		for (i = 2; i < 256; i++) {
-			if (i%64 == 0) {
-				xxor[i] = c0;
-			} else {
-				xxor[i] = (xxor[i-1] + c1 - c0) & 0xff;
-				//fprintf(stderr, "%x %02x\n", i, xxor[i]);
-			}
-		}
-		break;
-	case 0x80:
-		//Success! easy two
-		xxor[0] = c0;
-		xxor[1] = c1;
-		for (i = 2; i < 256; i++) {
-			if (i%64 == 0) {
-				xxor[i] = c0;
-			} else {
-				xxor[i] = ((xxor[i-1] + c1 - c0) & 0xff);
-			}
-		}
-		for (i = 0; i < 64; i++) {
-			xxor[i] ^= 0x80;
-		}
-		for (i = 128; i < 192; i++) {
-			xxor[i] ^= 0x80;
-		}
-		break;
-	case 0x40:
-	case 0xc0:
-		xxor[0] = c0;
-		xxor[1] = c1;
-		for (i = 2; i < 256; i++) {
-			if (i%64 == 0) {
-				xxor[i] = c0;
-			} else {
-				xxor[i] = ((xxor[i-1] + c1 - c0) & 0xff);
-			}
-		}
-
-		key = gen_secret(c1);
-
-		for (i = 0; i < 64; i++) {
-			xxor[i] ^= (((key >> i) & 1) * 2 * 0x40) + 0x40;
-		}
-		for (i = 128; i < 192; i++) {
-			inv = (((key >> (i-128)) & 1) == 1) ? 1 : 3;
-			xxor[i] ^= (inv * 0x40);
-		}
-
-		for (i = 192; i < 256; i++) {
-			xxor[i] ^= 0x80;
-		}
-		break;
-		break;
-	default:
-		//Should not happen, failed c[0] c[1]
+	/* The first 20 bytes are always unencrypted */
+	fseek(fp, 0x00, SEEK_SET);
+	i = fread(ptfunxored, 1, 0x14, fp);
+	if (i < 0x14) {
+		fclose(fp);
 		return -1;
-		break;
 	}
 
-	/* Read file */
-	i = 0;
-	fseek(fp, 0, SEEK_SET);
+	xor_type = ptfunxored[0x12];
+	xor_value = ptfunxored[0x13];
+
+	// xor_type 0x01 = ProTools 8 and 9
+	// xor_type 0x05 = ProTools 10, 11, 12
+	switch(xor_type) {
+	case 0x01:
+		xor_delta = gen_xor_delta(xor_value, 53, false);
+		xor_len = 256;
+		break;
+	case 0x05:
+		xor_delta = gen_xor_delta(xor_value, 11, true);
+		xor_len = 128;
+		break;
+	default:
+		fclose(fp);
+		return -1;
+	}
+
+	/* Generate the xor_key */
+	for (i=0; i < xor_len; i++)
+		xxor[i] = (i * xor_delta) & 0xff;
+
+	/* hexdump(xxor, xor_len); */
+
+	/* Read file and decrypt rest of file */
+	i = 0x14;
+	fseek(fp, i, SEEK_SET);
 	while (fread(&ct, 1, 1, fp) != 0) {
-		ptfunxored[i++] = ct;
+		uint8_t xor_index = (xor_type == 0x01) ? i & 0xff : (i >> 12) & 0x7f;
+		ptfunxored[i++] = ct ^ xxor[xor_index];
 	}
 	fclose(fp);
 
-	/* version detection */
-	voff = 0x36;
-	v = ptfunxored[voff];
-	if (v == 0x20) {
-		voff += 7;
-	} else if (v == 0x03) {
-		voff += 4;
-	} else {
-		voff = 0;
-	}
-	v = ptfunxored[voff];
-	if (v == 10 || v == 11 || v == 12) {
-		version = v;
-		unxor10();
-	}
-
-	// Special case when ptx is exported to ptf in PT
-	if (v == 3) {
-		version = 11;
-		unxor_ptx_to_ptf();
-	}
-
-	if (version == 0 || version == 5 || version == 7) {
-		/* Haven't detected version yet so decipher */
-		j = 0;
-		for (i = 0; i < len; i++) {
-			if (j%256 == 0) {
-				j = 0;
-			}
-			ptfunxored[i] ^= xxor[j];
-			j++;
-		}
-
-		/* version detection */
-		voff = 0x36;
-		v = ptfunxored[voff];
-		if (v == 0x20) {
-			voff += 7;
-		} else if (v == 0x03) {
-			voff += 4;
-		} else {
-			voff = 0;
-		}
-		v = ptfunxored[voff];
-		if (v == 5 || v == 7 || v == 8 || v == 9) {
-			version = v;
-		}
-	}
+	if (!parse_version())
+		return -1;
 
 	if (version < 5 || version > 12)
 		return -1;
+
 	targetrate = targetsr;
 	err = parse();
 	if (err)
 		return -1;
+
 	return 0;
 }
 
+bool
+PTFFormat::parse_version() {
+	uint32_t seg_len,str_len;
+	uint8_t *data = ptfunxored + 0x14;
+	intptr_t data_end = ((intptr_t)ptfunxored) + len;
+	uint8_t seg_type; 
+	bool success = true;
+
+	while((intptr_t)data < data_end) {
+
+		if (data[0] != 0x5a) {
+			success = false;
+			break;
+		}
+
+		seg_type = data[1];
+		/* Skip segment header */
+		data += 3;
+		seg_len = *(uint32_t *)data;
+		/* Skip seg_len */
+		data += 4;
+		if (!(seg_type == 0x04 || seg_type == 0x03) || data[0] != 0x03) {
+			/* Go to next segment */
+			data += seg_len;
+			continue;
+		}
+		/* Skip 0x03 0x00 0x00 */
+		data += 3;
+		seg_len -= 3;
+		str_len = (*(uint8_t *)data); 
+		if (! (product = (uint8_t *)malloc((str_len+1) * sizeof(uint8_t)))) {
+			success = false;
+			break;
+		}
+
+		/* Skip str_len */
+		data += 4;
+		seg_len -= 4;
+
+		memcpy(product, data, str_len);
+		product[str_len] = 0;
+		data += str_len;
+		seg_len -= str_len;
+
+		/* Skip 0x03 0x00 0x00 0x00 */
+		data += 4;
+		seg_len -= 4;
+
+		version = *(uint32_t *)data;
+
+		data += seg_len;
+		return success;
+	}
+
+	return success;
+}
+
 uint8_t
-PTFFormat::mostfrequent(uint32_t start, uint32_t stop)
-{
-	uint32_t counts[256] = {0};
-	uint64_t i;
-	uint32_t max = 0;
-	uint8_t maxi = 0;
-
-	for (i = start; i < stop; i++) {
-		counts[ptfunxored[i]]++;
-	}
-
+PTFFormat::gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) {
+	uint16_t i;
 	for (i = 0; i < 256; i++) {
-		if (counts[i] > max) {
-			maxi = i;
-			max = counts[i];
+		if (((i * mul) & 0xff) == xor_value) {
+				return (negative) ? i * (-1) : i;
 		}
 	}
-	return maxi;
-}
-
-void
-PTFFormat::unxor10(void)
-{
-	uint64_t j;
-	uint8_t x = mostfrequent(0x1000, 0x2000);
-	uint8_t dx = 0x100-x;
-
-	for (j = 0x1000; j < len; j++) {
-		if(j % 0x1000 == 0xfff) {
-			x = (x - dx) & 0xff;
-		}
-		ptfunxored[j] ^= x;
-	}
-}
-
-void
-PTFFormat::unxor_ptx_to_ptf(void)
-{
-	unsigned char keyy[16] = {	0x00,0x10,0x20,0x30,0x40,0x50,0x60,0x70,
-					0x80,0x90,0xa0,0xb0,0xc0,0xd0,0xe0,0xf0
-	};
-	uint64_t j;
-	uint8_t i;
-
-	for (i = 0, j = 0x10; j < len; j++,i++) {
-		ptfunxored[j] ^= keyy[i];
-		if ((j % 16) == 0) {
-			i = 0;
-			if (ptfunxored[j] % 2 == 0) {
-				ptfunxored[j]++;
-			} else {
-				ptfunxored[j]--;
-			}
-		}
-	}
+	// Should not occur
+	return 0;
 }
 
 int
