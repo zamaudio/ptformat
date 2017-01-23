@@ -102,7 +102,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 
 	fseek(fp, 0, SEEK_END);
 	len = ftell(fp);
-	if (len < 0x13) {
+	if (len < 0x14) {
 		fclose(fp);
 		return -1;
 	}
