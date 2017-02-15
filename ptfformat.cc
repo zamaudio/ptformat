@@ -174,11 +174,11 @@ bool
 PTFFormat::parse_version() {
 	uint32_t seg_len,str_len;
 	uint8_t *data = ptfunxored + 0x14;
-	intptr_t data_end = ((intptr_t)ptfunxored) + len;
+	uintptr_t data_end = ((uintptr_t)ptfunxored) + len;
 	uint8_t seg_type; 
 	bool success = true;
 
-	while((intptr_t)data < data_end) {
+	while((uintptr_t)data < data_end) {
 
 		if (data[0] != 0x5a) {
 			success = false;
