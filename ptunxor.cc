@@ -21,9 +21,13 @@ int main(int argc, char** argv) {
 	uint64_t i;
 	PTFFormat ptf;
 
-	if (argc < 2 || ptf.load(argv[1], 48000) == -1) {
-		fprintf(stderr, "Can't open ptf file, quit\n");
+	if (argc < 2) {
+		fprintf(stderr, "Need filename\n");
 		exit(1);
+	}
+
+	if (ptf.load(argv[1], 48000) == -1) {
+		fprintf(stderr, "Can't open ptf file, still dump...\n");
 	}
 
 	for (i = 0; i < ptf.len; i++) {
