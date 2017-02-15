@@ -23,21 +23,6 @@
 
 using namespace std;
 
-static const uint32_t baselut[16] = {
-	0xaaaaaaaa, 0xaa955555, 0xa9554aaa, 0xa552a955,
-	0xb56ad5aa, 0x95a95a95, 0x94a5294a, 0x9696b4b5,
-	0xd2d25a5a, 0xd24b6d25, 0xdb6db6da, 0xd9249b6d,
-	0xc9b64d92, 0xcd93264d, 0xccd99b32, 0xcccccccd
-};
-
-static const uint32_t xorlut[16] = {
-	0x00000000, 0x00000b00, 0x000100b0, 0x00b0b010,
-	0x010b0b01, 0x0b10b10b, 0x01bb101b, 0x0111bbbb,
-	0x1111bbbb, 0x1bbb10bb, 0x1bb0bb0b, 0xbb0b0bab,
-	0xbab0b0ba, 0xb0abaaba, 0xba0aabaa, 0xbaaaaaaa
-};
-
-#pragma GCC diagnostic ignored "-Wunused-function"
 static void
 hexdump(uint8_t *data, int len)
 {
@@ -59,7 +44,6 @@ hexdump(uint8_t *data, int len)
 		printf("\n");
 	}
 }
-#pragma GCC diagnostic pop
 
 PTFFormat::PTFFormat() : version(0), product(NULL) {
 }
@@ -125,7 +109,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	xor_type = ptfunxored[0x12];
 	xor_value = ptfunxored[0x13];
 
-	// xor_type 0x01 = ProTools 8 and 9
+	// xor_type 0x01 = ProTools 5, 6, 7, 8 and 9
 	// xor_type 0x05 = ProTools 10, 11, 12
 	switch(xor_type) {
 	case 0x01:
@@ -174,11 +158,11 @@ bool
 PTFFormat::parse_version() {
 	uint32_t seg_len,str_len;
 	uint8_t *data = ptfunxored + 0x14;
-	uintptr_t data_end = ((uintptr_t)ptfunxored) + len;
+	uintptr_t data_end = ((uintptr_t)ptfunxored) + 0x100;
 	uint8_t seg_type; 
-	bool success = true;
+	bool success = false;
 
-	while((uintptr_t)data < data_end) {
+	while( ((uintptr_t)data < data_end) && (success == false) ) {
 
 		if (data[0] != 0x5a) {
 			success = false;
@@ -188,7 +172,13 @@ PTFFormat::parse_version() {
 		seg_type = data[1];
 		/* Skip segment header */
 		data += 3;
-		seg_len = *(uint32_t *)data;
+		if (data[0] == 0 && data[1] == 0) {
+			/* LE */
+			seg_len = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+		} else {
+			/* BE */
+			seg_len = data[3] << 24 | data[2] << 16 | data[1] << 8 | data[0];
+		}
 		/* Skip seg_len */
 		data += 4;
 		if (!(seg_type == 0x04 || seg_type == 0x03) || data[0] != 0x03) {
@@ -199,7 +189,7 @@ PTFFormat::parse_version() {
 		/* Skip 0x03 0x00 0x00 */
 		data += 3;
 		seg_len -= 3;
-		str_len = (*(uint8_t *)data); 
+		str_len = (*(uint8_t *)data);
 		if (! (product = (uint8_t *)malloc((str_len+1) * sizeof(uint8_t)))) {
 			success = false;
 			break;
@@ -218,12 +208,19 @@ PTFFormat::parse_version() {
 		data += 4;
 		seg_len -= 4;
 
-		version = *(uint32_t *)data;
-
+		version = data[0];
+		if (version == 0) {
+			version = data[3];
+		}
 		data += seg_len;
-		return success;
+		success = true;
 	}
 
+	/* If the above does not work, assume old version 5,6,7 */
+	if ((uintptr_t)data >= data_end - seg_len) {
+		version = ptfunxored[0x40];
+		success = true;
+	}
 	return success;
 }
 
