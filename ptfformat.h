@@ -51,6 +51,13 @@ public:
 
 	};
 
+	struct midi_ev_t {
+		uint64_t pos;
+		uint64_t length;
+		uint8_t note;
+		uint8_t velocity;
+	};
+
 	typedef struct region {
 		std::string name;
 		uint16_t    index;
@@ -58,6 +65,7 @@ public:
 		int64_t     sampleoffset;
 		int64_t     length;
 		wav_t       wave;
+		std::vector<midi_ev_t> midi;
 
 		bool operator ==(const struct region& other) {
 			return (this->index == other.index);
@@ -85,7 +93,8 @@ public:
 		std::vector<region_t>::iterator found;
 
 		wav_t w = { std::string(""), 0, 0, 0 };
-		region_t r = { std::string(""), index, 0, 0, 0, w };
+		std::vector<midi_ev_t> m;
+		region_t r = { std::string(""), index, 0, 0, 0, w, m};
 
 		if ((found = std::find(begin, finish, r)) != finish) {
 			return true;
@@ -133,6 +142,7 @@ private:
 	void parserest10(void);
 	void parseaudio5(void);
 	void parseaudio(void);
+	bool parsemidi(void);
 	void resort(std::vector<wav_t>& ws);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;

@@ -248,6 +248,7 @@ PTFFormat::parse(void) {
 		  return -1;
 		parseaudio5();
 		parserest5();
+		parsemidi();
 	} else if (version == 7) {
 		parse7header();
 		setrates();
@@ -255,6 +256,7 @@ PTFFormat::parse(void) {
 		  return -1;
 		parseaudio();
 		parserest89();
+		parsemidi();
 	} else if (version == 8) {
 		parse8header();
 		setrates();
@@ -262,6 +264,7 @@ PTFFormat::parse(void) {
 		  return -1;
 		parseaudio();
 		parserest89();
+		parsemidi();
 	} else if (version == 9) {
 		parse9header();
 		setrates();
@@ -269,6 +272,7 @@ PTFFormat::parse(void) {
 		  return -1;
 		parseaudio();
 		parserest89();
+		parsemidi();
 	} else if (version == 10 || version == 11 || version == 12) {
 		parse10header();
 		setrates();
@@ -276,6 +280,7 @@ PTFFormat::parse(void) {
 		  return -1;
 		parseaudio();
 		parserest10();
+		parsemidi();
 	} else {
 		// Should not occur
 		return -1;
@@ -530,6 +535,7 @@ PTFFormat::parserest5(void) {
 			vector<wav_t>::iterator found;
 			// Add file to lists
 			if ((found = std::find(begin, finish, f)) != finish) {
+				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
 					rindex,
@@ -537,6 +543,7 @@ PTFFormat::parserest5(void) {
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
 					*found,
+					m
 				};
 				regions.push_back(r);
 				vector<track_t>::iterator ti;
@@ -556,6 +563,7 @@ PTFFormat::parserest5(void) {
 				};
 				tracks.push_back(t);
 			} else {
+				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
 					rindex,
@@ -563,6 +571,7 @@ PTFFormat::parserest5(void) {
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
 					f,
+					m,
 				};
 				regions.push_back(r);
 				vector<track_t>::iterator ti;
@@ -687,6 +696,106 @@ PTFFormat::parseaudio5(void) {
 	}
 	resort(actualwavs);
 	resort(audiofiles);
+}
+
+bool
+PTFFormat::parsemidi(void) {
+	uint64_t i, k, n_midi_events, sample_time_zero;
+	uint64_t midi_pos, midi_len, max_pos = 0, min_pos = 0xffffffffffffffff;
+	uint8_t midi_velocity, midi_note;
+	uint16_t rsize;
+	std::vector<midi_ev_t> midi;
+	midi_ev_t m;
+	bool found = false;
+
+	// Find MdNLB
+	k = 0;
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 'M') &&
+				(ptfunxored[k+1] == 'd') &&
+				(ptfunxored[k+2] == 'N') &&
+				(ptfunxored[k+3] == 'L') &&
+				(ptfunxored[k+4] == 'B')) {
+			found = true;
+			break;
+		}
+		k++;
+	}
+
+	if (!found) {
+		return false;
+	}
+
+	k += 11;
+	n_midi_events = ptfunxored[k] | ptfunxored[k+1] << 8 |
+			ptfunxored[k+2] << 16 | ptfunxored[k+3] << 24;
+
+	k += 4;
+	sample_time_zero = 0xe8d4a51000;
+	for (i = 0; i < n_midi_events; i++, k += 35) {
+		midi_pos = (uint64_t)ptfunxored[k] |
+			(uint64_t)ptfunxored[k+1] << 8 |
+			(uint64_t)ptfunxored[k+2] << 16 |
+			(uint64_t)ptfunxored[k+3] << 24 |
+			(uint64_t)ptfunxored[k+4] << 32;
+		midi_pos -= sample_time_zero;
+		midi_pos /= 40;
+		midi_note = ptfunxored[k+8];
+		midi_len = (uint64_t)ptfunxored[k+9] |
+			(uint64_t)ptfunxored[k+10] << 8 |
+			(uint64_t)ptfunxored[k+11] << 16 |
+			(uint64_t)ptfunxored[k+12] << 24 |
+			(uint64_t)ptfunxored[k+13] << 32;
+		midi_len /= 40;
+		midi_velocity = ptfunxored[k+17];
+
+		if (midi_pos + midi_len > max_pos) {
+			max_pos = midi_pos + midi_len;
+		}
+		if (midi_pos < min_pos) {
+			min_pos = midi_pos;
+		}
+
+		m.pos = midi_pos;
+		m.length = midi_len;
+		m.note = midi_note;
+		m.velocity = midi_velocity;
+		midi.push_back(m);
+
+		//fprintf(stderr, "MIDI:  Note=%d Vel=%d Start=%d(samples) Len=%d(samples)\n", midi_note, midi_velocity, midi_pos, midi_len);
+	}
+
+	rsize = (uint16_t)regions.size();
+	wav_t w = { std::string(""), 0, 0, 0 };
+	region_t r = {
+		"MIDI",
+		rsize,
+		(int64_t)(min_pos*ratefactor),
+		(int64_t)(0),
+		(int64_t)(max_pos*ratefactor),
+		w,
+		midi,
+	};
+	regions.push_back(r);
+
+	uint16_t trmax = 0;
+	for (vector<track_t>::iterator
+			a = tracks.begin();
+			a != tracks.end(); ++a) {
+		if (a->index + 1 > trmax) {
+			trmax = a->index + 1;
+		}
+	}
+
+	track_t tr = {
+		"MIDI",
+		trmax,
+		0,
+		r
+	};
+	tracks.push_back(tr);
+
+	return true;
 }
 
 void
@@ -900,13 +1009,15 @@ PTFFormat::parserest89(void) {
 			if ((found = std::find(begin, finish, f)) != finish) {
 				audiofiles.push_back(f);
 				// Also add plain wav as region
+				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
 					rindex,
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
-					f
+					f,
+					m
 				};
 				regions.push_back(r);
 			// Region only
@@ -914,13 +1025,15 @@ PTFFormat::parserest89(void) {
 				if (foundin(filename, string(".grp"))) {
 					continue;
 				}
+				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
 					rindex,
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
-					f
+					f,
+					m
 				};
 				regions.push_back(r);
 			}
@@ -1174,13 +1287,15 @@ PTFFormat::parserest10(void) {
 			if ((found = std::find(begin, finish, f)) != finish) {
 				audiofiles.push_back(f);
 				// Also add plain wav as region
+				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
 					rindex,
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
-					f
+					f,
+					m
 				};
 				regions.push_back(r);
 			// Region only
@@ -1188,13 +1303,15 @@ PTFFormat::parserest10(void) {
 				if (foundin(filename, string(".grp"))) {
 					continue;
 				}
+				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
 					rindex,
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
-					f
+					f,
+					m
 				};
 				regions.push_back(r);
 			}
