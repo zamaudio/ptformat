@@ -26,31 +26,10 @@ int main(int argc, char** argv) {
 		fprintf(stderr, "Can't open ptf file, quit\n");
 		exit(1);
 	}
-	
-	switch (ptf.c0) {
-	case 0x00:
-		fprintf(stderr, "Success! easy one\n");
-		for (i = 0; i < ptf.len; i++) {
-			printf("%c", ptf.ptfunxored[i]);
-		}
-		break;
-	case 0x80:
-		fprintf(stderr, "Success! easy two\n");
-		for (i = 0; i < ptf.len; i++) {
-			printf("%c", ptf.ptfunxored[i]);
-		}
-		break;
-	case 0x40:
-	case 0xc0:
-		li = ptf.c1;
-		fprintf(stderr, "Success! Decrypted 0x%x\n", li);
-		for (i = 0; i < ptf.len; i++) {
-			printf("%c", ptf.ptfunxored[i]);
-		}
-		break;
-	default:
-		fprintf(stderr, "Algorithm failed c[0] c[1]: %02x %02x\n", ptf.c0, ptf.c1);
+
+	for (i = 0; i < ptf.len; i++) {
+		printf("%c", ptf.ptfunxored[i]);
 	}
-		
+
 	return 0;
 }
