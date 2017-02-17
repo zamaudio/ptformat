@@ -714,7 +714,7 @@ PTFFormat::parsemidi(void) {
 	k = 0;
 
 	// Parse all midi tracks, treat each group of midi bytes as a track
-	while (k < len) {
+	while (k + 35 < len) {
 		max_pos = 0;
 
 		while (k < len) {
@@ -743,7 +743,7 @@ PTFFormat::parsemidi(void) {
 				(uint64_t)ptfunxored[k+2] << 16 |
 				(uint64_t)ptfunxored[k+3] << 24 |
 				(uint64_t)ptfunxored[k+4] << 32;
-		for (i = 0; i < n_midi_events; i++, k += 35) {
+		for (i = 0; i < n_midi_events && k < len; i++, k += 35) {
 			midi_pos = (uint64_t)ptfunxored[k] |
 				(uint64_t)ptfunxored[k+1] << 8 |
 				(uint64_t)ptfunxored[k+2] << 16 |
