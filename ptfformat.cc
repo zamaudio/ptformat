@@ -700,7 +700,7 @@ PTFFormat::parseaudio5(void) {
 
 void
 PTFFormat::parsemidi(void) {
-	uint64_t i, k, n_midi_events, sample_time_zero;
+	uint64_t i, k, n_midi_events, zero_ticks;
 	uint64_t midi_pos, midi_len, max_pos;
 	uint8_t midi_velocity, midi_note;
 	uint16_t rsize;
@@ -738,22 +738,24 @@ PTFFormat::parsemidi(void) {
 				ptfunxored[k+2] << 16 | ptfunxored[k+3] << 24;
 
 		k += 4;
-		sample_time_zero = 0xe8d4a51000;
+		zero_ticks = (uint64_t)ptfunxored[k] |
+				(uint64_t)ptfunxored[k+1] << 8 |
+				(uint64_t)ptfunxored[k+2] << 16 |
+				(uint64_t)ptfunxored[k+3] << 24 |
+				(uint64_t)ptfunxored[k+4] << 32;
 		for (i = 0; i < n_midi_events; i++, k += 35) {
 			midi_pos = (uint64_t)ptfunxored[k] |
 				(uint64_t)ptfunxored[k+1] << 8 |
 				(uint64_t)ptfunxored[k+2] << 16 |
 				(uint64_t)ptfunxored[k+3] << 24 |
 				(uint64_t)ptfunxored[k+4] << 32;
-			midi_pos -= sample_time_zero;
-			midi_pos /= 40;
+			midi_pos -= zero_ticks;
 			midi_note = ptfunxored[k+8];
 			midi_len = (uint64_t)ptfunxored[k+9] |
 				(uint64_t)ptfunxored[k+10] << 8 |
 				(uint64_t)ptfunxored[k+11] << 16 |
 				(uint64_t)ptfunxored[k+12] << 24 |
 				(uint64_t)ptfunxored[k+13] << 32;
-			midi_len /= 40;
 			midi_velocity = ptfunxored[k+17];
 
 			if (midi_pos + midi_len > max_pos) {
@@ -777,7 +779,7 @@ PTFFormat::parsemidi(void) {
 			rsize,
 			(int64_t)(0),
 			(int64_t)(0),
-			(int64_t)(max_pos*ratefactor),
+			(int64_t)(max_pos*sessionrate*60/(960000*120)),
 			w,
 			midi,
 		};
