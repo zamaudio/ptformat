@@ -30,7 +30,7 @@ static void
 hexdump(uint8_t *data, int len)
 {
 	int i,j,end,step=16;
-	
+
 	for (i = 0; i < len; i += step) {
 		printf("0x%02X: ", i);
 		end = i + step;
@@ -698,104 +698,91 @@ PTFFormat::parseaudio5(void) {
 	resort(audiofiles);
 }
 
-bool
+void
 PTFFormat::parsemidi(void) {
 	uint64_t i, k, n_midi_events, sample_time_zero;
-	uint64_t midi_pos, midi_len, max_pos = 0, min_pos = 0xffffffffffffffff;
+	uint64_t midi_pos, midi_len, max_pos;
 	uint8_t midi_velocity, midi_note;
 	uint16_t rsize;
 	std::vector<midi_ev_t> midi;
 	midi_ev_t m;
 	bool found = false;
+	int max_regions = regions.size();
+	char midiname[26] = { 0 };
 
 	// Find MdNLB
 	k = 0;
+
+	// Parse all midi tracks, treat each group of midi bytes as a track
 	while (k < len) {
-		if (		(ptfunxored[k  ] == 'M') &&
-				(ptfunxored[k+1] == 'd') &&
-				(ptfunxored[k+2] == 'N') &&
-				(ptfunxored[k+3] == 'L') &&
-				(ptfunxored[k+4] == 'B')) {
-			found = true;
-			break;
-		}
-		k++;
-	}
+		max_pos = 0;
 
-	if (!found) {
-		return false;
-	}
-
-	k += 11;
-	n_midi_events = ptfunxored[k] | ptfunxored[k+1] << 8 |
-			ptfunxored[k+2] << 16 | ptfunxored[k+3] << 24;
-
-	k += 4;
-	sample_time_zero = 0xe8d4a51000;
-	for (i = 0; i < n_midi_events; i++, k += 35) {
-		midi_pos = (uint64_t)ptfunxored[k] |
-			(uint64_t)ptfunxored[k+1] << 8 |
-			(uint64_t)ptfunxored[k+2] << 16 |
-			(uint64_t)ptfunxored[k+3] << 24 |
-			(uint64_t)ptfunxored[k+4] << 32;
-		midi_pos -= sample_time_zero;
-		midi_pos /= 40;
-		midi_note = ptfunxored[k+8];
-		midi_len = (uint64_t)ptfunxored[k+9] |
-			(uint64_t)ptfunxored[k+10] << 8 |
-			(uint64_t)ptfunxored[k+11] << 16 |
-			(uint64_t)ptfunxored[k+12] << 24 |
-			(uint64_t)ptfunxored[k+13] << 32;
-		midi_len /= 40;
-		midi_velocity = ptfunxored[k+17];
-
-		if (midi_pos + midi_len > max_pos) {
-			max_pos = midi_pos + midi_len;
-		}
-		if (midi_pos < min_pos) {
-			min_pos = midi_pos;
+		while (k < len) {
+			if (		(ptfunxored[k  ] == 'M') &&
+					(ptfunxored[k+1] == 'd') &&
+					(ptfunxored[k+2] == 'N') &&
+					(ptfunxored[k+3] == 'L') &&
+					(ptfunxored[k+4] == 'B')) {
+				found = true;
+				break;
+			}
+			k++;
 		}
 
-		m.pos = midi_pos;
-		m.length = midi_len;
-		m.note = midi_note;
-		m.velocity = midi_velocity;
-		midi.push_back(m);
-
-		//fprintf(stderr, "MIDI:  Note=%d Vel=%d Start=%d(samples) Len=%d(samples)\n", midi_note, midi_velocity, midi_pos, midi_len);
-	}
-
-	rsize = (uint16_t)regions.size();
-	wav_t w = { std::string(""), 0, 0, 0 };
-	region_t r = {
-		"MIDI",
-		rsize,
-		(int64_t)(min_pos*ratefactor),
-		(int64_t)(0),
-		(int64_t)(max_pos*ratefactor),
-		w,
-		midi,
-	};
-	regions.push_back(r);
-
-	uint16_t trmax = 0;
-	for (vector<track_t>::iterator
-			a = tracks.begin();
-			a != tracks.end(); ++a) {
-		if (a->index + 1 > trmax) {
-			trmax = a->index + 1;
+		if (!found) {
+			return;
 		}
+
+		k += 11;
+		n_midi_events = ptfunxored[k] | ptfunxored[k+1] << 8 |
+				ptfunxored[k+2] << 16 | ptfunxored[k+3] << 24;
+
+		k += 4;
+		sample_time_zero = 0xe8d4a51000;
+		for (i = 0; i < n_midi_events; i++, k += 35) {
+			midi_pos = (uint64_t)ptfunxored[k] |
+				(uint64_t)ptfunxored[k+1] << 8 |
+				(uint64_t)ptfunxored[k+2] << 16 |
+				(uint64_t)ptfunxored[k+3] << 24 |
+				(uint64_t)ptfunxored[k+4] << 32;
+			midi_pos -= sample_time_zero;
+			midi_pos /= 40;
+			midi_note = ptfunxored[k+8];
+			midi_len = (uint64_t)ptfunxored[k+9] |
+				(uint64_t)ptfunxored[k+10] << 8 |
+				(uint64_t)ptfunxored[k+11] << 16 |
+				(uint64_t)ptfunxored[k+12] << 24 |
+				(uint64_t)ptfunxored[k+13] << 32;
+			midi_len /= 40;
+			midi_velocity = ptfunxored[k+17];
+
+			if (midi_pos + midi_len > max_pos) {
+				max_pos = midi_pos + midi_len;
+			}
+
+			m.pos = midi_pos;
+			m.length = midi_len;
+			m.note = midi_note;
+			m.velocity = midi_velocity;
+			midi.push_back(m);
+
+			//fprintf(stderr, "MIDI:  Note=%d Vel=%d Start=%d(samples) Len=%d(samples)\n", midi_note, midi_velocity, midi_pos, midi_len);
+		}
+
+		rsize = (uint16_t)regions.size();
+		snprintf(midiname, 20, "MIDI-%d", rsize - max_regions + 1);
+		wav_t w = { std::string(""), 0, 0, 0 };
+		region_t r = {
+			midiname,
+			rsize,
+			(int64_t)(0),
+			(int64_t)(0),
+			(int64_t)(max_pos*ratefactor),
+			w,
+			midi,
+		};
+		regions.push_back(r);
 	}
-
-	track_t tr = {
-		"MIDI",
-		trmax,
-		0,
-		r
-	};
-	tracks.push_back(tr);
-
-	return true;
 }
 
 void

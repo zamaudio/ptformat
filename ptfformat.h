@@ -142,7 +142,7 @@ private:
 	void parserest10(void);
 	void parseaudio5(void);
 	void parseaudio(void);
-	bool parsemidi(void);
+	void parsemidi(void);
 	void resort(std::vector<wav_t>& ws);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
