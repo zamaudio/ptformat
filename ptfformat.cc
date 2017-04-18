@@ -111,17 +111,16 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 
 	xor_type = ptfunxored[0x12];
 	xor_value = ptfunxored[0x13];
+	xor_len = 256;
 
 	// xor_type 0x01 = ProTools 5, 6, 7, 8 and 9
 	// xor_type 0x05 = ProTools 10, 11, 12
 	switch(xor_type) {
 	case 0x01:
 		xor_delta = gen_xor_delta(xor_value, 53, false);
-		xor_len = 256;
 		break;
 	case 0x05:
 		xor_delta = gen_xor_delta(xor_value, 11, true);
-		xor_len = 128;
 		break;
 	default:
 		fclose(fp);
@@ -138,7 +137,7 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	i = 0x14;
 	fseek(fp, i, SEEK_SET);
 	while (fread(&ct, 1, 1, fp) != 0) {
-		uint8_t xor_index = (xor_type == 0x01) ? i & 0xff : (i >> 12) & 0x7f;
+		uint8_t xor_index = (xor_type == 0x01) ? i & 0xff : (i >> 12) & 0xff;
 		ptfunxored[i++] = ct ^ xxor[xor_index];
 	}
 	fclose(fp);
