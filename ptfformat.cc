@@ -57,6 +57,26 @@ PTFFormat::~PTFFormat() {
 	}
 }
 
+int64_t
+PTFFormat::foundat(unsigned char *haystack, uint64_t n, const char *needle) {
+	int64_t found = 0;
+	uint64_t i, j, needle_n;
+	needle_n = strlen(needle);
+
+	for (i = 0; i < n; i++) {
+		found = i;
+		for (j = 0; j < needle_n; j++) {
+			if (haystack[i+j] != needle[j]) {
+				found = -1;
+				break;
+			}
+		}
+		if (found > 0)
+			return found;
+	}
+	return -1;
+}
+
 bool
 PTFFormat::foundin(std::string haystack, std::string needle) {
 	size_t found = haystack.find(needle);
@@ -797,9 +817,13 @@ PTFFormat::parsemidi(void) {
 void
 PTFFormat::parseaudio(void) {
 	uint64_t i,j,k,l;
+	int64_t index = foundat(ptfunxored, len, "Audio Files");
+
+	if (index < 0)
+		return;
 
 	// Find end of wav file list
-	k = 0;
+	k = (uint64_t)index;
 	while (k < len) {
 		if (		(ptfunxored[k  ] == 0xff) &&
 				(ptfunxored[k+1] == 0xff) &&
@@ -814,11 +838,11 @@ PTFFormat::parseaudio(void) {
 	bool first = true;
 	uint16_t numberofwavs;
 	char wavname[256];
-	for (i = k; i > 4; i--) {
-		if (		((ptfunxored[i  ] == 'W') || (ptfunxored[i  ] == 'A')) &&
-				((ptfunxored[i-1] == 'A') || (ptfunxored[i-1] == 'I')) &&
-				((ptfunxored[i-2] == 'V') || (ptfunxored[i-2] == 'F')) &&
-				((ptfunxored[i-3] == 'E') || (ptfunxored[i-3] == 'F'))) {
+	for (i = k-2; i > 4; i--) {
+		if (		((ptfunxored[i  ] == 'W') || (ptfunxored[i  ] == 'A') || ptfunxored[i  ] == '\0') &&
+				((ptfunxored[i-1] == 'A') || (ptfunxored[i-1] == 'I') || ptfunxored[i-1] == '\0') &&
+				((ptfunxored[i-2] == 'V') || (ptfunxored[i-2] == 'F') || ptfunxored[i-2] == '\0') &&
+				((ptfunxored[i-3] == 'E') || (ptfunxored[i-3] == 'F') || ptfunxored[i-3] == '\0')) {
 			j = i-4;
 			l = 0;
 			while (ptfunxored[j] != '\0') {
@@ -827,10 +851,10 @@ PTFFormat::parseaudio(void) {
 				j--;
 			}
 			wavname[l] = 0;
-			if (ptfunxored[i] == 'W') {
-				extension = string(".wav");
-			} else {
+			if (ptfunxored[i] == 'A') {
 				extension = string(".aif");
+			} else {
+				extension = string(".wav");
 			}
 			//uint8_t playlist = ptfunxored[j-8];
 
