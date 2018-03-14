@@ -58,21 +58,29 @@ int main (int argc, char **argv) {
 		for (vector<PTFFormat::region_t>::iterator
 				a = ptf.regions.begin();
 				a != ptf.regions.end(); ++a) {
-			if (!strcmp(a->name.c_str(), "MIDI")) {
-				for (vector<PTFFormat::midi_ev_t>::iterator
-						b = a->midi.begin();
-						b != a->midi.end(); ++b) {
-					printf("    MIDI: n(%d) v(%d) @ %lu, %lu\n",
-						b->note, b->velocity,
-						b->pos, b->length);
-				}
-			} else {
-				printf("`%s` r(%d) w(%d) @ %lu, %lu\n",
-					a->name.c_str(),
-					a->index,
-					a->wave.index,
-					a->sampleoffset,
-					a->length);
+			printf("`%s` r(%d) w(%d) @ %lu, %lu\n",
+				a->name.c_str(),
+				a->index,
+				a->wave.index,
+				a->sampleoffset,
+				a->length);
+		}
+
+		printf("\nMIDI Region (Region#) @ into-sample, length:\n");
+		for (vector<PTFFormat::region_t>::iterator
+			a = ptf.midiregions.begin();
+			a != ptf.midiregions.end(); ++a) {
+			printf("`%s` r(%d) @ %lu, %lu\n",
+				a->name.c_str(),
+				a->index,
+				a->sampleoffset,
+				a->length);
+			for (vector<PTFFormat::midi_ev_t>::iterator
+					b = a->midi.begin();
+					b != a->midi.end(); ++b) {
+				printf("    MIDI: n(%d) v(%d) @ %lu, %lu\n",
+					b->note, b->velocity,
+					b->pos, b->length);
 			}
 		}
 
@@ -81,6 +89,17 @@ int main (int argc, char **argv) {
 				a = ptf.tracks.begin();
 				a != ptf.tracks.end(); ++a) {
 			printf("`%s` t(%d) r(%d) @ %lu\n",
+				a->name.c_str(),
+				a->index,
+				a->reg.index,
+				a->reg.startpos);
+		}
+
+		printf("\nMIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:\n");
+		for (vector<PTFFormat::track_t>::iterator
+				a = ptf.miditracks.begin();
+				a != ptf.miditracks.end(); ++a) {
+			printf("`%s` mt(%d) mr(%d) @ %lu\n",
 				a->name.c_str(),
 				a->index,
 				a->reg.index,
