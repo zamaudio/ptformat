@@ -719,13 +719,12 @@ PTFFormat::parseaudio5(void) {
 
 void
 PTFFormat::parsemidi(void) {
-	uint64_t tr, i, k, lastk, n_midi_events, zero_ticks, abs_zero_ticks;
+	uint64_t tr, i, k, lastk, n_midi_events, zero_ticks;
 	uint64_t midi_pos, midi_len, max_pos, region_pos;
 	uint8_t midi_velocity, midi_note;
-	uint16_t rsize, ridx;
-	uint16_t nmiditracks, tracknumber = 0, regionnumber = 0;
+	uint16_t ridx;
+	uint16_t nmiditracks, regionnumber = 0;
 	uint32_t nregions, mr;
-	int64_t index;
 	struct mchunk_t {
 		uint64_t zero;
 		std::vector<midi_ev_t> chunk;
@@ -733,13 +732,10 @@ PTFFormat::parsemidi(void) {
 	std::vector<struct mchunk_t> midichunks;
 	midi_ev_t m;
 	bool found = false;
-	char midiname[26] = { 0 };
 
 	// Find MdNLB
 	k = 0;
 	lastk = 0;
-
-	abs_zero_ticks = 0xe8d4a51000ull;
 
 	// Parse all midi chunks, not 1:1 mapping to regions yet
 	while (k + 35 < len) {
@@ -939,7 +935,6 @@ PTFFormat::parsemidi(void) {
 
 	k += 4;
 
-	tracknumber = 0;
 	for (tr = 0; tr < nmiditracks; tr++) {
 		char miditrackname[256];
 		uint8_t namelen;
@@ -1525,7 +1520,7 @@ PTFFormat::parserest10(void) {
 				regions.push_back(r);
 			}
 			rindex++;
-			printf("%s\n", name);
+			//printf("%s\n", name);
 		}
 	}
 	//  Tracks
