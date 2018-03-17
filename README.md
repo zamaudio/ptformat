@@ -27,7 +27,7 @@ What works?
 | 7 | ? | ? |
 | 8 | Full support | Full support |
 | 9 | Full support | Full support |
-| 10 | Full support | Full support |
+| 10 | Full support | Partially |
 | 11 | Partially | ? |
 | 12 | ? | ? |
 
