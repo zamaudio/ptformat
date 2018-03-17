@@ -17,10 +17,23 @@ API
 ===
 See ptftool.cc for example usage
 
+What works?
+===========
+
+| **PT version** | **Multitrack Audio** | **Multitrack MIDI** |
+| --- | --- | --- |
+| 5 | Partially | ? |
+| 6 | ? | ? |
+| 7 | ? | ? |
+| 8 | Full support | Full support |
+| 9 | Full support | Full support |
+| 10 | Full support | Full support |
+| 11 | Partially | ? |
+| 12 | ? | ? |
+
+
 TODO
 ====
-
-- MIDI parsing support
 
 - PT6 support (?)
 
