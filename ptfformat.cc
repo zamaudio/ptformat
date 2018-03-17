@@ -727,6 +727,7 @@ PTFFormat::parsemidi(void) {
 	uint32_t nregions, mr;
 	struct mchunk_t {
 		uint64_t zero;
+		uint64_t maxlen;
 		std::vector<midi_ev_t> chunk;
 	};
 	std::vector<struct mchunk_t> midichunks;
@@ -804,7 +805,7 @@ PTFFormat::parsemidi(void) {
 #endif
 			midi.push_back(m);
 		}
-		midichunks.push_back({zero_ticks, midi});
+		midichunks.push_back({zero_ticks, max_pos, midi});
 	}
 
 	lastk = k;
@@ -905,7 +906,7 @@ PTFFormat::parsemidi(void) {
 				(int64_t)mchunk.zero,
 				(int64_t)(0),
 				//(int64_t)(max_pos*sessionrate*60/(960000*120)),
-				(int64_t)max_pos,
+				(int64_t)mchunk.maxlen,
 				w,
 				mchunk.chunk,
 			};
