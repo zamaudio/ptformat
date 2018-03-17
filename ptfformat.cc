@@ -903,7 +903,8 @@ PTFFormat::parsemidi(void) {
 			region_t r = {
 				midiregionname,
 				regionnumber++,
-				(int64_t)mchunk.zero,
+				//(int64_t)mchunk.zero,
+				(int64_t)0xe8d4a51000ull,
 				(int64_t)(0),
 				//(int64_t)(max_pos*sessionrate*60/(960000*120)),
 				(int64_t)mchunk.maxlen,
