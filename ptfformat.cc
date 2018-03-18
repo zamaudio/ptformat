@@ -238,10 +238,18 @@ PTFFormat::parse_version() {
 		success = true;
 	}
 
-	/* If the above does not work, assume old version 5,6,7 */
+	/* If the above does not work, try other heuristics */
 	if ((uintptr_t)data >= data_end - seg_len) {
 		version = ptfunxored[0x40];
-		success = true;
+		if (version == 0) {
+			version = ptfunxored[0x3d];
+		}
+		if (version == 0) {
+			version = ptfunxored[0x3a] + 2;
+		}
+		if (version != 0) {
+			success = true;
+		}
 	}
 	return success;
 }
