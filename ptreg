@@ -1,0 +1,8 @@
+#!/bin/sh
+
+for test in tests/*/*
+do
+	cd `dirname $test`
+	./`basename $test`
+	cd ../..
+done
