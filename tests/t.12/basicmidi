@@ -1,0 +1,71 @@
+#!/bin/sh
+
+[ -e ../../tests.sh ] && . ../../tests.sh
+
+NAME="PT12 with midi"
+FILE=../../bins/TestPTX.ptx
+EXPECT='ProTools 12 Session: Samplerate = 48000Hz
+Target samplerate = 48000
+
+3 wavs, 3 regions, 3 active regions
+
+Audio file (WAV#) @ offset, length:
+`monoTone.aif` w(0) @ 0, 480000
+`stereoTone.L.aif` w(2) @ 0, 480000
+`stereoTone.R.aif` w(3) @ 0, 480000
+
+Region (Region#) (WAV#) @ into-sample, length:
+`monoTone` r(0) w(0) @ 0, 480000
+`stereoTone.L` r(2) w(2) @ 0, 480000
+`stereoTone.R` r(3) w(3) @ 0, 480000
+
+MIDI Region (Region#) @ into-sample, length:
+`MIDI 1-01` r(0) @ 0, 2640000
+    MIDI: n(64) v(80) @ 0, 240000
+    MIDI: n(64) v(80) @ 240000, 240000
+    MIDI: n(64) v(80) @ 480000, 240000
+    MIDI: n(59) v(80) @ 960000, 240000
+    MIDI: n(59) v(80) @ 1200000, 240000
+    MIDI: n(59) v(80) @ 1440000, 240000
+    MIDI: n(64) v(80) @ 1920000, 240000
+    MIDI: n(64) v(80) @ 2160000, 240000
+    MIDI: n(64) v(80) @ 2400000, 240000
+`MIDI 2-01` r(1) @ 0, 3840000
+    MIDI: n(48) v(80) @ 0, 240000
+    MIDI: n(48) v(80) @ 240000, 240000
+    MIDI: n(48) v(80) @ 480000, 240000
+    MIDI: n(48) v(80) @ 720000, 240000
+    MIDI: n(48) v(80) @ 960000, 240000
+    MIDI: n(48) v(80) @ 1200000, 240000
+    MIDI: n(52) v(80) @ 1440000, 240000
+    MIDI: n(52) v(80) @ 1680000, 240000
+    MIDI: n(52) v(80) @ 1920000, 240000
+    MIDI: n(52) v(80) @ 2160000, 240000
+    MIDI: n(52) v(80) @ 2400000, 240000
+    MIDI: n(53) v(80) @ 2640000, 240000
+    MIDI: n(53) v(80) @ 2880000, 240000
+    MIDI: n(53) v(80) @ 3120000, 240000
+    MIDI: n(53) v(80) @ 3360000, 240000
+    MIDI: n(53) v(80) @ 3600000, 240000
+`MIDI 3-01` r(2) @ 0, 9600000
+    MIDI: n(67) v(80) @ 0, 2160000
+    MIDI: n(73) v(80) @ 2400000, 2880000
+    MIDI: n(64) v(80) @ 5520000, 3360000
+    MIDI: n(68) v(80) @ 8880000, 720000
+
+Track name (Track#) (Region#) @ Absolute:
+`monoTone` t(0) r(0) @ 0
+`stereoTone` t(1) r(2) @ 0
+`stereoTone` t(2) r(3) @ 0
+
+MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
+`MIDI 1` mt(0) mr(0) @ 0
+`MIDI 2` mt(1) mr(1) @ 0
+`MIDI 3` mt(2) mr(2) @ 0
+
+Track name (Track#) (WAV filename) @ Absolute + Into-sample, Length:
+`monoTone` t(0) (monoTone.aif) @ 0 + 0, 480000
+`stereoTone` t(1) (stereoTone.L.aif) @ 0 + 0, 480000
+`stereoTone` t(2) (stereoTone.R.aif) @ 0 + 0, 480000'
+
+run_test
