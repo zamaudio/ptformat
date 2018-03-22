@@ -27,10 +27,18 @@ What works?
 | 7 | ? | ? |
 | 8 | Full support | Full support |
 | 9 | Full support | Full support |
-| 10 | Full support | Partially |
+| 10 | Partially | Partially |
 | 11 | Partially | ? |
-| 12 | ? | ? |
+| 12 | Full support | Full support |
 
+
+Regression testing
+==================
+
+To test that nothing has broken since code has been changed:
+
+	make
+	./ptreg
 
 TODO
 ====
@@ -38,6 +46,3 @@ TODO
 - PT6 support (?)
 
 - PT7 support
-
-- Investigate PT12 (feel free to send me some .ptx ProTools 12 session files)
-
