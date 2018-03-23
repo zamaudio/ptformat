@@ -1,8 +1,8 @@
 ptformat
 =========
-ptformat currently opens PT{5,8,9,10,11} files.
+ptformat reads and parses ProTools session files.
 
-Audio source/region/track information is extracted.
+Audio and MIDI source/region/track information is extracted, as well as MIDI note events.
 
 The idea is to make ardour open PT sessions.
 
