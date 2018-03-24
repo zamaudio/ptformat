@@ -78,6 +78,48 @@ PTFFormat::foundat(unsigned char *haystack, uint64_t n, const char *needle) {
 }
 
 bool
+PTFFormat::jumpto(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen) {
+	uint64_t i;
+	uint64_t k = *currpos;
+	while (k + needlelen < maxoffset) {
+		bool foundall = true;
+		for (i = 0; i < needlelen; i++) {
+			if (buf[k+i] != needle[i]) {
+				foundall = false;
+				break;
+			}
+		}
+		if (foundall) {
+			*currpos = k;
+			return true;
+		}
+		k++;
+	}
+	return false;
+}
+
+bool
+PTFFormat::jumpback(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen) {
+	uint64_t i;
+	uint64_t k = *currpos;
+	while (k > 0 && k + needlelen < maxoffset) {
+		bool foundall = true;
+		for (i = 0; i < needlelen; i++) {
+			if (buf[k+i] != needle[i]) {
+				foundall = false;
+				break;
+			}
+		}
+		if (foundall) {
+			*currpos = k;
+			return true;
+		}
+		k--;
+	}
+	return false;
+}
+
+bool
 PTFFormat::foundin(std::string haystack, std::string needle) {
 	size_t found = haystack.find(needle);
 	if (found != std::string::npos) {
@@ -337,14 +379,8 @@ PTFFormat::parse5header(void) {
 
 	// Find session sample rate
 	k = 0x100;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x00) &&
-				(ptfunxored[k+2] == 0x02)) {
-			break;
-		}
-		k++;
-	}
+
+	jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x00\x02", 3);
 
 	sessionrate = 0;
 	sessionrate |= ptfunxored[k+12] << 16;
@@ -354,18 +390,12 @@ PTFFormat::parse5header(void) {
 
 void
 PTFFormat::parse7header(void) {
-	uint64_t k;
+	uint32_t k;
 
 	// Find session sample rate
 	k = 0x100;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x00) &&
-				(ptfunxored[k+2] == 0x05)) {
-			break;
-		}
-		k++;
-	}
+
+	jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x00\x05", 3);
 
 	sessionrate = 0;
 	sessionrate |= ptfunxored[k+12] << 16;
@@ -375,17 +405,12 @@ PTFFormat::parse7header(void) {
 
 void
 PTFFormat::parse8header(void) {
-	uint64_t k;
+	uint32_t k;
 
 	// Find session sample rate
 	k = 0;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x05)) {
-			break;
-		}
-		k++;
-	}
+
+	jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x05", 2);
 
 	sessionrate = 0;
 	sessionrate |= ptfunxored[k+11];
@@ -395,17 +420,12 @@ PTFFormat::parse8header(void) {
 
 void
 PTFFormat::parse9header(void) {
-	uint64_t k;
+	uint32_t k;
 
 	// Find session sample rate
 	k = 0x100;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x06)) {
-			break;
-		}
-		k++;
-	}
+
+	jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x06", 2);
 
 	sessionrate = 0;
 	sessionrate |= ptfunxored[k+11];
@@ -415,17 +435,12 @@ PTFFormat::parse9header(void) {
 
 void
 PTFFormat::parse10header(void) {
-	uint64_t k;
+	uint32_t k;
 
 	// Find session sample rate
 	k = 0x100;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x09)) {
-			break;
-		}
-		k++;
-	}
+
+	jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x09", 2);
 
 	sessionrate = 0;
 	sessionrate |= ptfunxored[k+11];
@@ -435,7 +450,7 @@ PTFFormat::parse10header(void) {
 
 void
 PTFFormat::parserest5(void) {
-	uint64_t i, j, k;
+	uint32_t i, j, k;
 	uint64_t regionspertrack, lengthofname;
 	uint64_t startbytes, lengthbytes, offsetbytes;
 	uint16_t tracknumber = 0;
@@ -444,27 +459,13 @@ PTFFormat::parserest5(void) {
 
 	k = 0;
 	for (i = 0; i < 5; i++) {
-		while (k < len) {
-			if (		(ptfunxored[k  ] == 0x5a) &&
-					(ptfunxored[k+1] == 0x00) &&
-					(ptfunxored[k+2] == 0x03)) {
-				break;
-			}
-			k++;
-		}
+		jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x00\x03", 3);
 		k++;
 	}
 	k--;
 
 	for (i = 0; i < 2; i++) {
-		while (k) {
-			if (		(ptfunxored[k  ] == 0x5a) &&
-					(ptfunxored[k+1] == 0x00) &&
-					(ptfunxored[k+2] == 0x01)) {
-				break;
-			}
-			k--;
-		}
+		jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x00\x01", 3);
 		if (k)
 			k--;
 	}
@@ -476,14 +477,7 @@ PTFFormat::parserest5(void) {
 				(ptfunxored[k+1] == 0xff)) {
 			break;
 		}
-		while (k < len) {
-			if (		(ptfunxored[k  ] == 0x5a) &&
-					(ptfunxored[k+1] == 0x00) &&
-					(ptfunxored[k+2] == 0x01)) {
-				break;
-			}
-			k++;
-		}
+		jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x00\x01", 3);
 
 		lengthofname = ptfunxored[k+12];
 		if (ptfunxored[k+13] == 0x5a) {
@@ -497,14 +491,7 @@ PTFFormat::parserest5(void) {
 		name[j] = '\0';
 		regionspertrack = ptfunxored[k+13+j+3];
 		for (i = 0; i < regionspertrack; i++) {
-			while (k < len) {
-				if (		(ptfunxored[k  ] == 0x5a) &&
-						(ptfunxored[k+1] == 0x00) &&
-						(ptfunxored[k+2] == 0x03)) {
-					break;
-				}
-				k++;
-			}
+			jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x00\x03", 3);
 			j = k+16;
 			startbytes = (ptfunxored[j+3] & 0xf0) >> 4;
 			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
@@ -645,41 +632,20 @@ PTFFormat::resort(std::vector<wav_t>& ws) {
 
 void
 PTFFormat::parseaudio5(void) {
-	uint64_t i,k,l;
+	uint32_t i,k,l;
 	uint64_t lengthofname, wavnumber;
 
 	// Find end of wav file list
 	k = 0;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5f) &&
-				(ptfunxored[k+1] == 0x50) &&
-				(ptfunxored[k+2] == 0x35)) {
-			break;
-		}
-		k++;
-	}
+	jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5f\x50\x35", 3);
 	k++;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5f) &&
-				(ptfunxored[k+1] == 0x50) &&
-				(ptfunxored[k+2] == 0x35)) {
-			break;
-		}
-		k++;
-	}
+	jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5f\x50\x35", 3);
 
 	// Find actual wav names
 	uint16_t numberofwavs = ptfunxored[k-23];
 	char wavname[256];
-	for (i = k; i < len; i++) {
-		if (		(ptfunxored[i  ] == 'F') &&
-				(ptfunxored[i+1] == 'i') &&
-				(ptfunxored[i+2] == 'l') &&
-				(ptfunxored[i+3] == 'e') &&
-				(ptfunxored[i+4] == 's')) {
-			break;
-		}
-	}
+	i = k;
+	jumpto(&i, ptfunxored, len, (const unsigned char *)"Files", 5);
 
 	wavnumber = 0;
 	i+=16;
@@ -746,7 +712,8 @@ struct mchunk {
 
 void
 PTFFormat::parsemidi(void) {
-	uint64_t tr, i, k, lastk, n_midi_events, zero_ticks;
+	uint32_t i, k;
+	uint64_t tr, n_midi_events, zero_ticks;
 	uint64_t midi_pos, midi_len, max_pos, region_pos;
 	uint8_t midi_velocity, midi_note;
 	uint16_t ridx;
@@ -755,36 +722,18 @@ PTFFormat::parsemidi(void) {
 
 	std::vector<mchunk> midichunks;
 	midi_ev_t m;
-	bool found = false;
 
 	// Find MdNLB
 	k = 0;
-	lastk = 0;
 
 	// Parse all midi chunks, not 1:1 mapping to regions yet
 	while (k + 35 < len) {
-		found = false;
 		max_pos = 0;
 		std::vector<midi_ev_t> midi;
 
-		while (k < len && !found) {
-			if (		(ptfunxored[k  ] == 'M') &&
-					(ptfunxored[k+1] == 'd') &&
-					(ptfunxored[k+2] == 'N') &&
-					(ptfunxored[k+3] == 'L') &&
-					(ptfunxored[k+4] == 'B')) {
-				found = true;
-				lastk = k;
-				break;
-			}
-			k++;
-		}
-
-		if (!found) {
-			k = lastk;
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"MdNLB", 5)) {
 			break;
 		}
-
 		k += 11;
 		n_midi_events = ptfunxored[k] | ptfunxored[k+1] << 8 |
 				ptfunxored[k+2] << 16 | ptfunxored[k+3] << 24;
@@ -831,29 +780,12 @@ PTFFormat::parsemidi(void) {
 		midichunks.push_back(mchunk (zero_ticks, max_pos, midi));
 	}
 
-	lastk = k;
-
 	// Map midi chunks to regions
 	while (k < len) {
 		char midiregionname[256];
 		uint8_t namelen;
 
-		found = false;
-		while (k < len && !found) {
-			if (		(ptfunxored[k  ] == 'M') &&
-					(ptfunxored[k+1] == 'd') &&
-					(ptfunxored[k+2] == 'T') &&
-					(ptfunxored[k+3] == 'E') &&
-					(ptfunxored[k+4] == 'L')) {
-				found = true;
-				lastk = k;
-				break;
-			}
-			k++;
-		}
-
-		if (!found) {
-			k = lastk;
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"MdTEL", 5)) {
 			break;
 		}
 
@@ -864,19 +796,7 @@ PTFFormat::parsemidi(void) {
 		nregions |= ptfunxored[k+1] << 8;
 
 		for (mr = 0; mr < nregions; mr++) {
-			found = false;
-			while (k < len && !found) {
-				if (		(ptfunxored[k  ] == 0x5a) &&
-						(ptfunxored[k+1] == 0x0c)) {
-					found = true;
-					lastk = k;
-					break;
-				}
-				k++;
-			}
-
-			if (!found) {
-				k = lastk;
+			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x0c", 2)) {
 				break;
 			}
 
@@ -897,21 +817,7 @@ PTFFormat::parsemidi(void) {
 					(uint64_t)ptfunxored[k+3] << 24 |
 					(uint64_t)ptfunxored[k+4] << 32;
 			*/
-			found = false;
-			while (k < len && !found) {
-				if (		(ptfunxored[k  ] == 0xfe) &&
-						(ptfunxored[k+1] == 0xff) &&
-						(ptfunxored[k+2] == 0xff) &&
-						(ptfunxored[k+3] == 0xff)) {
-					found = true;
-					lastk = k;
-					break;
-				}
-				k++;
-			}
-
-			if (!found) {
-				k = lastk;
+			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xfe\xff\xff\xff", 4)) {
 				break;
 			}
 
@@ -938,19 +844,10 @@ PTFFormat::parsemidi(void) {
 		}
 	}
 
-	found = false;
 	// Put midi regions on midi tracks
-	while (k < len && !found) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x03)) {
-			found = true;
-			break;
-		}
-		k++;
-	}
-
-	if (!found)
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2)) {
 		return;
+	}
 
 	k -= 4;
 
@@ -963,18 +860,9 @@ PTFFormat::parsemidi(void) {
 	for (tr = 0; tr < nmiditracks; tr++) {
 		char miditrackname[256];
 		uint8_t namelen;
-		found = false;
-		while (k < len && !found) {
-			if (		(ptfunxored[k  ] == 0x5a) &&
-					(ptfunxored[k+1] == 0x03)) {
-				found = true;
-				break;
-			}
-			k++;
-		}
-
-		if (!found)
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2)) {
 			return;
+		}
 
 		namelen = ptfunxored[k+9];
 		for (i = 0; i < namelen; i++) {
@@ -1025,7 +913,8 @@ PTFFormat::parsemidi(void) {
 
 void
 PTFFormat::parsemidi12(void) {
-	uint64_t tr, i, k, lastk, n_midi_events, zero_ticks;
+	uint32_t i, k;
+	uint64_t tr, n_midi_events, zero_ticks;
 	uint64_t midi_pos, midi_len, max_pos, region_pos;
 	uint8_t midi_velocity, midi_note;
 	uint16_t ridx;
@@ -1034,33 +923,16 @@ PTFFormat::parsemidi12(void) {
 
 	std::vector<mchunk> midichunks;
 	midi_ev_t m;
-	bool found = false;
 
-	// Find MdNLB
 	k = 0;
-	lastk = 0;
 
 	// Parse all midi chunks, not 1:1 mapping to regions yet
 	while (k + 35 < len) {
-		found = false;
 		max_pos = 0;
 		std::vector<midi_ev_t> midi;
 
-		while (k < len && !found) {
-			if (		(ptfunxored[k  ] == 'M') &&
-					(ptfunxored[k+1] == 'd') &&
-					(ptfunxored[k+2] == 'N') &&
-					(ptfunxored[k+3] == 'L') &&
-					(ptfunxored[k+4] == 'B')) {
-				found = true;
-				lastk = k;
-				break;
-			}
-			k++;
-		}
-
-		if (!found) {
-			k = lastk;
+		// Find MdNLB
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"MdNLB", 5)) {
 			break;
 		}
 
@@ -1110,29 +982,12 @@ PTFFormat::parsemidi12(void) {
 		midichunks.push_back(mchunk (zero_ticks, max_pos, midi));
 	}
 
-	lastk = k;
-
 	// Map midi chunks to regions
 	while (k < len) {
 		char midiregionname[256];
 		uint8_t namelen;
 
-		found = false;
-		while (k < len && !found) {
-			if (		(ptfunxored[k  ] == 'M') &&
-					(ptfunxored[k+1] == 'd') &&
-					(ptfunxored[k+2] == 'T') &&
-					(ptfunxored[k+3] == 'E') &&
-					(ptfunxored[k+4] == 'L')) {
-				found = true;
-				lastk = k;
-				break;
-			}
-			k++;
-		}
-
-		if (!found) {
-			k = lastk;
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"MdTEL", 5)) {
 			break;
 		}
 
@@ -1143,19 +998,7 @@ PTFFormat::parsemidi12(void) {
 		nregions |= ptfunxored[k+1] << 8;
 
 		for (mr = 0; mr < nregions; mr++) {
-			found = false;
-			while (k < len && !found) {
-				if (		(ptfunxored[k  ] == 0x5a) &&
-						(ptfunxored[k+1] == 0x02)) {
-					found = true;
-					lastk = k;
-					break;
-				}
-				k++;
-			}
-
-			if (!found) {
-				k = lastk;
+			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
 				break;
 			}
 
@@ -1176,21 +1019,7 @@ PTFFormat::parsemidi12(void) {
 					(uint64_t)ptfunxored[k+3] << 24 |
 					(uint64_t)ptfunxored[k+4] << 32;
 			*/
-			found = false;
-			while (k < len && !found) {
-				if (		(ptfunxored[k  ] == 0xfe) &&
-						(ptfunxored[k+1] == 0xff) &&
-						(ptfunxored[k+2] == 0x00) &&
-						(ptfunxored[k+3] == 0x00)) {
-					found = true;
-					lastk = k;
-					break;
-				}
-				k++;
-			}
-
-			if (!found) {
-				k = lastk;
+			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xfe\xff\x00\x00", 4)) {
 				break;
 			}
 
@@ -1218,19 +1047,10 @@ PTFFormat::parsemidi12(void) {
 		}
 	}
 
-	found = false;
 	// Put midi regions on midi tracks
-	while (k < len && !found) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x03)) {
-			found = true;
-			break;
-		}
-		k++;
-	}
-
-	if (!found)
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2)) {
 		return;
+	}
 
 	k -= 4;
 
@@ -1243,18 +1063,9 @@ PTFFormat::parsemidi12(void) {
 	for (tr = 0; tr < nmiditracks; tr++) {
 		char miditrackname[256];
 		uint8_t namelen;
-		found = false;
-		while (k < len && !found) {
-			if (		(ptfunxored[k  ] == 0x5a) &&
-					(ptfunxored[k+1] == 0x03)) {
-				found = true;
-				break;
-			}
-			k++;
-		}
-
-		if (!found)
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2)) {
 			return;
+		}
 
 		namelen = ptfunxored[k+9];
 		for (i = 0; i < namelen; i++) {
@@ -1305,22 +1116,16 @@ PTFFormat::parsemidi12(void) {
 
 void
 PTFFormat::parseaudio(void) {
-	uint64_t i,j,k,l;
-	int64_t index = foundat(ptfunxored, len, "Audio Files");
+	uint32_t i,j,k,l;
 
-	if (index < 0)
+	k = 0;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Audio Files", 11)) {
 		return;
+	}
 
 	// Find end of wav file list
-	k = (uint64_t)index;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0xff) &&
-				(ptfunxored[k+1] == 0xff) &&
-				(ptfunxored[k+2] == 0xff) &&
-				(ptfunxored[k+3] == 0xff)) {
-			break;
-		}
-		k++;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4)) {
+		return;
 	}
 
 	// Find actual wav names
@@ -1387,24 +1192,19 @@ PTFFormat::parseaudio(void) {
 
 void
 PTFFormat::parserest89(void) {
-	uint64_t i,j,k,l;
-	// Find Regions
+	uint32_t i,j,k;
 	uint8_t startbytes = 0;
 	uint8_t lengthbytes = 0;
 	uint8_t offsetbytes = 0;
 	uint8_t somethingbytes = 0;
 	uint8_t skipbytes = 0;
 
+	// Find Regions
 	k = 0;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 'S') &&
-				(ptfunxored[k+1] == 'n') &&
-				(ptfunxored[k+2] == 'a') &&
-				(ptfunxored[k+3] == 'p')) {
-			break;
-		}
-		k++;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4)) {
+		return;
 	}
+
 	uint16_t rindex = 0;
 	uint32_t findex = 0;
 	for (i = k; i < len-70; i++) {
@@ -1553,19 +1353,11 @@ PTFFormat::parserest89(void) {
 		}
 	}
 
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x03)) {
-				break;
-		}
-		k++;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2)) {
+		return;
 	}
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 0x5a) &&
-				(ptfunxored[k+1] == 0x02)) {
-				break;
-		}
-		k++;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
+		return;
 	}
 	k++;
 
@@ -1600,39 +1392,25 @@ PTFFormat::parserest89(void) {
 			tr.index = tracknumber++;
 
 			for (j = k; regionspertrack > 0 && j < len; j++) {
-				for (l = j; l < len; l++) {
-					if (	(ptfunxored[l  ] == 0x5a) &&
-						(ptfunxored[l+1] == 0x07)) {
-						j = l;
-						break;
-					}
+				jumpto(&j, ptfunxored, len, (const unsigned char *)"\x5a\x07", 2);
+				tr.reg.index = (uint8_t)(ptfunxored[j+11]);
+				vector<region_t>::iterator begin = regions.begin();
+				vector<region_t>::iterator finish = regions.end();
+				vector<region_t>::iterator found;
+				if ((found = std::find(begin, finish, tr.reg)) != finish) {
+					tr.reg = (*found);
 				}
-
-
-				if (regionspertrack == 0) {
-				//	tr.reg.index = (uint8_t)ptfunxored[j+13+lengthofname+5];
-					break;
-				} else {
-
-					tr.reg.index = (uint8_t)(ptfunxored[l+11]);
-					vector<region_t>::iterator begin = regions.begin();
-					vector<region_t>::iterator finish = regions.end();
-					vector<region_t>::iterator found;
-					if ((found = std::find(begin, finish, tr.reg)) != finish) {
-						tr.reg = (*found);
-					}
-					i = l+16;
-					offset = 0;
-					offset |= (uint32_t)(ptfunxored[i+3] << 24);
-					offset |= (uint32_t)(ptfunxored[i+2] << 16);
-					offset |= (uint32_t)(ptfunxored[i+1] << 8);
-					offset |= (uint32_t)(ptfunxored[i]);
-					tr.reg.startpos = (int64_t)(offset*ratefactor);
-					if (tr.reg.length > 0) {
-						tracks.push_back(tr);
-					}
-					regionspertrack--;
+				i = j+16;
+				offset = 0;
+				offset |= (uint32_t)(ptfunxored[i+3] << 24);
+				offset |= (uint32_t)(ptfunxored[i+2] << 16);
+				offset |= (uint32_t)(ptfunxored[i+1] << 8);
+				offset |= (uint32_t)(ptfunxored[i]);
+				tr.reg.startpos = (int64_t)(offset*ratefactor);
+				if (tr.reg.length > 0) {
+					tracks.push_back(tr);
 				}
+				regionspertrack--;
 			}
 		}
 	}
@@ -1640,42 +1418,33 @@ PTFFormat::parserest89(void) {
 
 void
 PTFFormat::parserest10(void) {
-	uint64_t i,j,k,l;
+	uint32_t i,j,k;
 	// Find Regions
 	uint8_t startbytes = 0;
 	uint8_t lengthbytes = 0;
 	uint8_t offsetbytes = 0;
 	uint8_t somethingbytes = 0;
 	uint8_t skipbytes = 0;
-
-	k = 0;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 'S') &&
-				(ptfunxored[k+1] == 'n') &&
-				(ptfunxored[k+2] == 'a') &&
-				(ptfunxored[k+3] == 'p')) {
-			break;
-		}
-		k++;
-	}
-	for (i = k; i < len-70; i++) {
-		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x02)) {
-				k = i;
-				break;
-		}
-	}
-	k++;
-	for (i = k; i < len-70; i++) {
-		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x02)) {
-				k = i;
-				break;
-		}
-	}
-	k++;
 	uint16_t rindex = 0;
 	uint32_t findex = 0;
+
+	k = 0;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4)) {
+		return;
+	}
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
+		return;
+	}
+
+	k++;
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
+		return;
+	}
+
+	k++;
+
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
 				(ptfunxored[i+1] == 0x08)) {
@@ -1835,11 +1604,8 @@ PTFFormat::parserest10(void) {
 	uint32_t offset;
 	uint32_t tracknumber = 0;
 	uint32_t regionspertrack = 0;
-	for (;k < len; k++) {
-		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x08)) {
-			break;
-		}
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2)) {
+		return;
 	}
 	k++;
 	for (;k < len; k++) {
@@ -1869,39 +1635,25 @@ PTFFormat::parserest10(void) {
 			tr.index = tracknumber++;
 
 			for (j = k; regionspertrack > 0 && j < len; j++) {
-				for (l = j; l < len; l++) {
-					if (	(ptfunxored[l  ] == 0x5a) &&
-						(ptfunxored[l+1] == 0x08)) {
-						j = l+1;
-						break;
-					}
+				jumpto(&j, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2);
+				tr.reg.index = (uint8_t)(ptfunxored[j+11]);
+				vector<region_t>::iterator begin = regions.begin();
+				vector<region_t>::iterator finish = regions.end();
+				vector<region_t>::iterator found;
+				if ((found = std::find(begin, finish, tr.reg)) != finish) {
+					tr.reg = (*found);
 				}
-
-
-				if (regionspertrack == 0) {
-				//	tr.reg.index = (uint8_t)ptfunxored[j+13+lengthofname+5];
-					break;
-				} else {
-
-					tr.reg.index = (uint8_t)(ptfunxored[l+11]);
-					vector<region_t>::iterator begin = regions.begin();
-					vector<region_t>::iterator finish = regions.end();
-					vector<region_t>::iterator found;
-					if ((found = std::find(begin, finish, tr.reg)) != finish) {
-						tr.reg = (*found);
-					}
-					i = l+16;
-					offset = 0;
-					offset |= (uint32_t)(ptfunxored[i+3] << 24);
-					offset |= (uint32_t)(ptfunxored[i+2] << 16);
-					offset |= (uint32_t)(ptfunxored[i+1] << 8);
-					offset |= (uint32_t)(ptfunxored[i]);
-					tr.reg.startpos = (int64_t)(offset*ratefactor);
-					if (tr.reg.length > 0) {
-						tracks.push_back(tr);
-					}
-					regionspertrack--;
+				i = j+16;
+				offset = 0;
+				offset |= (uint32_t)(ptfunxored[i+3] << 24);
+				offset |= (uint32_t)(ptfunxored[i+2] << 16);
+				offset |= (uint32_t)(ptfunxored[i+1] << 8);
+				offset |= (uint32_t)(ptfunxored[i]);
+				tr.reg.startpos = (int64_t)(offset*ratefactor);
+				if (tr.reg.length > 0) {
+					tracks.push_back(tr);
 				}
+				regionspertrack--;
 			}
 		}
 	}
@@ -1909,41 +1661,32 @@ PTFFormat::parserest10(void) {
 
 void
 PTFFormat::parserest12(void) {
-	uint64_t i,j,k,l;
-	// Find Regions
+	uint32_t i,j,k;
 	uint8_t startbytes = 0;
 	uint8_t lengthbytes = 0;
 	uint8_t offsetbytes = 0;
 	uint8_t somethingbytes = 0;
 	uint8_t skipbytes = 0;
-
-	k = 0;
-	while (k < len) {
-		if (		(ptfunxored[k  ] == 'S') &&
-				(ptfunxored[k+1] == 'n') &&
-				(ptfunxored[k+2] == 'a') &&
-				(ptfunxored[k+3] == 'p')) {
-			break;
-		}
-		k++;
-	}
-	for (i = k; i < len-70; i++) {
-		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x02)) {
-				k = i;
-				break;
-		}
-	}
-	k++;
-	for (i = k; i < len-70; i++) {
-		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x02)) {
-				k = i;
-				break;
-		}
-	}
-	k++;
 	uint32_t findex = 0;
+
+	// Find Regions
+	k = 0;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4)) {
+		return;
+	}
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
+		return;
+	}
+
+	k++;
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
+		return;
+	}
+
+	k++;
+
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
 				(ptfunxored[i+1] == 0x07)) {
@@ -2098,16 +1841,13 @@ PTFFormat::parserest12(void) {
 			//printf("%s\n", name);
 		}
 	}
+
 	//  Tracks
 	uint32_t offset;
 	uint32_t tracknumber = 0;
 	uint32_t regionspertrack = 0;
-	for (;k < len; k++) {
-		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x03) &&
-			(ptfunxored[k+2] == 0x00)) {
-			break;
-		}
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03\x00", 3)) {
+		return;
 	}
 	for (;k < len; k++) {
 		if (	(ptfunxored[k  ] == 0x5a) &&
@@ -2136,39 +1876,25 @@ PTFFormat::parserest12(void) {
 			tr.index = tracknumber++;
 
 			for (j = k; regionspertrack > 0 && j < len; j++) {
-				for (l = j; l < len; l++) {
-					if (	(ptfunxored[l  ] == 0x5a) &&
-						(ptfunxored[l+1] == 0x0a)) {
-						j = l+1;
-						break;
-					}
+				jumpto(&j, ptfunxored, len, (const unsigned char *)"\x5a\x0a", 2);
+				tr.reg.index = (uint8_t)(ptfunxored[j+11]);
+				vector<region_t>::iterator begin = regions.begin();
+				vector<region_t>::iterator finish = regions.end();
+				vector<region_t>::iterator found;
+				if ((found = std::find(begin, finish, tr.reg)) != finish) {
+					tr.reg = (*found);
 				}
-
-
-				if (regionspertrack == 0) {
-				//	tr.reg.index = (uint8_t)ptfunxored[j+13+lengthofname+5];
-					break;
-				} else {
-
-					tr.reg.index = (uint8_t)(ptfunxored[l+11]);
-					vector<region_t>::iterator begin = regions.begin();
-					vector<region_t>::iterator finish = regions.end();
-					vector<region_t>::iterator found;
-					if ((found = std::find(begin, finish, tr.reg)) != finish) {
-						tr.reg = (*found);
-					}
-					i = l+16;
-					offset = 0;
-					offset |= (uint32_t)(ptfunxored[i+3] << 24);
-					offset |= (uint32_t)(ptfunxored[i+2] << 16);
-					offset |= (uint32_t)(ptfunxored[i+1] << 8);
-					offset |= (uint32_t)(ptfunxored[i]);
-					tr.reg.startpos = (int64_t)(offset*ratefactor);
-					if (tr.reg.length > 0) {
-						tracks.push_back(tr);
-					}
-					regionspertrack--;
+				i = j+16;
+				offset = 0;
+				offset |= (uint32_t)(ptfunxored[i+3] << 24);
+				offset |= (uint32_t)(ptfunxored[i+2] << 16);
+				offset |= (uint32_t)(ptfunxored[i+1] << 8);
+				offset |= (uint32_t)(ptfunxored[i]);
+				tr.reg.startpos = (int64_t)(offset*ratefactor);
+				if (tr.reg.length > 0) {
+					tracks.push_back(tr);
 				}
+				regionspertrack--;
 			}
 		}
 	}

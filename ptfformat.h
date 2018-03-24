@@ -129,6 +129,8 @@ public:
 	uint64_t len;
 
 private:
+	bool jumpback(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen);
+	bool jumpto(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen);
 	bool foundin(std::string haystack, std::string needle);
 	int64_t foundat(unsigned char *haystack, uint64_t n, const char *needle);
 	int parse(void);
