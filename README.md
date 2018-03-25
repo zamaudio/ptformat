@@ -29,7 +29,7 @@ What works?
 | 9 | Full support | Full support |
 | 10 | Partially | Partially |
 | 11 | Partially | ? |
-| 12 | Full support | Full support |
+| 12 | Partially | Partially |
 
 
 Regression testing
@@ -46,3 +46,7 @@ TODO
 - PT6 support (?)
 
 - PT7 support
+
+
+Please attach more ptx session files for development of this library!
+=====================================================================
