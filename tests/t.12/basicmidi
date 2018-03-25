@@ -7,15 +7,17 @@ FILE=../../bins/TestPTX.ptx
 EXPECT='ProTools 12 Session: Samplerate = 48000Hz
 Target samplerate = 48000
 
-3 wavs, 3 regions, 3 active regions
+4 wavs, 4 regions, 3 active regions
 
 Audio file (WAV#) @ offset, length:
+`monoTone.aif` w(1) @ 0, 480000
 `monoTone.aif` w(0) @ 0, 480000
 `stereoTone.L.aif` w(2) @ 0, 480000
 `stereoTone.R.aif` w(3) @ 0, 480000
 
 Region (Region#) (WAV#) @ into-sample, length:
-`monoTone` r(0) w(0) @ 0, 480000
+`monoTone` r(0) w(1) @ 0, 480000
+`monoTone` r(1) w(0) @ 0, 480000
 `stereoTone.L` r(2) w(2) @ 0, 480000
 `stereoTone.R` r(3) w(3) @ 0, 480000
 

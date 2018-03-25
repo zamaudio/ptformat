@@ -1949,8 +1949,6 @@ PTFFormat::parserest12(void) {
 		return;
 	}
 
-	k++;
-
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
 				(ptfunxored[i+1] == 0x07)) {
@@ -1969,8 +1967,7 @@ PTFFormat::parserest12(void) {
 			}
 			name[j] = '\0';
 			j += i+13;
-			//uint8_t disabled = ptfunxored[j];
-			//printf("%s\n", name);
+			//uint8_t regionisgroup = ptfunxored[j];
 
 			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
 			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
@@ -2070,6 +2067,11 @@ PTFFormat::parserest12(void) {
 				continue;
 			}
 			if (length == 0) {
+				rindex++;
+				continue;
+			}
+			if (foundin(string(name), string(".grp"))) {
+				rindex++;
 				continue;
 			}
 			f.index = findex;
@@ -2085,7 +2087,7 @@ PTFFormat::parserest12(void) {
 				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
-					rindex++,
+					rindex,
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
@@ -2093,18 +2095,12 @@ PTFFormat::parserest12(void) {
 					m
 				};
 				regions.push_back(r);
-				if (!foundin(filename, string(".L")) && !(foundin(filename, string(".R")))) {
-					rindex++;
-				}
 			// Region only
 			} else {
-				if (foundin(filename, string(".grp"))) {
-					continue;
-				}
 				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
-					rindex++,
+					rindex,
 					(int64_t)(start*ratefactor),
 					(int64_t)(sampleoffset*ratefactor),
 					(int64_t)(length*ratefactor),
@@ -2112,11 +2108,8 @@ PTFFormat::parserest12(void) {
 					m
 				};
 				regions.push_back(r);
-				if (!foundin(filename, string(".L")) && !(foundin(filename, string(".R")))) {
-					rindex++;
-				}
 			}
-			//printf("%s\n", name);
+			rindex++;
 		}
 	}
 
