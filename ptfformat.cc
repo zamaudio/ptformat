@@ -2064,6 +2064,7 @@ PTFFormat::parserest12(void) {
 			};
 
 			if (strlen(name) == 0) {
+				rindex++;
 				continue;
 			}
 			if (length == 0) {
