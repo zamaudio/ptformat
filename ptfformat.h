@@ -28,9 +28,14 @@ public:
 	~PTFFormat();
 
 	/* Return values:	0            success
-				-1           could not open file as ptf
+				-1           could not parse pt session
 	*/
 	int load(std::string path, int64_t targetsr);
+
+	/* Return values:	0            success
+				-1           could not decrypt pt session
+	*/
+	int unxor(std::string path);
 
 	struct wav_t {
 		std::string filename;
@@ -155,8 +160,6 @@ private:
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
 	std::string extension;
-	unsigned char key10a;
-	unsigned char key10b;
 };
 
 

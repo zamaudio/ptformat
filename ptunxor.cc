@@ -26,12 +26,14 @@ int main(int argc, char** argv) {
 		exit(1);
 	}
 
-	if (ptf.load(argv[1], 48000) == -1) {
-		fprintf(stderr, "Can't open ptf file, still dump...\n");
+	if (ptf.unxor(std::string(argv[1])) == -1) {
+		fprintf(stderr, "Can't decrypt pt session, still try to dump...\n");
 	}
 
-	for (i = 0; i < ptf.len; i++) {
-		printf("%c", ptf.ptfunxored[i]);
+	if (ptf.ptfunxored) {
+		for (i = 0; i < ptf.len; i++) {
+			printf("%c", ptf.ptfunxored[i]);
+		}
 	}
 
 	return 0;

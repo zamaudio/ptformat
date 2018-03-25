@@ -130,11 +130,10 @@ PTFFormat::foundin(std::string haystack, std::string needle) {
 }
 
 /* Return values:	0            success
-			0x01 to 0xff value of missing lut
-			-1           could not open file as ptf
+			-1           could not decrypt pt session
 */
 int
-PTFFormat::load(std::string path, int64_t targetsr) {
+PTFFormat::unxor(std::string path) {
 	FILE *fp;
 	unsigned char xxor[256];
 	unsigned char ct;
@@ -143,7 +142,6 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 	uint8_t xor_value;
 	uint8_t xor_delta;
 	uint16_t xor_len;
-	int err;
 
 	if (! (fp = g_fopen(path.c_str(), "rb"))) {
 		return -1;
@@ -203,16 +201,26 @@ PTFFormat::load(std::string path, int64_t targetsr) {
 		ptfunxored[i++] = ct ^ xxor[xor_index];
 	}
 	fclose(fp);
+	return 0;
+}
 
-	if (!parse_version())
+/* Return values:	0            success
+			-1           could not parse pt session
+*/
+int
+PTFFormat::load(std::string path, int64_t targetsr) {
+	if (unxor(path))
+		return -1;
+
+	if (parse_version())
 		return -1;
 
 	if (version < 5 || version > 12)
 		return -1;
 
 	targetrate = targetsr;
-	err = parse();
-	if (err)
+
+	if (parse())
 		return -1;
 
 	return 0;
@@ -293,7 +301,7 @@ PTFFormat::parse_version() {
 			success = true;
 		}
 	}
-	return success;
+	return (!success);
 }
 
 uint8_t
