@@ -7,6 +7,7 @@ run_test() {
 	echo "$NAME"
 	if [ ! -e $FILE ]; then
 		echo "Can't find binary"
+		echo ""
 		exit 2
 	fi
 	$PTFTOOL $FILE 2> /dev/null > .tmp1

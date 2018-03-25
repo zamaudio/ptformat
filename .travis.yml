@@ -1,0 +1,12 @@
+os:
+- linux
+
+dist: trusty
+
+script:
+- ./ptreg
+
+notifications:
+  email:
+    on_success: always
+    on_failure: always

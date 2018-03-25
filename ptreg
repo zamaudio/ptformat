@@ -1,8 +1,15 @@
 #!/bin/sh
 
+FAILED=0
+
 for test in tests/*/*
 do
 	cd `dirname $test`
 	./`basename $test`
+	if [ ! $? -eq 0 ]; then
+		FAILED=$(( $FAILED + 1 ))
+	fi
 	cd ../..
 done
+
+exit $FAILED

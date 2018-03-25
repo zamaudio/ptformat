@@ -1,5 +1,5 @@
-ptformat
-=========
+ptformat [![travis](https://travis-ci.org/zamaudio/ptformat.svg?branch=master)](https://travis-ci.org/zamaudio/ptformat)
+========
 ptformat reads and parses ProTools session files.
 
 Audio and MIDI source/region/track information is extracted, as well as MIDI note events.
