@@ -1,9 +1,12 @@
 os:
 - linux
 
+languages: c++
+
 dist: trusty
 
 script:
+- make
 - ./ptreg
 
 notifications:
