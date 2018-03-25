@@ -20,16 +20,16 @@ See ptftool.cc for example usage
 What works?
 ===========
 
-| **PT version** | **Multitrack Audio** | **Multitrack MIDI** |
-| --- | --- | --- |
-| 5 | Partially | ? |
-| 6 | ? | ? |
-| 7 | ? | ? |
-| 8 | Full support | Full support |
-| 9 | Full support | Full support |
-| 10 | Partially | Partially |
-| 11 | Partially | ? |
-| 12 | Partially | Partially |
+| **PT version** | **Audio(Sources)** | **Audio(Regions)** | **Audio(Tracks)**| **MIDI(Chunks)** | **MIDI(Regions)** | **MIDI(Tracks)** |
+| --- | --- | --- | --- | --- | --- | --- |
+| 5 | Yes | Yes | Yes | ? | ? | ? |
+| 6 | ? | ? | ? | ? | ? | ? |
+| 7 | ? | ? | ? | ? | ? | ? |
+| 8 | Yes | Yes | Yes | Yes | Yes | Yes |
+| 9 | Yes | Yes | Yes | Yes | Yes | Yes |
+|10 | Some | Some | Some | ? | ? | ? |
+|11 | Some | Some | Some | ? | ? | ? |
+|12 | Some | Some | Some | Yes | Yes | Yes |
 
 
 Regression testing
