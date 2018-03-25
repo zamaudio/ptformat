@@ -560,7 +560,7 @@ PTFFormat::parserest5(void) {
 
 			//printf("name=`%s` start=%04x length=%04x offset=%04x findex=%d\n", name,start,length,sampleoffset,findex);
 
-			std::string filename = string(name) + extension;
+			std::string filename = string(name);
 			wav_t f = {
 				filename,
 				findex,
@@ -573,6 +573,7 @@ PTFFormat::parserest5(void) {
 			vector<wav_t>::iterator found;
 			// Add file to lists
 			if ((found = std::find(begin, finish, f)) != finish) {
+				f.filename = (*found).filename;
 				std::vector<midi_ev_t> m;
 				region_t r = {
 					name,
@@ -1322,13 +1323,6 @@ PTFFormat::parserest89(void) {
 			j+=somethingbytes;
 			*/
 			std::string filename = string(name);
-			for (vector<wav_t>::iterator a = actualwavs.begin();
-					a != actualwavs.end(); ++a) {
-				if (foundin(a->filename, filename)) {
-					filename = a->filename;
-					a->index = findex;
-				}
-			}
 			wav_t f = {
 				filename,
 				(uint16_t)findex,
@@ -1343,6 +1337,7 @@ PTFFormat::parserest89(void) {
 			vector<wav_t>::iterator found;
 			// Add file to list only if it is an actual wav
 			if ((found = std::find(begin, finish, f)) != finish) {
+				f.filename = (*found).filename;
 				audiofiles.push_back(f);
 				// Also add plain wav as region
 				std::vector<midi_ev_t> m;
@@ -1569,7 +1564,7 @@ PTFFormat::parserest10(void) {
 			}
 			j+=somethingbytes;
 			*/
-			std::string filename = string(name) + extension;
+			std::string filename = string(name);
 			wav_t f = {
 				filename,
 				0,
@@ -1591,6 +1586,7 @@ PTFFormat::parserest10(void) {
 			vector<wav_t>::iterator found;
 			// Add file to list only if it is an actual wav
 			if ((found = std::find(begin, finish, f)) != finish) {
+				f.filename = (*found).filename;
 				audiofiles.push_back(f);
 				// Also add plain wav as region
 				std::vector<midi_ev_t> m;
@@ -1817,10 +1813,10 @@ PTFFormat::parserest11(void) {
 			}
 			j+=somethingbytes;
 			*/
-			std::string filename = string(name) + extension;
+			std::string filename = string(name);
 			wav_t f = {
 				filename,
-				0,
+				(uint16_t)findex,
 				(int64_t)(start*ratefactor),
 				(int64_t)(length*ratefactor),
 			};
@@ -1831,7 +1827,6 @@ PTFFormat::parserest11(void) {
 			if (length == 0) {
 				continue;
 			}
-			f.index = findex;
 			//printf("something=%d\n", something);
 
 			vector<wav_t>::iterator begin = actualwavs.begin();
@@ -1839,6 +1834,7 @@ PTFFormat::parserest11(void) {
 			vector<wav_t>::iterator found;
 			// Add file to list only if it is an actual wav
 			if ((found = std::find(begin, finish, f)) != finish) {
+				f.filename = (*found).filename;
 				audiofiles.push_back(f);
 				// Also add plain wav as region
 				std::vector<midi_ev_t> m;
