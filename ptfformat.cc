@@ -1153,66 +1153,59 @@ PTFFormat::parseaudio(void) {
 		return;
 	}
 
-	// Find actual wav names
-	bool first = true;
+	// Find number of wave files
 	uint16_t numberofwavs;
-	char wavname[256];
-	for (i = k-2; i > 4; i--) {
-		if (		((ptfunxored[i  ] == 'W') || (ptfunxored[i  ] == 'A') || ptfunxored[i  ] == '\0') &&
-				((ptfunxored[i-1] == 'A') || (ptfunxored[i-1] == 'I') || ptfunxored[i-1] == '\0') &&
-				((ptfunxored[i-2] == 'V') || (ptfunxored[i-2] == 'F') || ptfunxored[i-2] == '\0') &&
-				((ptfunxored[i-3] == 'E') || (ptfunxored[i-3] == 'F') || ptfunxored[i-3] == '\0')) {
-			j = i-4;
-			l = 0;
-			while (ptfunxored[j] != '\0') {
-				wavname[l] = ptfunxored[j];
-				l++;
-				j--;
-			}
-			wavname[l] = 0;
-			if (ptfunxored[i] == 'A') {
-				extension = string(".aif");
-			} else {
-				extension = string(".wav");
-			}
-			//uint8_t playlist = ptfunxored[j-8];
-
-			if (first) {
-				first = false;
-				for (j = k; j > 4; j--) {
-					if (	(ptfunxored[j  ] == 0x01) &&
-						(ptfunxored[j-1] == 0x5a)) {
-
-						numberofwavs = 0;
-						numberofwavs |= (uint32_t)(ptfunxored[j-2] << 24);
-						numberofwavs |= (uint32_t)(ptfunxored[j-3] << 16);
-						numberofwavs |= (uint32_t)(ptfunxored[j-4] << 8);
-						numberofwavs |= (uint32_t)(ptfunxored[j-5]);
-						//printf("%d wavs\n", numberofwavs);
-						break;
-					}
-				k--;
-				}
-			}
-
-			std::string wave = string(wavname);
-			std::reverse(wave.begin(), wave.end());
-			wav_t f = { wave, (uint16_t)(numberofwavs - 1), 0, 0 };
-
-			if (foundin(wave, string(".grp"))) {
-				continue;
-			}
-			if (foundin(wave, string("Audio Files"))) {
-				continue;
-			}
-
-			actualwavs.push_back(f);
-
-			numberofwavs--;
-			if (numberofwavs <= 0)
-				break;
-		}
+	j = k;
+	if (!jumpback(&j, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2)) {
+		return;
 	}
+	numberofwavs = 0;
+	numberofwavs |= (uint32_t)(ptfunxored[j-1] << 24);
+	numberofwavs |= (uint32_t)(ptfunxored[j-2] << 16);
+	numberofwavs |= (uint32_t)(ptfunxored[j-3] << 8);
+	numberofwavs |= (uint32_t)(ptfunxored[j-4]);
+	//printf("%d wavs\n", numberofwavs);
+
+	// Find actual wav names
+	char wavname[256];
+	j = k;
+	for (i = 0; i < numberofwavs; i++) {
+		while (j > 0) {
+			if (	((ptfunxored[j  ] == 'W') || (ptfunxored[j  ] == 'A') || ptfunxored[j  ] == '\0') &&
+				((ptfunxored[j-1] == 'A') || (ptfunxored[j-1] == 'I') || ptfunxored[j-1] == '\0') &&
+				((ptfunxored[j-2] == 'V') || (ptfunxored[j-2] == 'F') || ptfunxored[j-2] == '\0') &&
+				((ptfunxored[j-3] == 'E') || (ptfunxored[j-3] == 'F') || ptfunxored[j-3] == '\0')) {
+				break;
+			}
+			j--;
+		}
+		j -= 4;
+		l = 0;
+		while (ptfunxored[j] != '\0') {
+			wavname[l] = ptfunxored[j];
+			l++;
+			j--;
+		}
+		wavname[l] = 0;
+		//uint8_t playlist = ptfunxored[j-8];
+
+		std::string wave = string(wavname);
+		std::reverse(wave.begin(), wave.end());
+		wav_t f = { wave, (uint16_t)(numberofwavs - 1), 0, 0 };
+
+		if (foundin(wave, string(".grp"))) {
+			continue;
+		}
+		if (foundin(wave, string("Audio Files"))) {
+			i--;
+			continue;
+		}
+
+		actualwavs.push_back(f);
+
+		//printf(" %s\n", wave.c_str());
+	}
+	resort(actualwavs);
 }
 
 void
@@ -1328,15 +1321,21 @@ PTFFormat::parserest89(void) {
 			}
 			j+=somethingbytes;
 			*/
-			std::string filename = string(name) + extension;
+			std::string filename = string(name);
+			for (vector<wav_t>::iterator a = actualwavs.begin();
+					a != actualwavs.end(); ++a) {
+				if (foundin(a->filename, filename)) {
+					filename = a->filename;
+					a->index = findex;
+				}
+			}
 			wav_t f = {
 				filename,
-				0,
+				(uint16_t)findex,
 				(int64_t)(start*ratefactor),
 				(int64_t)(length*ratefactor),
 			};
 
-			f.index = findex;
 			//printf("something=%d\n", something);
 
 			vector<wav_t>::iterator begin = actualwavs.begin();
@@ -2072,10 +2071,10 @@ PTFFormat::parserest12(void) {
 			}
 			j+=somethingbytes;
 			*/
-			std::string filename = string(name) + extension;
+			std::string filename = string(name);
 			wav_t f = {
 				filename,
-				0,
+				(uint16_t)findex,
 				(int64_t)(start*ratefactor),
 				(int64_t)(length*ratefactor),
 			};
@@ -2092,7 +2091,6 @@ PTFFormat::parserest12(void) {
 				rindex++;
 				continue;
 			}
-			f.index = findex;
 			//printf("something=%d\n", something);
 
 			vector<wav_t>::iterator begin = actualwavs.begin();
@@ -2100,6 +2098,7 @@ PTFFormat::parserest12(void) {
 			vector<wav_t>::iterator found;
 			// Add file to list only if it is an actual wav
 			if ((found = std::find(begin, finish, f)) != finish) {
+				f.filename = (*found).filename;
 				audiofiles.push_back(f);
 				// Also add plain wav as region
 				std::vector<midi_ev_t> m;
