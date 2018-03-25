@@ -1014,11 +1014,10 @@ PTFFormat::parsemidi12(void) {
 		nregions |= ptfunxored[k+1] << 8;
 
 		for (mr = 0; mr < nregions; mr++) {
-			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
+			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2)) {
 				break;
 			}
-
-			k += 9;
+			k += 18;
 
 			namelen = ptfunxored[k];
 			for (i = 0; i < namelen; i++) {
