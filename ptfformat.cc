@@ -1092,8 +1092,17 @@ PTFFormat::parsemidi12(void) {
 		nregions |= ptfunxored[k];
 		nregions |= ptfunxored[k+1] << 8;
 
+		k += 13;
+
 		for (i = 0; (i < nregions) && (k < len); i++) {
-			k += 24;
+			while (k < len) {
+				if (		(ptfunxored[k] == 0x5a) &&
+						(ptfunxored[k+1] & 0x08)) {
+					break;
+				}
+				k++;
+			}
+			k += 11;
 
 			ridx = 0;
 			ridx |= ptfunxored[k];
@@ -1106,8 +1115,6 @@ PTFFormat::parsemidi12(void) {
 					(uint64_t)ptfunxored[k+2] << 16 |
 					(uint64_t)ptfunxored[k+3] << 24 |
 					(uint64_t)ptfunxored[k+4] << 32;
-
-			k += 20;
 
 			track_t mtr;
 			mtr.name = string(miditrackname);
@@ -1124,6 +1131,9 @@ PTFFormat::parsemidi12(void) {
 				mtr.reg = *mregion;
 				mtr.reg.startpos = std::labs(region_pos - mtr.reg.startpos);
 				miditracks.push_back(mtr);
+			}
+			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff\xff\xff\xff\xff", 8)) {
+				return;
 			}
 		}
 	}
