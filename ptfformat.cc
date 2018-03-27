@@ -648,6 +648,16 @@ PTFFormat::resort(std::vector<wav_t>& ws) {
 }
 
 void
+PTFFormat::resort(std::vector<region_t>& rs) {
+	int j = 0;
+	std::sort(rs.begin(), rs.end());
+	for (std::vector<region_t>::iterator i = rs.begin(); i != rs.end(); ++i) {
+		(*i).index = j;
+		j++;
+	}
+}
+
+void
 PTFFormat::parseaudio5(void) {
 	uint32_t i,k,l;
 	uint64_t lengthofname, wavnumber;
@@ -1143,23 +1153,22 @@ PTFFormat::parsemidi12(void) {
 void
 PTFFormat::parseaudio(void) {
 	uint32_t i,j,k,l;
+	std::string wave;
 
 	k = 0;
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Audio Files", 11)) {
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Audio Files", 11))
 		return;
-	}
 
 	// Find end of wav file list
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4)) {
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4))
 		return;
-	}
 
 	// Find number of wave files
 	uint16_t numberofwavs;
 	j = k;
-	if (!jumpback(&j, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2)) {
+	if (!jumpback(&j, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
 		return;
-	}
+
 	numberofwavs = 0;
 	numberofwavs |= (uint32_t)(ptfunxored[j-1] << 24);
 	numberofwavs |= (uint32_t)(ptfunxored[j-2] << 16);
@@ -1174,8 +1183,7 @@ PTFFormat::parseaudio(void) {
 		while (j > 0) {
 			if (	((ptfunxored[j  ] == 'W') || (ptfunxored[j  ] == 'A') || ptfunxored[j  ] == '\0') &&
 				((ptfunxored[j-1] == 'A') || (ptfunxored[j-1] == 'I') || ptfunxored[j-1] == '\0') &&
-				((ptfunxored[j-2] == 'V') || (ptfunxored[j-2] == 'F') || ptfunxored[j-2] == '\0') &&
-				((ptfunxored[j-3] == 'E') || (ptfunxored[j-3] == 'F') || ptfunxored[j-3] == '\0')) {
+				((ptfunxored[j-2] == 'V') || (ptfunxored[j-2] == 'F') || ptfunxored[j-2] == '\0')) {
 				break;
 			}
 			j--;
@@ -1187,16 +1195,32 @@ PTFFormat::parseaudio(void) {
 			l++;
 			j--;
 		}
-		wavname[l] = 0;
-		//uint8_t playlist = ptfunxored[j-8];
+		wavname[l] = '\0';
 
-		std::string wave = string(wavname);
-		std::reverse(wave.begin(), wave.end());
-		wav_t f = { wave, (uint16_t)(numberofwavs - 1), 0, 0 };
-
-		if (foundin(wave, string(".grp"))) {
+		// Must be at least "vaw.z\0"
+		if (l < 6) {
+			i--;
 			continue;
 		}
+
+		// and skip "zWAVE" or "zAIFF"
+		if (	(	(wavname[1] == 'W') &&
+				(wavname[2] == 'A') &&
+				(wavname[3] == 'V') &&
+				(wavname[4] == 'E')) ||
+			(	(wavname[1] == 'A') &&
+				(wavname[2] == 'I') &&
+				(wavname[3] == 'F') &&
+				(wavname[4] == 'F'))) {
+			wave = string(&wavname[5]);
+		} else {
+			wave = string(wavname);
+		}
+		//uint8_t playlist = ptfunxored[j-8];
+
+		std::reverse(wave.begin(), wave.end());
+		wav_t f = { wave, (uint16_t)(numberofwavs - i - 1), 0, 0 };
+
 		if (foundin(wave, string("Audio Files"))) {
 			i--;
 			continue;
@@ -1204,9 +1228,8 @@ PTFFormat::parseaudio(void) {
 
 		actualwavs.push_back(f);
 
-		//printf(" %s\n", wave.c_str());
+		//printf(" %d:%s \n", numberofwavs - i - 1, wave.c_str());
 	}
-	resort(actualwavs);
 }
 
 void
@@ -1947,27 +1970,48 @@ PTFFormat::parserest12(void) {
 
 	// Find Regions
 	k = 0;
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4)) {
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4))
 		return;
-	}
 
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4))
 		return;
-	}
 
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
+		return;
 	k++;
 
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
 		return;
+	k++;
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
+		return;
+	k++;
+
+	// Hack to find actual start of region information
+	while (k < len) {
+		if ((ptfunxored[k+13] == 0x5a) && (ptfunxored[k+14] & 0xf)) {
+			k += 13;
+			continue;
+		} else {
+			if ((ptfunxored[k+9] == 0x5a) && (ptfunxored[k+10] & 0xf)) {
+				k += 9;
+				continue;
+			}
+		}
+		if ((ptfunxored[k] == 0x5a) && (ptfunxored[k+1] & 0xf))
+			break;
+		k++;
 	}
+	//printf("k=0x%x\n", k);
 
 	for (i = k; i < len-70; i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x07)) {
+				(ptfunxored[i+1] == 0x03)) {
 				break;
 		}
 		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x02)) {
+				((ptfunxored[i+1] == 0x01) || (ptfunxored[i+1] == 0x02))) {
 
 			uint8_t lengthofname = ptfunxored[i+9];
 			if (ptfunxored[i+13] == 0x5a) {
@@ -2000,6 +2044,7 @@ PTFFormat::parserest12(void) {
 					+somethingbytes
 					+skipbytes
 					+38] << 8;
+
 			/*
 			rindex = ptfunxored[j+5
 					+startbytes
@@ -2076,15 +2121,12 @@ PTFFormat::parserest12(void) {
 			};
 
 			if (strlen(name) == 0) {
-				rindex++;
 				continue;
 			}
 			if (length == 0) {
-				rindex++;
 				continue;
 			}
-			if (foundin(string(name), string(".grp"))) {
-				rindex++;
+			if (foundin(filename, string(".grp"))) {
 				continue;
 			}
 			//printf("something=%d\n", something);
@@ -2096,6 +2138,7 @@ PTFFormat::parserest12(void) {
 			if ((found = std::find(begin, finish, f)) != finish) {
 				f.filename = (*found).filename;
 				audiofiles.push_back(f);
+				actualwavs.erase(found);
 				// Also add plain wav as region
 				std::vector<midi_ev_t> m;
 				region_t r = {
@@ -2126,6 +2169,8 @@ PTFFormat::parserest12(void) {
 		}
 	}
 
+	//resort(regions);
+
 	//  Tracks
 	uint32_t offset;
 	uint32_t tracknumber = 0;
@@ -2135,7 +2180,7 @@ PTFFormat::parserest12(void) {
 	}
 	for (;k < len; k++) {
 		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x07)) {
+			(ptfunxored[k+1] & 0x04)) {
 			break;
 		}
 		if (	(ptfunxored[k  ] == 0x5a) &&
@@ -2159,8 +2204,8 @@ PTFFormat::parserest12(void) {
 			tr.name = string(name);
 			tr.index = tracknumber++;
 
-			for (j = k; regionspertrack > 0 && j < len; j++) {
-				jumpto(&j, ptfunxored, len, (const unsigned char *)"\x5a\x0a", 2);
+			for (j = k+18+lengthofname; regionspertrack > 0 && j < len; j++) {
+				jumpto(&j, ptfunxored, len, (const unsigned char *)"\x5a", 1);
 				tr.reg.index = (uint16_t)(ptfunxored[j+11] & 0xff)
 					| (uint16_t)((ptfunxored[j+12] << 8) & 0xff00);
 				vector<region_t>::iterator begin = regions.begin();
@@ -2180,6 +2225,9 @@ PTFFormat::parserest12(void) {
 					tracks.push_back(tr);
 				}
 				regionspertrack--;
+
+				jumpto(&j, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff\xff\xff\xff\xff", 8);
+				j += 12;
 			}
 		}
 	}

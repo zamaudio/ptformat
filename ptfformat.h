@@ -75,6 +75,11 @@ public:
 		bool operator ==(const struct region& other) {
 			return (this->index == other.index);
 		}
+
+		bool operator <(const struct region& other) const {
+			return (strcasecmp(this->name.c_str(),
+					other.name.c_str()) < 0);
+		}
 	} region_t;
 
 	typedef struct track {
@@ -157,6 +162,7 @@ private:
 	void parsemidi(void);
 	void parsemidi12(void);
 	void resort(std::vector<wav_t>& ws);
+	void resort(std::vector<region_t>& rs);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
 	std::string extension;
