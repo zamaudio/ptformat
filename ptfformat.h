@@ -163,6 +163,7 @@ private:
 	void parsemidi12(void);
 	void resort(std::vector<wav_t>& ws);
 	void resort(std::vector<region_t>& rs);
+	void filter(std::vector<region_t>& rs);
 	std::vector<wav_t> actualwavs;
 	float ratefactor;
 	std::string extension;
