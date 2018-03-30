@@ -10,10 +10,10 @@ Target samplerate = 48000
 4 wavs, 4 regions, 3 active regions
 
 Audio file (WAV#) @ offset, length:
-`monoTone.1.aif` w(1) @ 0, 480000
-`monoTone.wav` w(0) @ 0, 480000
-`stereoTone.L.aif` w(2) @ 0, 480000
-`stereoTone.R.aif` w(3) @ 0, 480000
+`monoTone.wav` w(0) @ 0, 0
+`monoTone.1.aif` w(1) @ 0, 0
+`stereoTone.L.aif` w(2) @ 0, 0
+`stereoTone.R.aif` w(3) @ 0, 0
 
 Region (Region#) (WAV#) @ into-sample, length:
 `monoTone` r(0) w(1) @ 0, 480000
