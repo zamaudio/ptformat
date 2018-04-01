@@ -32,6 +32,22 @@
 
 using namespace std;
 
+static bool wavidx_compare(PTFFormat::wav_t& w1, PTFFormat::wav_t& w2) {
+	return w1.index < w2.index;
+}
+
+static bool wavname_compare(PTFFormat::wav_t& w1, PTFFormat::wav_t& w2) {
+	return (strcasecmp(w1.filename.c_str(), w2.filename.c_str()) < 0);
+}
+
+static bool regidx_compare(PTFFormat::region_t& r1, PTFFormat::region_t& r2) {
+	return r1.index < r2.index;
+}
+
+static bool regname_compare(PTFFormat::region_t& r1, PTFFormat::region_t& r2) {
+	return (strcasecmp(r1.name.c_str(), r2.name.c_str()) < 0);
+}
+
 static void
 hexdump(uint8_t *data, int len)
 {
@@ -1245,10 +1261,10 @@ PTFFormat::parseaudio(void) {
 
 		//printf(" %d:%s \n", numberofwavs - i - 1, wave.c_str());
 	}
-	//resort(audiofiles);
-	//resort(actualwavs);
 	std::reverse(audiofiles.begin(), audiofiles.end());
 	std::reverse(actualwavs.begin(), actualwavs.end());
+	//resort(audiofiles);
+	//resort(actualwavs);
 }
 
 void
@@ -1985,9 +2001,125 @@ PTFFormat::parserest12(void) {
 	uint8_t somethingbytes = 0;
 	uint8_t skipbytes = 0;
 	uint32_t findex = 0;
+	uint32_t findex2 = 0;
+	uint32_t findex3 = 0;
 	uint16_t rindex = 0;
+	vector<region_t> groups;
+	uint16_t groupcount, groupmax;
+/*
+	vector<wav_t> groupsrcs;
 
-	// Find Regions
+	// Find region group information
+	k = 0;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Custom 1\0\0\x5a", 11))
+		return;
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4))
+		return;
+
+	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2))
+		return;
+
+	uint16_t gwindex;
+	uint16_t gindex;
+
+	j = 0;
+	for (i = k; i < len-70; i++) {
+		if (		(ptfunxored[i  ] == 0x5a) &&
+				(ptfunxored[i+1] == 0x08)) {
+			//gindex = ptfunxored[i-24] | ptfunxored[i-23] << 8;
+			gwindex = ptfunxored[i+11] | ptfunxored[i+12] << 8;
+			//gindex = ptfunxored[i+42] | ptfunxored[i+43] << 8;
+			//gwindex = ptfunxored[i+9] | ptfunxored[i+10] << 8;
+
+			// Find wav with correct findex
+			vector<wav_t>::iterator wave = actualwavs.end();
+			for (vector<wav_t>::iterator aw = actualwavs.begin();
+					aw != actualwavs.end(); ++aw) {
+				if (aw->index == gwindex) {
+					wave = aw;
+				}
+			}
+			if (wave == actualwavs.end())
+				continue;
+
+			groupsrcs.push_back(*wave);
+			j++;
+		}
+	}
+
+
+	// Find start of group names -> group indexes
+	k = 0;
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Custom 1\0\0\x5a", 11))
+		return;
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4))
+		return;
+
+	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2))
+		return;
+	k++;
+
+	// Total number of groups = j
+	for (i = 0; i < j/2; i++) {
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2))
+			return;
+		k++;
+	}
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
+		return;
+	k++;
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
+		return;
+	k++;
+
+	vector<region_t> glookup;
+
+	// Loop over all groups and associate its group index to the group name
+	for (i = 0; i < j/2; i++) {
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
+			return;
+		gindex = ptfunxored[k+9] | ptfunxored[k+10] << 8;
+		//gindex = ptfunxored[k+3] | ptfunxored[k+4] << 8;
+
+		uint8_t lengthofname = ptfunxored[k+13];
+		char name[256] = {0};
+		for (l = 0; l < lengthofname; l++) {
+			name[l] = ptfunxored[k+17+l];
+		}
+		name[l] = '\0';
+
+		// dummy region to hold gindex and group name
+		wav_t w = { std::string(""), 0, 0, 0 };
+		std::vector<midi_ev_t> md;
+		region_t g = {
+			string(name),
+			gindex,
+			0,
+			0,
+			0,
+			w,
+			md
+		};
+
+		glookup.push_back(g);
+		k++;
+	}
+
+	// Sort lookup table by group index
+	std::sort(glookup.begin(), glookup.end(), regidx_compare);
+
+	// print grouped regions
+	j = 0;
+	for (std::vector<wav_t>::iterator i = groupsrcs.begin(); i != groupsrcs.end(); ++i) {
+		printf("g(%d) w(%d)(%d) %s\n", j, i->index, (glookup.begin()+j)->index, (glookup.begin()+j)->name.c_str());
+		j++;
+	}
+*/
+	// Find region groups
 	k = 0;
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4))
 		return;
@@ -2007,7 +2139,7 @@ PTFFormat::parserest12(void) {
 		return;
 	k++;
 
-	// Hack to find actual start of region information
+	// Hack to find actual start of region group information
 	while (k < len) {
 		if ((ptfunxored[k+13] == 0x5a) && (ptfunxored[k+14] & 0xf)) {
 			k += 13;
@@ -2022,15 +2154,27 @@ PTFFormat::parserest12(void) {
 			break;
 		k++;
 	}
-	//printf("k=0x%x\n", k);
+	verbose_printf("k=0x%x\n", k);
 
-	for (i = k; i < len-70; i++) {
+	groupcount = 0;
+	j = k;
+	if (!jumpto(&j, ptfunxored, j+100, (const unsigned char *)"\x5a\x09", 2)) {
+		groupmax = 0;
+	} else {
+		groupmax = ptfunxored[j+3] | ptfunxored[j+4] << 8;
+	}
+
+	i = k;
+	for (; (groupcount < groupmax) && (i < len-70); i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
 				(ptfunxored[i+1] == 0x03)) {
 				break;
 		}
 		if (		(ptfunxored[i  ] == 0x5a) &&
 				((ptfunxored[i+1] == 0x01) || (ptfunxored[i+1] == 0x02))) {
+
+			//findex = ptfunxored[i-48] | ptfunxored[i-47] << 8;
+			//rindex = ptfunxored[i+3] | ptfunxored[i+4] << 8;
 
 			uint8_t lengthofname = ptfunxored[i+9];
 			if (ptfunxored[i+13] == 0x5a) {
@@ -2146,14 +2290,14 @@ PTFFormat::parserest12(void) {
 			if (length == 0) {
 				continue;
 			}
-			if (foundin(filename, string(".grp")) && !regionsingroup && !findex) {
-				// Empty region group
-				verbose_printf("        EMPTY: %s\n", name); 
-				continue;
-			} else if (foundin(filename, string(".grp")) && regionsingroup) {
+			//if (foundin(filename, string(".grp")) && !regionsingroup && !findex) {
+			//	// Empty region group
+			//	verbose_printf("        EMPTY: %s\n", name); 
+			//	continue;
+			if (regionsingroup) {
 				// Active region grouping
 				// Iterate parsing all the regions in the group
-				verbose_printf("\n        GROUP x%d %s\n", regionsingroup, name); 
+				verbose_printf("\nGROUP\tg(%d) %s\n", groupcount, name);
 				uint32_t m = j;
 				uint32_t n = j+16;
 
@@ -2165,10 +2309,12 @@ PTFFormat::parserest12(void) {
 				}
 				n--;
 				//printf("n=0x%x\n", n+112);
-				findex = ptfunxored[n+112] | (ptfunxored[n+113] << 8);
-				//findex = ptfunxored[n+108] | (ptfunxored[n+109] << 8);
-				vector<wav_t>::iterator wave = actualwavs.end();
+				//findex = ptfunxored[n+112] | (ptfunxored[n+113] << 8);
+				findex = ptfunxored[i-11] | ptfunxored[i-10] << 8;
+				findex2 = ptfunxored[n+108] | (ptfunxored[n+109] << 8);
+				//findex2= rindex; //XXX
 				// Find wav with correct findex
+				vector<wav_t>::iterator wave = actualwavs.end();
 				for (vector<wav_t>::iterator aw = actualwavs.begin();
 						aw != actualwavs.end(); ++aw) {
 					if (aw->index == findex) {
@@ -2205,7 +2351,7 @@ PTFFormat::parserest12(void) {
 					default:
 						break;
 					}
-					m+=8;
+					m+=offsetbytes+3;
 					start = 0;
 					switch (offsetbytes) {
 					case 5:
@@ -2221,7 +2367,7 @@ PTFFormat::parserest12(void) {
 					default:
 						break;
 					}
-					m+=8;
+					m+=offsetbytes+3;
 					length = 0;
 					switch (lengthbytes) {
 					case 5:
@@ -2237,62 +2383,243 @@ PTFFormat::parserest12(void) {
 					default:
 						break;
 					}
-
+					m+=8;
+					findex3 = ptfunxored[m] | (ptfunxored[m+1] << 8);
 					sampleoffset -= 1000000000000ul;
 					start -= 1000000000000ul;
 
-					// Region only
-					std::vector<midi_ev_t> md;
-					region_t r = {
-						name,
-						rindex,
-						(int64_t)(start*ratefactor),
-						(int64_t)(sampleoffset*ratefactor),
-						(int64_t)(length*ratefactor),
-						*wave,
-						md
-					};
-					regions.push_back(r);
+					if (findex3 == 0xffff) {
+						// findex is the true source
+						std::vector<midi_ev_t> md;
+						region_t r = {
+							name,
+							(uint16_t)rindex,
+							(int64_t)findex, //(start*ratefactor),
+							(int64_t)findex2, //(sampleoffset*ratefactor),
+							(int64_t)findex3, //(length*ratefactor),
+							*wave,
+							md
+						};
+						groups.push_back(r);
 
-					verbose_printf("r(%d) ?w(%d) -----: %s st(%lu) of(%lu) ln(%lu)\n", rindex, findex, wave->filename.c_str(), start, sampleoffset, length); 
-					// New region index
-				}
-				rindex++;
-
-			} else if (!foundin(filename, string(".grp"))) {
-				// Regular region mapping to a source
-				verbose_printf("\n+r(%d) w(%d) REGION: %s st(%lx)x%u of(%lx)x%u ln(%lx)x%u\n", rindex, findex, name, start, startbytes, sampleoffset, offsetbytes, length, lengthbytes); 
-				uint32_t n = j;
-				if (!jumpto(&n, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
-					return;
-				//printf("XXX=%d\n", ptfunxored[n+12] | ptfunxored[n+13]<<8);
-
-				// Find wav with correct findex
-				vector<wav_t>::iterator wave = actualwavs.end();
-				for (vector<wav_t>::iterator aw = actualwavs.begin();
-						aw != actualwavs.end(); ++aw) {
-					if (aw->index == findex) {
-						wave = aw;
+						//verbose_printf("r(%d) ?w(%d)(%d) -----: %s st(%lu) of(%lu) ln(%lu)\n", rindex, findex, findex2, wave->filename.c_str(), start, sampleoffset, length); 
+						verbose_printf("?\t%d %d %d %d\n", rindex, findex, findex2, findex3); 
+					} else {
+						/*
+						// find region with ridx=findex3
+						vector<region_t>::iterator rlookup = regions.end();
+						for (vector<region_t>::iterator rs = regions.begin();
+								rs != regions.end(); ++rs) {
+							if (rs->index == findex3) {
+								rlookup = rs;
+							}
+						}
+						if (rlookup == regions.end()) {
+							printf("????\n");
+							return;
+						}
+						*/
+						wav_t w = { std::string(""), 0, 0, 0 };
+						std::vector<midi_ev_t> md;
+						region_t r = {
+							name,
+							(uint16_t)rindex,
+							(int64_t)findex, //(start*ratefactor),
+							(int64_t)findex2, //(sampleoffset*ratefactor),
+							(int64_t)findex3, //(length*ratefactor),
+							w,
+							md
+						};
+						groups.push_back(r);
+						verbose_printf("?\t%d %d %d %d\n", rindex, findex, findex2, findex3);
 					}
 				}
-				if (wave == actualwavs.end()) {
-					printf("wtf missing source with findex\n");
-					return;
-				}
-				std::vector<midi_ev_t> md;
-				region_t r = {
-					name,
-					rindex,
-					(int64_t)(start*ratefactor),
-					(int64_t)(sampleoffset*ratefactor),
-					(int64_t)(length*ratefactor),
-					*wave,
-					md
-				};
-				regions.push_back(r);
-				rindex++;
+				groupcount++;
 			}
 		}
+	}
+
+	k = i;
+	// Start pure regions
+	verbose_printf("k=%x\n", k);
+	rindex = 0;
+	for (i = k; i < len-70; i++) {
+		if (		(ptfunxored[i  ] == 0xff) &&
+				(ptfunxored[i+1] == 0x5a) &&
+				(ptfunxored[i+2] == 0x01)) {
+			break;
+		}
+		//if (		(ptfunxored[i  ] == 0x5a) &&
+		//		(ptfunxored[i+1] == 0x03)) {
+		//	break;
+		//}
+		if (		(ptfunxored[i  ] == 0x5a) &&
+				((ptfunxored[i+1] == 0x01) || (ptfunxored[i+1] == 0x02))) {
+
+			//findex = ptfunxored[i-48] | ptfunxored[i-47] << 8;
+			//rindex = ptfunxored[i+3] | ptfunxored[i+4] << 8;
+
+			uint8_t lengthofname = ptfunxored[i+9];
+			if (ptfunxored[i+13] == 0x5a) {
+				continue;
+			}
+			char name[256] = {0};
+			for (j = 0; j < lengthofname; j++) {
+				name[j] = ptfunxored[i+13+j];
+			}
+			name[j] = '\0';
+			j += i+13;
+
+			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
+			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
+			startbytes = (ptfunxored[j+3] & 0xf0) >> 4;
+			somethingbytes = (ptfunxored[j+3] & 0xf);
+			skipbytes = ptfunxored[j+4];
+			findex = ptfunxored[j+5
+					+startbytes
+					+lengthbytes
+					+offsetbytes
+					+somethingbytes
+					+skipbytes
+					+37]
+				| ptfunxored[j+5
+					+startbytes
+					+lengthbytes
+					+offsetbytes
+					+somethingbytes
+					+skipbytes
+					+38] << 8;
+
+			uint64_t sampleoffset = 0;
+			switch (offsetbytes) {
+			case 5:
+				sampleoffset |= (uint64_t)(ptfunxored[j+9]) << 32;
+			case 4:
+				sampleoffset |= (uint64_t)(ptfunxored[j+8]) << 24;
+			case 3:
+				sampleoffset |= (uint64_t)(ptfunxored[j+7]) << 16;
+			case 2:
+				sampleoffset |= (uint64_t)(ptfunxored[j+6]) << 8;
+			case 1:
+				sampleoffset |= (uint64_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=offsetbytes;
+			uint64_t length = 0;
+			switch (lengthbytes) {
+			case 5:
+				length |= (uint64_t)(ptfunxored[j+9]) << 32;
+			case 4:
+				length |= (uint64_t)(ptfunxored[j+8]) << 24;
+			case 3:
+				length |= (uint64_t)(ptfunxored[j+7]) << 16;
+			case 2:
+				length |= (uint64_t)(ptfunxored[j+6]) << 8;
+			case 1:
+				length |= (uint64_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=lengthbytes;
+			uint64_t start = 0;
+			switch (startbytes) {
+			case 5:
+				start |= (uint64_t)(ptfunxored[j+9]) << 32;
+			case 4:
+				start |= (uint64_t)(ptfunxored[j+8]) << 24;
+			case 3:
+				start |= (uint64_t)(ptfunxored[j+7]) << 16;
+			case 2:
+				start |= (uint64_t)(ptfunxored[j+6]) << 8;
+			case 1:
+				start |= (uint64_t)(ptfunxored[j+5]);
+			default:
+				break;
+			}
+			j+=startbytes;
+
+			if (offsetbytes == 5)
+				sampleoffset -= 1000000000000ul;
+			if (startbytes == 5)
+				start -= 1000000000000ul;
+
+			std::string filename = string(name);
+			wav_t f = {
+				filename,
+				(uint16_t)findex,
+				(int64_t)(start*ratefactor),
+				(int64_t)(length*ratefactor),
+			};
+
+			if (strlen(name) == 0) {
+				continue;
+			}
+			if (length == 0) {
+				continue;
+			}
+			// Regular region mapping to a source
+			uint32_t n = j;
+			if (!jumpto(&n, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
+				return;
+			//printf("XXX=%d\n", ptfunxored[n+12] | ptfunxored[n+13]<<8);
+
+			// Find wav with correct findex
+			vector<wav_t>::iterator wave = actualwavs.end();
+			for (vector<wav_t>::iterator aw = actualwavs.begin();
+					aw != actualwavs.end(); ++aw) {
+				if (aw->index == findex) {
+					wave = aw;
+				}
+			}
+			if (wave == actualwavs.end()) {
+				printf("wtf missing source with findex\n");
+				return;
+			}
+			//verbose_printf("\n+r(%d) w(%d) REGION: %s st(%lx)x%u of(%lx)x%u ln(%lx)x%u\n", rindex, findex, name, start, startbytes, sampleoffset, offsetbytes, length, lengthbytes); 
+			verbose_printf("REGION\tg(NA)\tr(%d)\tw(%d) %s(%s)\n", rindex, findex, name, wave->filename.c_str()); 
+			std::vector<midi_ev_t> md;
+			region_t r = {
+				name,
+				rindex,
+				(int64_t)(start*ratefactor),
+				(int64_t)(sampleoffset*ratefactor),
+				(int64_t)(length*ratefactor),
+				*wave,
+				md
+			};
+			regions.push_back(r);
+			rindex++;
+		}
+	}
+
+	// Start grouped regions
+
+	// Print region groups mapped to sources
+	for (vector<region_t>::iterator a = groups.begin(); a != groups.end(); ++a) {
+		// Find wav with findex
+		vector<wav_t>::iterator wav = audiofiles.end();
+		for (vector<wav_t>::iterator ws = audiofiles.begin();
+				ws != audiofiles.end(); ws++) {
+			if (ws->index == a->startpos) {
+				wav = ws;
+			}
+		}
+		if (wav == audiofiles.end())
+			continue;
+
+		// Find wav with findex2
+		vector<wav_t>::iterator wav2 = audiofiles.end();
+		for (vector<wav_t>::iterator ws = audiofiles.begin();
+				ws != audiofiles.end(); ws++) {
+			if (ws->index == a->sampleoffset) {
+				wav2 = ws;
+			}
+		}
+		if (wav2 == audiofiles.end())
+			continue;
+
+		verbose_printf("Group: %s -> %s OR %s\n", a->name.c_str(), wav->filename.c_str(), wav2->filename.c_str());
 	}
 
 	//filter(regions);
