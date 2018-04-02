@@ -82,6 +82,15 @@ public:
 		}
 	} region_t;
 
+	typedef struct compound {
+		uint16_t curr_index;
+		uint16_t unknown1;
+		uint16_t level;
+		uint16_t ontopof_index;
+		uint16_t next_index;
+		std::string name;
+	} compound_t;
+
 	typedef struct track {
 		std::string name;
 		uint16_t    index;
@@ -96,6 +105,7 @@ public:
 	std::vector<wav_t> audiofiles;
 	std::vector<region_t> regions;
 	std::vector<region_t> midiregions;
+	std::vector<compound_t> compounds;
 	std::vector<track_t> tracks;
 	std::vector<track_t> miditracks;
 
