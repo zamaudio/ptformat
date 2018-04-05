@@ -2017,17 +2017,16 @@ PTFFormat::parserest12(void) {
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4))
 		return;
 
-	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2))
+	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a", 1))
 		return;
 
 	groupcount = 0;
-	for (i = k; i < len-70; i++) {
-		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x03)) {
-			//regioncount += ptfunxored[i+13] | ptfunxored[i+14] << 8;
-			groupcount++;
-		}
+	for (i = k; i < len - 0x800; i++) {
+		if (!jumpto(&i, ptfunxored, i+0x800, (const unsigned char *)"\x5a\x03", 2))
+			break;
+		groupcount++;
 	}
+	verbose_printf("groupcount=%d\n", groupcount);
 
 	// Find start of group names -> group indexes
 	k = 0;
@@ -2037,28 +2036,31 @@ PTFFormat::parserest12(void) {
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4))
 		return;
 
-	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2))
+	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a", 1))
 		return;
+	k++;
 
 	// Skip total number of groups
-	for (i = 0; i < groupcount - 1u; i++) {
-		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2))
-			return;
+	for (i = 0; i < groupcount + 1u; i++) {
+		while (k < len) {
+			if (		(ptfunxored[k  ] == 0x5a) &&
+					(ptfunxored[k+1] & 0x08)) {
+				break;
+			}
+			k++;
+		}
 		k++;
 	}
 
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
-		return;
-	k++;
-
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
-		return;
-	k++;
-
 	// Loop over all groups and associate the compound index/name
 	for (i = 0; i < groupcount; i++) {
-		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
-			return;
+		while (k < len) {
+			if (		(ptfunxored[k  ] == 0x5a) &&
+					((ptfunxored[k+1] == 0x02) || (ptfunxored[k+1] == 0x03))) {
+				break;
+			}
+			k++;
+		}
 		gindex = ptfunxored[k+9] | ptfunxored[k+10] << 8;
 		gindex2 = ptfunxored[k+3] | ptfunxored[k+4] << 8;
 
@@ -2386,6 +2388,8 @@ PTFFormat::parserest12(void) {
 					groups.push_back(r);
 					*/
 					vector<compound_t>::iterator g = groupmap.begin()+findex2;
+					if (g >= groupmap.end())
+						continue;
 					compound_t c;
 					c.name = string(g->name);
 					c.curr_index = compoundcount;
@@ -2537,8 +2541,8 @@ PTFFormat::parserest12(void) {
 				}
 			}
 			if (wave == actualwavs.end()) {
-				printf("wtf missing source with findex\n");
-				return;
+				verbose_printf("missing source with findex\n");
+				continue;
 			}
 			//verbose_printf("\n+r(%d) w(%d) REGION: %s st(%lx)x%u of(%lx)x%u ln(%lx)x%u\n", rindex, findex, name, start, startbytes, sampleoffset, offsetbytes, length, lengthbytes);
 			verbose_printf("REGION\tg(NA)\tr(%d)\tw(%d) %s(%s)\n", rindex, findex, name, wave->filename.c_str());
