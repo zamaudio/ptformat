@@ -2041,10 +2041,10 @@ PTFFormat::parserest12(void) {
 	k++;
 
 	// Skip total number of groups
-	for (i = 0; i < groupcount + 1u; i++) {
+	for (i = 0; i < groupcount; i++) {
 		while (k < len) {
 			if (		(ptfunxored[k  ] == 0x5a) &&
-					(ptfunxored[k+1] & 0x08)) {
+					((ptfunxored[k+1] == 0x03) || (ptfunxored[k+1] == 0x0a))) {
 				break;
 			}
 			k++;
@@ -2052,15 +2052,36 @@ PTFFormat::parserest12(void) {
 		k++;
 	}
 
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] & 0x02)) {
+			break;
+		}
+		k++;
+	}
+	k++;
+
+	while (k < len) {
+		if (		(ptfunxored[k  ] == 0x5a) &&
+				(ptfunxored[k+1] & 0x02)) {
+			break;
+		}
+		k++;
+	}
+	k++;
+
+	verbose_printf("k=0x%x\n", k);
 	// Loop over all groups and associate the compound index/name
 	for (i = 0; i < groupcount; i++) {
 		while (k < len) {
 			if (		(ptfunxored[k  ] == 0x5a) &&
-					((ptfunxored[k+1] == 0x02) || (ptfunxored[k+1] == 0x03))) {
+					(ptfunxored[k+1] & 0x02)) {
 				break;
 			}
 			k++;
 		}
+		if (k > len)
+			break;
 		gindex = ptfunxored[k+9] | ptfunxored[k+10] << 8;
 		gindex2 = ptfunxored[k+3] | ptfunxored[k+4] << 8;
 
@@ -2071,6 +2092,11 @@ PTFFormat::parserest12(void) {
 		}
 		name[l] = '\0';
 
+		if (strlen(name) == 0) {
+			i--;
+			k++;
+			continue;
+		}
 		compound_t c = {
 			(uint16_t)i,	// curr_index
 			gindex,		// unknown1
@@ -2272,7 +2298,7 @@ PTFFormat::parserest12(void) {
 			if (regionsingroup) {
 				// Active region grouping
 				// Iterate parsing all the regions in the group
-				verbose_printf("\nGROUP\t %s\n", name);
+				verbose_printf("\nGROUP\t%d %s\n", groupcount, name);
 				uint32_t m = j;
 				uint32_t n = j+16;
 
@@ -2571,7 +2597,7 @@ PTFFormat::parserest12(void) {
 		found = false;
 		for (vector<compound_t>::iterator tmp = compounds.begin();
 				tmp != compounds.end(); ++tmp) {
-			if (tmp == cmp || tmp->ontopof_index == 0xffff)
+			if (tmp == cmp)
 				continue;
 			if (tmp->ontopof_index == cmp->curr_index)
 				found = true;
@@ -2590,8 +2616,9 @@ PTFFormat::parserest12(void) {
 
 		verbose_printf("----\n");
 
-		for (; cmp < compounds.end();
-				cmp = compounds.begin()+cmp->ontopof_index) {
+		for (; cmp < compounds.end() && cmp->curr_index != cmp->next_index;
+				cmp = compounds.begin()+cmp->next_index) {
+
 			// Find region
 			vector<region_t>::iterator r = regions.end();
 			for (vector<region_t>::iterator rs = regions.begin();
@@ -2602,8 +2629,19 @@ PTFFormat::parserest12(void) {
 			}
 			if (r == regions.end())
 				continue;
-			verbose_printf("\t->cidx(%u) pl(%u)+ridx(%u) cptr(%u) ?(%u) grp(%s) reg(%s)\n", cmp->curr_index, cmp->level, cmp->unknown1, cmp->ontopof_index, cmp->next_index, cmp->name.c_str(), r->name.c_str());
+			verbose_printf("\t->cidx(%u) pl(%u)+ridx(%u) cflags(0x%x) ?(%u) grp(%s) reg(%s)\n", cmp->curr_index, cmp->level, cmp->unknown1, cmp->ontopof_index, cmp->next_index, cmp->name.c_str(), r->name.c_str());
 		}
+		// Find region
+		vector<region_t>::iterator r = regions.end();
+		for (vector<region_t>::iterator rs = regions.begin();
+				rs != regions.end(); rs++) {
+			if (rs->index == cmp->unknown1 + cmp->level) {
+				r = rs;
+			}
+		}
+		if (r == regions.end())
+			continue;
+		verbose_printf("\tLEAF->cidx(%u) pl(%u)+ridx(%u) cflags(0x%x) ?(%u) grp(%s) reg(%s)\n", cmp->curr_index, cmp->level, cmp->unknown1, cmp->ontopof_index, cmp->next_index, cmp->name.c_str(), r->name.c_str());
 	}
 
 	// Start grouped regions
