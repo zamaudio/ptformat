@@ -380,15 +380,7 @@ PTFFormat::parse(void) {
 		parseaudio();
 		parserest10();
 		parsemidi();
-	} else if (version == 11) {
-		parse10header();
-		setrates();
-		if (sessionrate < 44100 || sessionrate > 192000)
-		  return -1;
-		parseaudio();
-		parserest11();
-		parsemidi();
-	} else if (version == 12) {
+	} else if (version == 11 || version == 12) {
 		parse10header();
 		setrates();
 		if (sessionrate < 44100 || sessionrate > 192000)
@@ -1740,259 +1732,6 @@ PTFFormat::parserest10(void) {
 }
 
 void
-PTFFormat::parserest11(void) {
-	uint32_t i,j,k;
-	// Find Regions
-	uint8_t startbytes = 0;
-	uint8_t lengthbytes = 0;
-	uint8_t offsetbytes = 0;
-	uint8_t somethingbytes = 0;
-	uint8_t skipbytes = 0;
-	uint16_t rindex = 0;
-	uint32_t findex = 0;
-
-	k = 0;
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4)) {
-		return;
-	}
-
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
-		return;
-	}
-
-	k++;
-
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
-		return;
-	}
-
-	k++;
-
-	for (i = k; i < len-70; i++) {
-		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x07)) {
-				break;
-		}
-		if (		(ptfunxored[i  ] == 0x5a) &&
-				(ptfunxored[i+1] == 0x01)) {
-
-			uint8_t lengthofname = ptfunxored[i+9];
-			if (ptfunxored[i+13] == 0x5a) {
-				continue;
-			}
-			char name[256] = {0};
-			for (j = 0; j < lengthofname; j++) {
-				name[j] = ptfunxored[i+13+j];
-			}
-			name[j] = '\0';
-			j += i+13;
-			uint8_t disabled = ptfunxored[j];
-			if (disabled) {
-				rindex++;
-				continue;
-			}
-			//printf("%s\n", name);
-
-			offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4;
-			lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
-			startbytes = (ptfunxored[j+3] & 0xf0) >> 4;
-			somethingbytes = (ptfunxored[j+3] & 0xf);
-			skipbytes = ptfunxored[j+4];
-			findex = ptfunxored[j+5
-					+startbytes
-					+lengthbytes
-					+offsetbytes
-					+somethingbytes
-					+skipbytes
-					+37];
-			/*rindex = ptfunxored[j+5
-					+startbytes
-					+lengthbytes
-					+offsetbytes
-					+somethingbytes
-					+skipbytes
-					+24];
-			*/
-			uint32_t sampleoffset = 0;
-			switch (offsetbytes) {
-			case 4:
-				sampleoffset |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				sampleoffset |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				sampleoffset |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				sampleoffset |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=offsetbytes;
-			uint32_t length = 0;
-			switch (lengthbytes) {
-			case 4:
-				length |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				length |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				length |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				length |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=lengthbytes;
-			uint32_t start = 0;
-			switch (startbytes) {
-			case 4:
-				start |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				start |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				start |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				start |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=startbytes;
-			/*
-			uint32_t something = 0;
-			switch (somethingbytes) {
-			case 4:
-				something |= (uint32_t)(ptfunxored[j+8] << 24);
-			case 3:
-				something |= (uint32_t)(ptfunxored[j+7] << 16);
-			case 2:
-				something |= (uint32_t)(ptfunxored[j+6] << 8);
-			case 1:
-				something |= (uint32_t)(ptfunxored[j+5]);
-			default:
-				break;
-			}
-			j+=somethingbytes;
-			*/
-			std::string filename = string(name);
-			wav_t f = {
-				filename,
-				(uint16_t)findex,
-				(int64_t)(start*ratefactor),
-				(int64_t)(length*ratefactor),
-			};
-
-			if (strlen(name) == 0) {
-				continue;
-			}
-			if (length == 0) {
-				continue;
-			}
-			//printf("something=%d\n", something);
-
-			vector<wav_t>::iterator begin = actualwavs.begin();
-			vector<wav_t>::iterator finish = actualwavs.end();
-			vector<wav_t>::iterator found;
-			// Add file to list only if it is an actual wav
-			if ((found = std::find(begin, finish, f)) != finish) {
-				f.filename = (*found).filename;
-				audiofiles.push_back(f);
-				// Also add plain wav as region
-				std::vector<midi_ev_t> m;
-				region_t r = {
-					name,
-					rindex,
-					(int64_t)(start*ratefactor),
-					(int64_t)(sampleoffset*ratefactor),
-					(int64_t)(length*ratefactor),
-					f,
-					m
-				};
-				regions.push_back(r);
-			// Region only
-			} else {
-				if (foundin(filename, string(".grp"))) {
-					continue;
-				}
-				std::vector<midi_ev_t> m;
-				region_t r = {
-					name,
-					rindex,
-					(int64_t)(start*ratefactor),
-					(int64_t)(sampleoffset*ratefactor),
-					(int64_t)(length*ratefactor),
-					f,
-					m
-				};
-				regions.push_back(r);
-			}
-			rindex++;
-			//printf("%s\n", name);
-		}
-	}
-	//  Tracks
-	uint32_t offset;
-	uint32_t tracknumber = 0;
-	uint32_t regionspertrack = 0;
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4)) {
-		return;
-	}
-	for (;k < len; k++) {
-		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x03)) {
-			break;
-		}
-		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x02)) {
-
-			track_t tr;
-			uint8_t lengthofname = 0;
-			lengthofname = ptfunxored[k+9];
-			if (lengthofname == 0x5a) {
-				continue;
-			}
-
-			regionspertrack = (uint8_t)(ptfunxored[k+13+lengthofname]);
-			if (regionspertrack == 0) {
-				continue;
-			}
-
-			//printf("regions/track=%d\n", regionspertrack);
-			char name[256] = {0};
-			for (j = 0; j < lengthofname; j++) {
-				name[j] = ptfunxored[j+k+13];
-			}
-			name[j] = '\0';
-			tr.name = string(name);
-			tr.index = tracknumber++;
-			// Hack
-			if (strlen(name) == 0) {
-				break;
-			}
-			for (j = k; regionspertrack > 0 && j < len; j++) {
-				jumpto(&j, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2);
-				tr.reg.index = (uint16_t)(ptfunxored[j+11] & 0xff)
-					| (uint16_t)((ptfunxored[j+12] << 8) & 0xff00);
-				vector<region_t>::iterator begin = regions.begin();
-				vector<region_t>::iterator finish = regions.end();
-				vector<region_t>::iterator found;
-				if ((found = std::find(begin, finish, tr.reg)) != finish) {
-					tr.reg = (*found);
-				}
-				i = j+16;
-				offset = 0;
-				offset |= (uint32_t)(ptfunxored[i+3] << 24);
-				offset |= (uint32_t)(ptfunxored[i+2] << 16);
-				offset |= (uint32_t)(ptfunxored[i+1] << 8);
-				offset |= (uint32_t)(ptfunxored[i]);
-				tr.reg.startpos = (int64_t)(offset*ratefactor);
-				if (tr.reg.length > 0) {
-					tracks.push_back(tr);
-				}
-				regionspertrack--;
-			}
-		}
-	}
-}
-
-void
 PTFFormat::parserest12(void) {
 	uint32_t i,j,k,l;
 	uint8_t startbytes = 0;
@@ -2680,16 +2419,31 @@ PTFFormat::parserest12(void) {
 	uint32_t offset;
 	uint32_t tracknumber = 0;
 	uint32_t regionspertrack = 0;
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03\x00", 3)) {
+	uint32_t maxtracks = 0;
+
+	// Total tracks
+	j = k;
+	if (!jumpto(&j, ptfunxored, len, (const unsigned char *)"\x5a\x03\x00", 3))
 		return;
-	}
+	maxtracks |= (uint32_t)(ptfunxored[j-4]);
+	maxtracks |= (uint32_t)(ptfunxored[j-3]) << 8;
+	maxtracks |= (uint32_t)(ptfunxored[j-2]) << 16;
+	maxtracks |= (uint32_t)(ptfunxored[j-1]) << 24;
+
+	// Jump to start of region -> track mappings
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2))
+		return;
+
+	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
+		return;
+
 	for (;k < len; k++) {
 		if (	(ptfunxored[k  ] == 0x5a) &&
 			(ptfunxored[k+1] & 0x04)) {
 			break;
 		}
 		if (	(ptfunxored[k  ] == 0x5a) &&
-			(ptfunxored[k+1] == 0x03)) {
+			(ptfunxored[k+1] & 0x02)) {
 
 			uint8_t lengthofname = 0;
 			lengthofname = ptfunxored[k+9];
