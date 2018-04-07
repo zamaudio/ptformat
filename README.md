@@ -27,9 +27,9 @@ What works?
 | 7 | ? | ? | ? | ? | ? | ? |
 | 8 | Yes | Yes | Yes | Yes | Yes | Yes |
 | 9 | Yes | Yes | Yes | Yes | Yes | Yes |
-|10 | Some | Some | Some | ? | ? | ? |
-|11 | Some | Some | Some | ? | ? | ? |
-|12 | Some | Some | Some | Yes | Yes | Yes |
+|10 | Broken | Broken | Broken | ? | ? | ? |
+|11 | Broken | Broken | Broken | ? | ? | ? |
+|12 | Broken | Broken | Broken | Yes | Yes | Yes |
 
 
 Regression testing
