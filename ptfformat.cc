@@ -379,7 +379,7 @@ PTFFormat::parse(void) {
 		  return -1;
 		parseaudio();
 		parserest10();
-		parsemidi();
+		parsemidi12();
 	} else if (version == 11 || version == 12) {
 		parse10header();
 		setrates();
