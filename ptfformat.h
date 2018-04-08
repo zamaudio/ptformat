@@ -164,7 +164,6 @@ private:
 	void parse10header(void);
 	void parserest5(void);
 	void parserest89(void);
-	void parserest10(void);
 	void parserest12(void);
 	void parseaudio5(void);
 	void parseaudio(void);
