@@ -20,16 +20,16 @@ See ptftool.cc for example usage
 What works?
 ===========
 
-| **PT version** | **Audio(Sources)** | **Audio(Regions)** | **Audio(Tracks)**| **MIDI(Chunks)** | **MIDI(Regions)** | **MIDI(Tracks)** |
+| **PT version** | **Decryption** | **Audio (Sources)** | **Audio (Regions)** | **Audio (Tracks)**| **MIDI (Chunks)** | **MIDI (Regions)** | **MIDI (Tracks)** |
 | --- | --- | --- | --- | --- | --- | --- |
-| 5 | Yes | Yes | Yes | ? | ? | ? |
-| 6 | ? | ? | ? | ? | ? | ? |
-| 7 | ? | ? | ? | ? | ? | ? |
-| 8 | Yes | Yes | Yes | Yes | Yes | Yes |
-| 9 | Yes | Yes | Yes | Yes | Yes | Yes |
-|10 | Yes | Broken | Broken | Yes | Yes | Yes |
-|11 | Yes | Missing grps | Yes | Yes | Yes | Yes |
-|12 | Yes | Missing grps | Yes | Yes | Yes | Yes |
+| 5 | Yes | Yes | Yes | Yes | ? | ? | ? |
+| 6 | Yes | ? | ? | ? | ? | ? | ? |
+| 7 | Yes | ? | ? | ? | ? | ? | ? |
+| 8 | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 9 | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+|10 | Yes | Yes | Broken | Broken | Yes | Yes | Yes |
+|11 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
+|12 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
 
 
 Regression testing
