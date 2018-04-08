@@ -1235,7 +1235,8 @@ PTFFormat::parseaudio(void) {
 		std::reverse(wave.begin(), wave.end());
 		wav_t f = { wave, (uint16_t)(numberofwavs - i - 1), 0, 0 };
 
-		if (foundin(wave, string("Audio Files"))) {
+		if (foundin(wave, string("Audio Files")) ||
+				foundin(wave, string("Fade Files"))) {
 			i--;
 			continue;
 		}
@@ -1380,7 +1381,6 @@ PTFFormat::parserest89(void) {
 			// Add file to list only if it is an actual wav
 			if ((found = std::find(begin, finish, f)) != finish) {
 				f.filename = (*found).filename;
-				audiofiles.push_back(f);
 				// Also add plain wav as region
 				std::vector<midi_ev_t> m;
 				region_t r = {

@@ -25,8 +25,8 @@ What works?
 | 5 | Yes | Yes | Yes | Yes | ? | ? | ? |
 | 6 | Yes | ? | ? | ? | ? | ? | ? |
 | 7 | Yes | ? | ? | ? | ? | ? | ? |
-| 8 | Yes | Duplicates | Broken | Yes | Yes | Yes | Yes |
-| 9 | Yes | Duplicates | Yes | Yes | Yes | Yes | Yes |
+| 8 | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| 9 | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 |10 | Yes | Yes | Broken | Broken | Yes | Yes | Yes |
 |11 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
 |12 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
