@@ -27,8 +27,8 @@ What works?
 | 7 | ? | ? | ? | ? | ? | ? |
 | 8 | Yes | Yes | Yes | Yes | Yes | Yes |
 | 9 | Yes | Yes | Yes | Yes | Yes | Yes |
-|10 | Broken | Broken | Broken | Yes | Yes | Yes |
-|11 | Broken | Missing grps | Yes | Yes | Yes | Yes |
+|10 | Yes | Broken | Broken | Yes | Yes | Yes |
+|11 | Yes | Missing grps | Yes | Yes | Yes | Yes |
 |12 | Yes | Missing grps | Yes | Yes | Yes | Yes |
 
 

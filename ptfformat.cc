@@ -378,7 +378,7 @@ PTFFormat::parse(void) {
 		if (sessionrate < 44100 || sessionrate > 192000)
 		  return -1;
 		parseaudio();
-		parserest10();
+		parserest12();
 		parsemidi12();
 	} else if (version == 11 || version == 12) {
 		parse10header();
@@ -1200,7 +1200,7 @@ PTFFormat::parseaudio(void) {
 
 	// Find actual wav names
 	char wavname[256];
-	j = k;
+	j = k - 2;
 	for (i = 0; i < numberofwavs; i++) {
 		while (j > 0) {
 			if (	((ptfunxored[j  ] == 'W') || (ptfunxored[j  ] == 'A') || ptfunxored[j  ] == '\0') &&
@@ -1754,7 +1754,7 @@ PTFFormat::parserest12(void) {
 	// Find region group total
 	k = 0;
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Custom 1\0\0\x5a", 11))
-		return;
+		goto nocustom;
 
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4))
 		return;
@@ -1864,6 +1864,7 @@ PTFFormat::parserest12(void) {
 		j++;
 	}
 
+nocustom:
 	// Find region groups
 	k = 0;
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4))
