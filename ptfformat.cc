@@ -945,7 +945,7 @@ PTFFormat::parsemidi(void) {
 			region_t r = { std::string(""), ridx, 0, 0, 0, w, m};
 			if ((mregion = std::find(begin, finish, r)) != finish) {
 				mtr.reg = *mregion;
-				mtr.reg.startpos = std::labs(region_pos - mtr.reg.startpos);
+				mtr.reg.startpos = labs(region_pos - mtr.reg.startpos);
 				miditracks.push_back(mtr);
 			}
 		}
@@ -1154,7 +1154,7 @@ PTFFormat::parsemidi12(void) {
 			region_t r = { std::string(""), ridx, 0, 0, 0, w, m};
 			if ((mregion = std::find(begin, finish, r)) != finish) {
 				mtr.reg = *mregion;
-				mtr.reg.startpos = std::labs(region_pos - mtr.reg.startpos);
+				mtr.reg.startpos = labs(region_pos - mtr.reg.startpos);
 				miditracks.push_back(mtr);
 			}
 			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff\xff\xff\xff\xff", 8)) {
