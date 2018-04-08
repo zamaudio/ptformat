@@ -372,15 +372,7 @@ PTFFormat::parse(void) {
 		parseaudio();
 		parserest89();
 		parsemidi();
-	} else if (version == 10) {
-		parse10header();
-		setrates();
-		if (sessionrate < 44100 || sessionrate > 192000)
-		  return -1;
-		parseaudio();
-		parserest12();
-		parsemidi12();
-	} else if (version == 11 || version == 12) {
+	} else if (version == 10 || version == 11 || version == 12) {
 		parse10header();
 		setrates();
 		if (sessionrate < 44100 || sessionrate > 192000)
