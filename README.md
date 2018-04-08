@@ -21,7 +21,7 @@ What works?
 ===========
 
 | **PT version** | **Decryption** | **Audio (Sources)** | **Audio (Regions)** | **Audio (Tracks)**| **MIDI (Chunks)** | **MIDI (Regions)** | **MIDI (Tracks)** |
-| --- | --- | --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | 5 | Yes | Yes | Yes | Yes | ? | ? | ? |
 | 6 | Yes | ? | ? | ? | ? | ? | ? |
 | 7 | Yes | ? | ? | ? | ? | ? | ? |
