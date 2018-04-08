@@ -1733,12 +1733,13 @@ PTFFormat::parserest10(void) {
 
 void
 PTFFormat::parserest12(void) {
-	uint32_t i,j,k,l;
+	uint32_t i,j,k,l,m,n;
 	uint8_t startbytes = 0;
 	uint8_t lengthbytes = 0;
 	uint8_t offsetbytes = 0;
 	uint8_t somethingbytes = 0;
 	uint8_t skipbytes = 0;
+	uint32_t maxregions = 0;
 	uint32_t findex = 0;
 	uint32_t findex2 = 0;
 	uint32_t findex3 = 0;
@@ -1747,6 +1748,8 @@ PTFFormat::parserest12(void) {
 	uint16_t groupcount, compoundcount, groupmax;
 	uint16_t gindex, gindex2;
 
+	m = 0;
+	n = 0;
 	vector<compound_t> groupmap;
 	// Find region group total
 	k = 0;
@@ -1759,9 +1762,12 @@ PTFFormat::parserest12(void) {
 	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a", 1))
 		return;
 
+	jumpto(&k, ptfunxored, k+0x500, (const unsigned char *)"\x5a\x03", 2);
+	k++;
+
 	groupcount = 0;
-	for (i = k; i < len - 0x800; i++) {
-		if (!jumpto(&i, ptfunxored, i+0x800, (const unsigned char *)"\x5a\x03", 2))
+	for (i = k; i < len - 0x500; i++) {
+		if (!jumpto(&i, ptfunxored, i+0x500, (const unsigned char *)"\x5a\x03", 2))
 			break;
 		groupcount++;
 	}
@@ -1809,7 +1815,7 @@ PTFFormat::parserest12(void) {
 	}
 	k++;
 
-	verbose_printf("k=0x%x\n", k);
+	verbose_printf("start of groups k=0x%x\n", k);
 	// Loop over all groups and associate the compound index/name
 	for (i = 0; i < groupcount; i++) {
 		while (k < len) {
@@ -1863,21 +1869,15 @@ PTFFormat::parserest12(void) {
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"Snap", 4))
 		return;
 
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff", 4))
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x06", 2))
 		return;
+	for (l = 0; l < 11; l++) {
+		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a", 1))
+			return;
+		k++;
+	}
 
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
-		return;
-	k++;
-
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
-		return;
-	k++;
-
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
-		return;
-	k++;
-
+	/*
 	// Hack to find actual start of region group information
 	while (k < len) {
 		if ((ptfunxored[k+13] == 0x5a) && (ptfunxored[k+14] & 0xf)) {
@@ -1893,7 +1893,8 @@ PTFFormat::parserest12(void) {
 			break;
 		k++;
 	}
-	verbose_printf("k=0x%x\n", k);
+	*/
+	verbose_printf("hack region groups k=0x%x\n", k);
 
 	groupcount = 0;
 	compoundcount = 0;
@@ -1903,7 +1904,6 @@ PTFFormat::parserest12(void) {
 	} else {
 		groupmax = ptfunxored[j+3] | ptfunxored[j+4] << 8;
 	}
-
 	i = k;
 	for (; (groupcount < groupmax) && (i < len-70); i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
@@ -2038,8 +2038,8 @@ PTFFormat::parserest12(void) {
 				// Active region grouping
 				// Iterate parsing all the regions in the group
 				verbose_printf("\nGROUP\t%d %s\n", groupcount, name);
-				uint32_t m = j;
-				uint32_t n = j+16;
+				m = j;
+				n = j+16;
 
 				for (l = 0; l < regionsingroup; l++) {
 					if (!jumpto(&n, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2)) {
@@ -2173,10 +2173,20 @@ PTFFormat::parserest12(void) {
 	j = 0;
 
 	// Start pure regions
-	k = i;
-	verbose_printf("k=%x\n", k);
+	k = m != 0 ? m : k - 1;
+	if (!jumpto(&k, ptfunxored, k+64, (const unsigned char *)"\x5a\x05", 2))
+		jumpto(&k, ptfunxored, k+128, (const unsigned char *)"\x5a\x02", 2);
+
+	verbose_printf("pure regions k=0x%x\n", k);
+
+	maxregions |= (uint32_t)(ptfunxored[k-4]);
+	maxregions |= (uint32_t)(ptfunxored[k-3]) << 8;
+	maxregions |= (uint32_t)(ptfunxored[k-2]) << 16;
+	maxregions |= (uint32_t)(ptfunxored[k-1]) << 24;
+
+	verbose_printf("maxregions=%u\n", maxregions);
 	rindex = 0;
-	for (i = k; i < len-70; i++) {
+	for (i = k; rindex < maxregions && i < len; i++) {
 		if (		(ptfunxored[i  ] == 0xff) &&
 				(ptfunxored[i+1] == 0x5a) &&
 				(ptfunxored[i+2] == 0x01)) {
@@ -2431,11 +2441,16 @@ PTFFormat::parserest12(void) {
 	maxtracks |= (uint32_t)(ptfunxored[j-1]) << 24;
 
 	// Jump to start of region -> track mappings
-	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x08", 2))
+	if (jumpto(&k, ptfunxored, k + regions.size() * 0x400, (const unsigned char *)"\x5a\x08", 2)) {
+		if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
+			return;
+	} else if (jumpto(&k, ptfunxored, k + regions.size() * 0x400, (const unsigned char *)"\x5a\x0a", 2)) {
+		if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x01", 2))
+			return;
+	} else {
 		return;
-
-	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a\x02", 2))
-		return;
+	}
+	verbose_printf("tracks k=0x%x\n", k);
 
 	for (;k < len; k++) {
 		if (	(ptfunxored[k  ] == 0x5a) &&
