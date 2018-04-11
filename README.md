@@ -40,6 +40,12 @@ To test that nothing has broken since code has been changed:
 	make
 	./ptreg
 
+License
+=======
+
+### LGPLv2.1+
+
+
 TODO
 ====
 
