@@ -1515,12 +1515,12 @@ PTFFormat::parserest12(void) {
 	if (!jumpback(&k, ptfunxored, len, (const unsigned char *)"\x5a", 1))
 		return;
 
-	jumpto(&k, ptfunxored, k+0x500, (const unsigned char *)"\x5a\x03", 2);
+	jumpto(&k, ptfunxored, k+0x2000, (const unsigned char *)"\x5a\x03", 2);
 	k++;
 
 	groupcount = 0;
-	for (i = k; i < len - 0x500; i++) {
-		if (!jumpto(&i, ptfunxored, i+0x500, (const unsigned char *)"\x5a\x03", 2))
+	for (i = k; i < len; i++) {
+		if (!jumpto(&i, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2))
 			break;
 		groupcount++;
 	}
@@ -1625,13 +1625,16 @@ nocustom:
 
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x06", 2))
 		return;
-	for (l = 0; l < 11; l++) {
-		if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a", 1))
-			return;
-		k++;
-	}
+	k++;
 
-	/*
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16))
+		return;
+	k++;
+
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16))
+		return;
+	k++;
+
 	// Hack to find actual start of region group information
 	while (k < len) {
 		if ((ptfunxored[k+13] == 0x5a) && (ptfunxored[k+14] & 0xf)) {
@@ -1647,19 +1650,13 @@ nocustom:
 			break;
 		k++;
 	}
-	*/
 	verbose_printf("hack region groups k=0x%x\n", k);
 
-	groupcount = 0;
 	compoundcount = 0;
 	j = k;
-	if (!jumpto(&j, ptfunxored, j+100, (const unsigned char *)"\x5a\x09", 2)) {
-		groupmax = 0;
-	} else {
-		groupmax = ptfunxored[j+3] | ptfunxored[j+4] << 8;
-	}
-	i = k;
-	for (; (groupcount < groupmax) && (i < len-70); i++) {
+	groupmax = groupcount == 0 ? 0 : ptfunxored[j+3] | ptfunxored[j+4] << 8;
+	groupcount = 0;
+	for (i = k; (groupcount < groupmax) && (i < len-70); i++) {
 		if (		(ptfunxored[i  ] == 0x5a) &&
 				(ptfunxored[i+1] == 0x03)) {
 				break;
@@ -1929,7 +1926,7 @@ nocustom:
 	// Start pure regions
 	k = m != 0 ? m : k - 1;
 	if (!jumpto(&k, ptfunxored, k+64, (const unsigned char *)"\x5a\x05", 2))
-		jumpto(&k, ptfunxored, k+128, (const unsigned char *)"\x5a\x02", 2);
+		jumpto(&k, ptfunxored, k+0x400, (const unsigned char *)"\x5a\x02", 2);
 
 	verbose_printf("pure regions k=0x%x\n", k);
 

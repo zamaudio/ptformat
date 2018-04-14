@@ -27,7 +27,7 @@ What works?
 | 7 | Yes | ? | ? | ? | ? | ? | ? |
 | 8 | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | 9 | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-|10 | Yes | Yes | Broken | Broken | Yes | Yes | Yes |
+|10 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
 |11 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
 |12 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
 
