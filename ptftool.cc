@@ -20,6 +20,7 @@
  */
 
 #include "ptfformat.h"
+#include <inttypes.h> // PRIxyy
 #include <cstdio>
 
 using namespace std;
@@ -43,8 +44,8 @@ int main (int argc, char **argv) {
 		exit(-1);
 		break;
 	case 0:
-		printf("ProTools %d Session: Samplerate = %ldHz\nTarget samplerate = 48000\n\n", ptf.version, ptf.sessionrate);
-		printf("%lu wavs, %lu regions, %lu active regions\n\n",
+		printf("ProTools %d Session: Samplerate = %" PRId64 "Hz\nTarget samplerate = 48000\n\n", ptf.version, ptf.sessionrate);
+		printf("%zu wavs, %zu regions, %zu active regions\n\n",
 			ptf.audiofiles.size(),
 			ptf.regions.size(),
 			ptf.tracks.size()
@@ -53,7 +54,7 @@ int main (int argc, char **argv) {
 		for (vector<PTFFormat::wav_t>::iterator
 				a = ptf.audiofiles.begin();
 				a != ptf.audiofiles.end(); ++a) {
-			printf("`%s` w(%d) @ %lu, %lu\n",
+			printf("`%s` w(%d) @ %" PRIu64 ", %" PRIu64 "\n",
 				a->filename.c_str(),
 				a->index,
 				a->posabsolute,
@@ -64,7 +65,7 @@ int main (int argc, char **argv) {
 		for (vector<PTFFormat::region_t>::iterator
 				a = ptf.regions.begin();
 				a != ptf.regions.end(); ++a) {
-			printf("`%s` r(%d) w(%d) @ %lu, %lu\n",
+			printf("`%s` r(%d) w(%d) @ %" PRIu64 ", %" PRIu64 "\n",
 				a->name.c_str(),
 				a->index,
 				a->wave.index,
@@ -76,7 +77,7 @@ int main (int argc, char **argv) {
 		for (vector<PTFFormat::region_t>::iterator
 			a = ptf.midiregions.begin();
 			a != ptf.midiregions.end(); ++a) {
-			printf("`%s` r(%d) @ %lu, %lu\n",
+			printf("`%s` r(%d) @ %" PRIu64 ", %" PRIu64 "\n",
 				a->name.c_str(),
 				a->index,
 				a->sampleoffset,
@@ -84,7 +85,7 @@ int main (int argc, char **argv) {
 			for (vector<PTFFormat::midi_ev_t>::iterator
 					b = a->midi.begin();
 					b != a->midi.end(); ++b) {
-				printf("    MIDI: n(%d) v(%d) @ %lu, %lu\n",
+				printf("    MIDI: n(%d) v(%d) @ %" PRIu64 ", %" PRIu64 "\n",
 					b->note, b->velocity,
 					b->pos, b->length);
 			}
@@ -94,7 +95,7 @@ int main (int argc, char **argv) {
 		for (vector<PTFFormat::track_t>::iterator
 				a = ptf.tracks.begin();
 				a != ptf.tracks.end(); ++a) {
-			printf("`%s` t(%d) r(%d) @ %lu\n",
+			printf("`%s` t(%d) r(%d) @ %" PRIu64 "\n",
 				a->name.c_str(),
 				a->index,
 				a->reg.index,
@@ -105,7 +106,7 @@ int main (int argc, char **argv) {
 		for (vector<PTFFormat::track_t>::iterator
 				a = ptf.miditracks.begin();
 				a != ptf.miditracks.end(); ++a) {
-			printf("`%s` mt(%d) mr(%d) @ %lu\n",
+			printf("`%s` mt(%d) mr(%d) @ %" PRIu64 "\n",
 				a->name.c_str(),
 				a->index,
 				a->reg.index,
@@ -116,7 +117,7 @@ int main (int argc, char **argv) {
 		for (vector<PTFFormat::track_t>::iterator
 				a = ptf.tracks.begin();
 				a != ptf.tracks.end(); ++a) {
-			printf("`%s` t(%d) (%s) @ %lu + %lu, %lu\n",
+			printf("`%s` t(%d) (%s) @ %" PRIu64 " + %" PRIu64 ", %" PRIu64 "\n",
 				a->name.c_str(),
 				a->index,
 				a->reg.wave.filename.c_str(),
