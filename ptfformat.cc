@@ -880,7 +880,7 @@ PTFFormat::parsemidi(void) {
 				midiregionname,
 				regionnumber++,
 				//(int64_t)mc.zero,
-				(int64_t)0xe8d4a51000ull,
+				(int64_t)0xe8d4a51000ULL,
 				(int64_t)(0),
 				//(int64_t)(max_pos*sessionrate*60/(960000*120)),
 				(int64_t)mc.maxlen,
@@ -1082,7 +1082,7 @@ PTFFormat::parsemidi12(void) {
 				midiregionname,
 				regionnumber++,
 				//(int64_t)mc.zero,
-				(int64_t)0xe8d4a51000ull,
+				(int64_t)0xe8d4a51000ULL,
 				(int64_t)(0),
 				//(int64_t)(max_pos*sessionrate*60/(960000*120)),
 				(int64_t)mc.maxlen,
@@ -1763,9 +1763,9 @@ nocustom:
 			j+=startbytes;
 
 			if (offsetbytes == 5)
-				sampleoffset -= 1000000000000ul;
+				sampleoffset -= 1000000000000ULL;
 			if (startbytes == 5)
-				start -= 1000000000000ul;
+				start -= 1000000000000ULL;
 
 			std::string filename = string(name);
 			wav_t f = {
@@ -1876,8 +1876,8 @@ nocustom:
 					}
 					m+=8;
 					findex3 = ptfunxored[m] | (ptfunxored[m+1] << 8);
-					sampleoffset -= 1000000000000ul;
-					start -= 1000000000000ul;
+					sampleoffset -= 1000000000000ULL;
+					start -= 1000000000000ULL;
 
 					/*
 					// Find wav with correct findex
@@ -2034,9 +2034,9 @@ nocustom:
 			j+=startbytes;
 
 			if (offsetbytes == 5)
-				sampleoffset -= 1000000000000ul;
+				sampleoffset -= 1000000000000ULL;
 			if (startbytes == 5)
-				start -= 1000000000000ul;
+				start -= 1000000000000ULL;
 
 			std::string filename = string(name);
 			wav_t f = {
