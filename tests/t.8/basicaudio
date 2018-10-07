@@ -1,0 +1,59 @@
+#!/bin/sh
+
+[ -e ../../tests.sh ] && . ../../tests.sh
+
+NAME="PT8 testing 3 point audio rearrangements"
+FILE=../../bins/goodplaylists2.ptf
+EXPECT='ProTools 8 Session: Samplerate = 48000Hz
+Target samplerate = 48000
+
+3 wavs, 6 regions, 13 active regions
+
+Audio file (WAV#) @ offset, length:
+`24000.wav` w(0) @ 0, 24000
+`24000.1.wav` w(1) @ 0, 24000
+`24000.2.wav` w(2) @ 0, 24000
+
+Region (Region#) (WAV#) @ into-sample, length:
+`24000` r(0) w(0) @ 0, 24000
+`24000-01` r(1) w(0) @ 1000, 23000
+`24000.1` r(2) w(1) @ 0, 24000
+`24000.1-01` r(3) w(1) @ 8000, 16000
+`24000.2` r(4) w(2) @ 0, 24000
+`24000.2-01` r(5) w(2) @ 2000, 22000
+
+MIDI Region (Region#) @ into-sample, length:
+
+Track name (Track#) (Region#) @ Absolute:
+`4` t(0) r(1) @ 0
+`4` t(0) r(1) @ 23000
+`4` t(0) r(1) @ 46000
+`4` t(0) r(1) @ 69000
+`4` t(0) r(1) @ 92000
+`4` t(0) r(1) @ 115000
+`4` t(0) r(1) @ 138000
+`4` t(0) r(1) @ 161000
+`4` t(0) r(1) @ 184000
+`4` t(0) r(1) @ 207000
+`1` t(3) r(1) @ 3000
+`2` t(4) r(3) @ 32000
+`3` t(5) r(5) @ 52000
+
+MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
+
+Track name (Track#) (WAV filename) @ Absolute + Into-sample, Length:
+`4` t(0) (24000.wav) @ 0 + 1000, 23000
+`4` t(0) (24000.wav) @ 23000 + 1000, 23000
+`4` t(0) (24000.wav) @ 46000 + 1000, 23000
+`4` t(0) (24000.wav) @ 69000 + 1000, 23000
+`4` t(0) (24000.wav) @ 92000 + 1000, 23000
+`4` t(0) (24000.wav) @ 115000 + 1000, 23000
+`4` t(0) (24000.wav) @ 138000 + 1000, 23000
+`4` t(0) (24000.wav) @ 161000 + 1000, 23000
+`4` t(0) (24000.wav) @ 184000 + 1000, 23000
+`4` t(0) (24000.wav) @ 207000 + 1000, 23000
+`1` t(3) (24000.wav) @ 3000 + 1000, 23000
+`2` t(4) (24000.1.wav) @ 32000 + 8000, 16000
+`3` t(5) (24000.2.wav) @ 52000 + 2000, 22000'
+
+run_test
