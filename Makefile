@@ -6,14 +6,17 @@ CLANGSTRICT=-Woverloaded-virtual -Wno-mismatched-tags -ansi -Wnon-virtual-dtor -
 all:
 	$(CXX) -o ptftool -g ${INCL} ${STRICT} ptftool.cc ptfformat.cc
 	$(CXX) -o ptunxor -g ${INCL} ${STRICT} ptunxor.cc ptfformat.cc
+	$(CXX) -o ptgenmissing -g ${INCL} ${STRICT} ptgenmissing.cc ptfformat.cc
 
 all32:
 	$(CXX) -m32 -o ptftool -g ${INCL32} ${STRICT} ptftool.cc ptfformat.cc
 	$(CXX) -m32 -o ptunxor -g ${INCL32} ${STRICT} ptunxor.cc ptfformat.cc
+	$(CXX) -m32 -o ptgenmissing -g ${INCL32} ${STRICT} ptgenmissing.cc ptfformat.cc
 
 clangall:
 	clang++ -o ptftool -g ${INCL} ${CLANGSTRICT} ptftool.cc ptfformat.cc
 	clang++ -o ptunxor -g ${INCL} ${CLANGSTRICT} ptunxor.cc ptfformat.cc
+	clang++ -o ptgenmissing -g ${INCL} ${CLANGSTRICT} ptgenmissing.cc ptfformat.cc
 	
 clean:
-	rm ptftool ptunxor
+	rm ptftool ptunxor ptgenmissing
