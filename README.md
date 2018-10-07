@@ -40,6 +40,25 @@ To test that nothing has broken since code has been changed:
 	make
 	./ptreg
 
+
+Dummy audio file generation
+===========================
+
+To make a sox script for regenerating all audio in a PT session as dummy wavs:
+
+	make
+	./ptgenmissing file.pt{s,5,f,x}
+
+
+Hacking
+=======
+
+To decrypt a PT session for further inspection or adding features:
+
+	make
+	./ptunxor file.pt{s,5,f,x} > file.unxor
+
+
 License
 =======
 
