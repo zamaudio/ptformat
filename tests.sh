@@ -12,7 +12,7 @@ run_test() {
 	fi
 	$PTFTOOL $FILE 2> /dev/null > .tmp1
 	echo "$EXPECT" > .tmp2
-	DIFFED=$($DIFF -U0 .tmp1 .tmp2 | grep -v -E '^\+\+\+ |^--- ')
+	DIFFED=$($DIFF -U0 .tmp2 .tmp1 | grep -v -E '^\+\+\+ |^--- ')
 	rm -f .tmp1 .tmp2
 	if [ -z "$DIFFED" ]; then
 		echo "[ OK ]"
