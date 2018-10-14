@@ -10,36 +10,36 @@ Target samplerate = 48000
 8 wavs, 8 regions, 8 active regions
 
 Audio file (WAV#) @ offset, length:
-`Bass_L_01.aif` w(0) @ 0, 0
-`Bass_R_01.aif` w(1) @ 0, 0
-`cymb_L_01.aif` w(2) @ 0, 0
-`cymb_R_01.aif` w(3) @ 0, 0
-`DR_L.aif` w(4) @ 0, 0
-`DR_R.aif` w(5) @ 0, 0
-`Rhodes_L_01.aif` w(6) @ 0, 0
-`Rhodes_R_01.aif` w(7) @ 0, 0
+`cymb_R_01.aif` w(0) @ 0, 1355463
+`Rhodes_R_01.aif` w(1) @ 0, 1377004
+`Rhodes_L_01.aif` w(2) @ 0, 1377004
+`DR_R.aif` w(3) @ 0, 1377004
+`DR_L.aif` w(4) @ 0, 1377004
+`cymb_L_01.aif` w(5) @ 0, 1355463
+`Bass_L_01.aif` w(6) @ 0, 1377004
+`Bass_R_01.aif` w(7) @ 0, 1377004
 
 Region (Region#) (WAV#) @ into-sample, length:
-`DR_L` r(0) w(4) @ 0, 1377004
-`DR_R` r(1) w(5) @ 0, 1377004
-`Rhodes_L` r(2) w(6) @ 0, 1377004
-`Rhodes_R` r(3) w(7) @ 0, 1377004
-`Bass_L` r(4) w(0) @ 0, 1377004
-`Bass_R` r(5) w(1) @ 0, 1377004
-`cymb_L` r(6) w(2) @ 0, 1355463
-`cymb_R` r(7) w(3) @ 0, 1355463
+`Bass_L_01` r(0) w(6) @ 0, 1377004
+`Bass_R_01` r(1) w(7) @ 0, 1377004
+`cymb_L_01` r(2) w(5) @ 0, 1355463
+`cymb_R_01` r(3) w(0) @ 0, 1355463
+`DR_L` r(4) w(4) @ 0, 1377004
+`DR_R` r(5) w(3) @ 0, 1377004
+`Rhodes_L_01` r(6) w(2) @ 0, 1377004
+`Rhodes_R_01` r(7) w(1) @ 0, 1377004
 
 MIDI Region (Region#) @ into-sample, length:
 
 Track name (Track#) (Region#) @ Absolute:
-`DR_L` t(1) r(0) @ 0
-`DR_R` t(2) r(1) @ 0
-`Rhodes_L` t(3) r(2) @ 0
-`Rhodes_R` t(4) r(3) @ 0
-`Bass_L` t(5) r(4) @ 0
-`Bass_R` t(6) r(5) @ 0
-`cymb_L` t(7) r(6) @ 0
-`cymb_R` t(8) r(7) @ 0
+`DR_L` t(1) r(4) @ 0
+`DR_R` t(2) r(5) @ 0
+`Rhodes_L` t(3) r(6) @ 0
+`Rhodes_R` t(4) r(7) @ 0
+`Bass_L` t(5) r(0) @ 0
+`Bass_R` t(6) r(1) @ 0
+`cymb_L` t(7) r(2) @ 0
+`cymb_R` t(8) r(3) @ 0
 
 MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 

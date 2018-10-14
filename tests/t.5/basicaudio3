@@ -10,39 +10,39 @@ Target samplerate = 48000
 6 wavs, 6 regions, 6 active regions
 
 Audio file (WAV#) @ offset, length:
-`bass_01.L` w(0) @ 0, 0
-`bass_01.R` w(1) @ 0, 0
-`oerc_01.L` w(2) @ 0, 0
-`oerc_01.R` w(3) @ 0, 0
-`rhodes_01.L` w(4) @ 0, 0
-`rhodes_01.R` w(5) @ 0, 0
+`bass_01.L` w(0) @ 0, 1758775
+`bass_01.R` w(1) @ 0, 1758775
+`rhodes_01.R` w(2) @ 0, 1528453
+`rhodes_01.L` w(3) @ 0, 1528453
+`oerc_01.R` w(4) @ 0, 1643572
+`oerc_01.L` w(5) @ 0, 1643572
 
 Region (Region#) (WAV#) @ into-sample, length:
-`rhodes` r(0) w(4) @ 0, 1528453
-`rhodes` r(1) w(5) @ 0, 1528453
-`bass` r(2) w(0) @ 0, 1758775
-`bass` r(3) w(1) @ 0, 1758775
-`oerc` r(4) w(2) @ 0, 1643572
-`oerc` r(5) w(3) @ 0, 1643572
+`bass_01.L` r(0) w(0) @ 0, 1758775
+`bass_01.R` r(1) w(1) @ 0, 1758775
+`oerc_01.L` r(2) w(5) @ 0, 1643572
+`oerc_01.R` r(3) w(4) @ 0, 1643572
+`rhodes_01.L` r(4) w(3) @ 0, 1528453
+`rhodes_01.R` r(5) w(2) @ 0, 1528453
 
 MIDI Region (Region#) @ into-sample, length:
 
 Track name (Track#) (Region#) @ Absolute:
-`rhodes` t(1) r(0) @ 0
-`rhodes` t(1) r(1) @ 0
-`bass` t(3) r(2) @ 0
-`bass` t(3) r(3) @ 0
-`oerc` t(5) r(4) @ 0
-`oerc` t(5) r(5) @ 0
+`rhodes` t(1) r(4) @ 0
+`rhodes` t(1) r(5) @ 0
+`bass` t(2) r(0) @ 0
+`bass` t(2) r(1) @ 0
+`oerc` t(3) r(2) @ 0
+`oerc` t(3) r(3) @ 0
 
 MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 
 Track name (Track#) (WAV filename) @ Absolute + Into-sample, Length:
 `rhodes` t(1) (rhodes_01.L) @ 0 + 0, 1528453
 `rhodes` t(1) (rhodes_01.R) @ 0 + 0, 1528453
-`bass` t(3) (bass_01.L) @ 0 + 0, 1758775
-`bass` t(3) (bass_01.R) @ 0 + 0, 1758775
-`oerc` t(5) (oerc_01.L) @ 0 + 0, 1643572
-`oerc` t(5) (oerc_01.R) @ 0 + 0, 1643572'
+`bass` t(2) (bass_01.L) @ 0 + 0, 1758775
+`bass` t(2) (bass_01.R) @ 0 + 0, 1758775
+`oerc` t(3) (oerc_01.L) @ 0 + 0, 1643572
+`oerc` t(3) (oerc_01.R) @ 0 + 0, 1643572'
 
 run_test

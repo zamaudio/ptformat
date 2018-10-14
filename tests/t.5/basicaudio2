@@ -7,44 +7,31 @@ FILE=../../bins/Fa_16_48.pts
 EXPECT='ProTools 5 Session: Samplerate = 48000Hz
 Target samplerate = 48000
 
-1 wavs, 14 regions, 14 active regions
+1 wavs, 1 regions, 14 active regions
 
 Audio file (WAV#) @ offset, length:
-`24000.aif` w(0) @ 0, 0
+`24000.aif` w(0) @ 0, 24000
 
 Region (Region#) (WAV#) @ into-sample, length:
 `24000` r(0) w(0) @ 0, 24000
-`24000` r(1) w(0) @ 0, 24000
-`24000` r(2) w(0) @ 0, 24000
-`24000` r(3) w(0) @ 0, 24000
-`24000` r(4) w(0) @ 0, 24000
-`24000` r(5) w(0) @ 0, 24000
-`24000` r(6) w(0) @ 0, 24000
-`24000` r(7) w(0) @ 0, 24000
-`Audio 1` r(8) w(0) @ 0, 24000
-`Audio 1` r(9) w(0) @ 0, 24000
-`Audio 1` r(10) w(0) @ 0, 24000
-`Audio 2` r(11) w(0) @ 0, 24000
-`Audio 2` r(12) w(0) @ 0, 24000
-`Audio 3` r(13) w(0) @ 0, 24000
 
 MIDI Region (Region#) @ into-sample, length:
 
 Track name (Track#) (Region#) @ Absolute:
 `24000` t(1) r(0) @ 0
-`24000` t(1) r(1) @ 24000
-`24000` t(1) r(2) @ 48000
-`24000` t(1) r(3) @ 72000
-`24000` t(1) r(4) @ 96000
-`24000` t(1) r(5) @ 120000
-`24000` t(1) r(6) @ 144000
-`24000` t(1) r(7) @ 168000
-`Audio 1` t(9) r(8) @ 16384
-`Audio 1` t(9) r(9) @ 80832
-`Audio 1` t(9) r(10) @ 153024
-`Audio 2` t(12) r(11) @ 45440
-`Audio 2` t(12) r(12) @ 136448
-`Audio 3` t(14) r(13) @ 94528
+`24000` t(1) r(0) @ 24000
+`24000` t(1) r(0) @ 48000
+`24000` t(1) r(0) @ 72000
+`24000` t(1) r(0) @ 96000
+`24000` t(1) r(0) @ 120000
+`24000` t(1) r(0) @ 144000
+`24000` t(1) r(0) @ 168000
+`Audio 1` t(2) r(0) @ 16384
+`Audio 1` t(2) r(0) @ 80832
+`Audio 1` t(2) r(0) @ 153024
+`Audio 2` t(3) r(0) @ 45440
+`Audio 2` t(3) r(0) @ 136448
+`Audio 3` t(4) r(0) @ 94528
 
 MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 
@@ -57,11 +44,11 @@ Track name (Track#) (WAV filename) @ Absolute + Into-sample, Length:
 `24000` t(1) (24000.aif) @ 120000 + 0, 24000
 `24000` t(1) (24000.aif) @ 144000 + 0, 24000
 `24000` t(1) (24000.aif) @ 168000 + 0, 24000
-`Audio 1` t(9) (24000.aif) @ 16384 + 0, 24000
-`Audio 1` t(9) (24000.aif) @ 80832 + 0, 24000
-`Audio 1` t(9) (24000.aif) @ 153024 + 0, 24000
-`Audio 2` t(12) (24000.aif) @ 45440 + 0, 24000
-`Audio 2` t(12) (24000.aif) @ 136448 + 0, 24000
-`Audio 3` t(14) (24000.aif) @ 94528 + 0, 24000'
+`Audio 1` t(2) (24000.aif) @ 16384 + 0, 24000
+`Audio 1` t(2) (24000.aif) @ 80832 + 0, 24000
+`Audio 1` t(2) (24000.aif) @ 153024 + 0, 24000
+`Audio 2` t(3) (24000.aif) @ 45440 + 0, 24000
+`Audio 2` t(3) (24000.aif) @ 136448 + 0, 24000
+`Audio 3` t(4) (24000.aif) @ 94528 + 0, 24000'
 
 run_test
