@@ -73,5 +73,8 @@ TODO
 - PT7 support
 
 
-Please attach more ptx session files for development of this library!
-=====================================================================
+Binaries in `bins/`
+===================
+
+The binaries located in `bins/` directory are specially crafted test sessions
+for regression testing this library.  They are not programs!
