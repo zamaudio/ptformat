@@ -19,7 +19,7 @@
  *
  */
 
-#include "ptfformat.h"
+#include "ptformat/ptfformat.h"
 #include <inttypes.h> // PRIxyy
 #include <cstdio>
 
