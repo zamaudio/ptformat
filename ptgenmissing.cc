@@ -22,6 +22,7 @@
 #include "ptformat/ptfformat.h"
 #include <inttypes.h> // PRIx
 #include <cstdio>
+#include <stdlib.h>
 
 using namespace std;
 using std::string;
