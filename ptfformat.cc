@@ -548,7 +548,7 @@ PTFFormat::parserest5(void) {
 	uint64_t startbytes, lengthbytes, offsetbytes, somethingbytes, skipbytes;
 	uint16_t tracknumber = 0;
 	uint16_t findex;
-	uint16_t rindex;
+	uint16_t rindex = 0;
 	unsigned char tag1[3];
 	unsigned char tag2[3];
 	unsigned char tag3[3];
@@ -1167,7 +1167,7 @@ PTFFormat::parsemidi(void) {
 			region_t r = { std::string(""), ridx, 0, 0, 0, w, m};
 			if ((mregion = std::find(begin, finish, r)) != finish) {
 				mtr.reg = *mregion;
-				mtr.reg.startpos = labs(region_pos - mtr.reg.startpos);
+				mtr.reg.startpos = region_pos - mtr.reg.startpos;
 				miditracks.push_back(mtr);
 			}
 		}
@@ -1346,7 +1346,7 @@ PTFFormat::parsemidi12(void) {
 			region_t r = { std::string(""), ridx, 0, 0, 0, w, m};
 			if ((mregion = std::find(begin, finish, r)) != finish) {
 				mtr.reg = *mregion;
-				mtr.reg.startpos = labs(region_pos - mtr.reg.startpos);
+				mtr.reg.startpos = region_pos - mtr.reg.startpos;
 				miditracks.push_back(mtr);
 			}
 			if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xff\xff\xff\xff\xff\xff\xff\xff", 8)) {
