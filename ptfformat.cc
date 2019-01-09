@@ -500,7 +500,10 @@ PTFFormat::parse7header(void) {
 	// Find session sample rate
 	k = 0x100;
 
-	jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x00\x05", 3);
+	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x00\x05", 3)) {
+		jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x05", 2);
+		k--;
+	}
 
 	sessionrate = u_endian_read3(&ptfunxored[k+12], is_bigendian);
 }
@@ -764,13 +767,13 @@ PTFFormat::parserest5(void) {
 			uint32_t start = 0;
 			switch (startbytes) {
 			case 4:
-				start = u_endian_read4(&ptfunxored[j+5], false); 
+				start = u_endian_read4(&ptfunxored[j+5], false);
 				break;
 			case 3:
-				start = u_endian_read3(&ptfunxored[j+5], false); 
+				start = u_endian_read3(&ptfunxored[j+5], false);
 				break;
 			case 2:
-				start = (uint32_t)u_endian_read2(&ptfunxored[j+5], false); 
+				start = (uint32_t)u_endian_read2(&ptfunxored[j+5], false);
 				break;
 			case 1:
 				start = (uint32_t)(ptfunxored[j+5]);
@@ -800,13 +803,13 @@ PTFFormat::parserest5(void) {
 			uint32_t sampleoffset = 0;
 			switch (offsetbytes) {
 			case 4:
-				sampleoffset = u_endian_read4(&ptfunxored[j+5], false); 
+				sampleoffset = u_endian_read4(&ptfunxored[j+5], false);
 				break;
 			case 3:
-				sampleoffset = u_endian_read3(&ptfunxored[j+5], false); 
+				sampleoffset = u_endian_read3(&ptfunxored[j+5], false);
 				break;
 			case 2:
-				sampleoffset = (uint32_t)u_endian_read2(&ptfunxored[j+5], false); 
+				sampleoffset = (uint32_t)u_endian_read2(&ptfunxored[j+5], false);
 				break;
 			case 1:
 				sampleoffset = (uint32_t)(ptfunxored[j+5]);
