@@ -107,6 +107,27 @@ const contentTypes = {
   "0x2810": {
     description: "session sample rate",
   },
+  "0x0b10": {
+    description: "region list",
+  },
+  "0x0810": {
+    description: "region name, number",
+  },
+  "0x1210": {
+    description: "region->track map",
+  },
+  "0x1110": {
+    description: "region->track map entry",
+  },
+  "0x1410": {
+    description: "track name, number",
+  },
+  "0x2210": {
+    description: "input list",
+  },
+  "0x2110": {
+    description: "input entry",
+  },
   "0x6720": {
     description: "session info, path of session",
   },
