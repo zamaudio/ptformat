@@ -34,16 +34,16 @@ function readBlockAt (buffer, pos, parentBlock) {
     return;
   }
   const blockType = isBigEndian ? file.readUInt16BE(pos + 1) : file.readUInt16LE(pos + 1);
+  if (blockType > 0xff) {
+    console.log("Blocktype out of range, skipping");
+    return;
+  }
   const blockSize = isBigEndian ? file.readUInt32BE(pos + 3) : file.readUInt32LE(pos + 3);
   const contentType = isBigEndian ? file.readUInt16BE(pos + 7) : file.readUInt16LE(pos + 7);
   const totalBlockSize = 1 + 2 + 4 + blockSize;
 
-  const blockTypeString = isBigEndian ?
-    makeHexString(file.readUInt8(pos + 2), file.readUInt8(pos + 1)) :
-    makeHexString(file.readUInt8(pos + 1), file.readUInt8(pos + 2)) ;
-  const contentTypeString = isBigEndian ?
-    makeHexString(file.readUInt8(pos + 8), file.readUInt8(pos + 7)) :
-    makeHexString(file.readUInt8(pos + 7), file.readUInt8(pos + 8));
+  const blockTypeString = makeHexString(blockType);
+  const contentTypeString = makeHexString(contentType);
 
   const childBlocks = [];
   const blockContent = buffer.slice(pos + 1 + 2 + 4, pos + totalBlockSize);
@@ -69,9 +69,6 @@ function readBlockAt (buffer, pos, parentBlock) {
 }
 
 
-
-
-
 // 18 and 19 are some bytes of which is unclear what they mean
 // then at 20 we get the first 5a, we split everything up in blocks from there
 const blocks = [];
@@ -95,47 +92,88 @@ console.log("number of top level blocks", blocks.length);
 console.log('total amount of blocks', totalBlockAmount);
 
 const contentTypes = {
-  "0x3000": {
+  "0x0030": {
     description: "product info, including version",
   },
-  "0x0410": {
-    description: "audio file list, always block type 2",
+  "0x1004": {
+    description: "WAV list full",
   },
-  "0x1a27": {
+  "0x103a": {
+    description: "WAV list",
+  },
+  "0x271a": {
     description: "only occurs in 12, contains 'Markers'",
   },
-  "0x2810": {
+  "0x1028": {
     description: "session sample rate",
   },
-  "0x0b10": {
-    description: "region list",
+  "0x100b": {
+    description: "AUDIO region list (v5)",
   },
-  "0x0810": {
+  "0x262a": {
+    description: "AUDIO region list (v10)",
+  },
+  "0x1008": {
+    description: "AUDIO region name, number (v5)",
+  },
+  "0x2629": {
+    description: "AUDIO region name, number (v10)",
+  },
+  "0x1012": {
+    description: "AUDIO region->track full map",
+  },
+  "0x1011": {
+    description: "AUDIO region->track map entries",
+  },
+  "0x100f": {
+    description: "AUDIO region->track entry",
+  },
+  "0x1015": {
+    description: "AUDIO tracks",
+  },
+  "0x1014": {
+    description: "AUDIO track name, number",
+  },
+  "0x1018": {
+    description: "PLUGIN full list",
+  },
+  "0x1017": {
+    description: "PLUGIN entry",
+  },
+  "0x1022": {
+    description: "I/O input list",
+  },
+  "0x1021": {
+    description: "I/O input entry",
+  },
+  "0x2000": {
+    description: "MIDI events block",
+  },
+  "0x2002": {
+    description: "MIDI regions map",
+  },
+  "0x2001": {
+    description: "MIDI region name, number",
+  },
+  "0x1007": {
     description: "region name, number",
   },
-  "0x1210": {
-    description: "region->track map",
+  "0x1058": {
+    description: "MIDI track information",
   },
-  "0x1110": {
-    description: "region->track map entry",
-  },
-  "0x1410": {
-    description: "track name, number",
-  },
-  "0x2210": {
-    description: "input list",
-  },
-  "0x2110": {
-    description: "input entry",
-  },
-  "0x6720": {
+  "0x2067": {
     description: "session info, path of session",
   },
-  // "0x1925": ""
-  "0x1125": {
+  "0x2519": {
+    description: "TRACK full list",
+  },
+  "0x251a": {
+    description: "TRACK name, number",
+  },
+  "0x2511": {
     description: "Snaps block"
   }
-  // "0x5620":
+  // "0x2056":
 }
 
 
