@@ -34,11 +34,14 @@ function readBlockAt (buffer, pos, parentBlock) {
     return;
   }
   const blockType = isBigEndian ? file.readUInt16BE(pos + 1) : file.readUInt16LE(pos + 1);
-  if (blockType > 0xff) {
+  if (blockType > 0xf) {
     console.log("Blocktype out of range, skipping");
     return;
   }
-  const blockSize = isBigEndian ? file.readUInt32BE(pos + 3) : file.readUInt32LE(pos + 3);
+  blockSize = isBigEndian ? file.readUInt32BE(pos + 3) : file.readUInt32LE(pos + 3);
+  if (blockSize > file.length) {
+    blockSize = file.length;
+  }
   const contentType = isBigEndian ? file.readUInt16BE(pos + 7) : file.readUInt16LE(pos + 7);
   const totalBlockSize = 1 + 2 + 4 + blockSize;
 
@@ -102,7 +105,7 @@ const contentTypes = {
     description: "WAV list",
   },
   "0x271a": {
-    description: "only occurs in 12, contains 'Markers'",
+    description: "MARKER list",
   },
   "0x1028": {
     description: "session sample rate",
@@ -141,25 +144,52 @@ const contentTypes = {
     description: "PLUGIN entry",
   },
   "0x1022": {
-    description: "I/O input list",
+    description: "I/O channel list",
   },
   "0x1021": {
-    description: "I/O input entry",
+    description: "I/O channel entry",
+  },
+  "0x2603": {
+    description: "I/O routing table",
+  },
+  "0x2602": {
+    description: "I/O route",
   },
   "0x2000": {
     description: "MIDI events block",
   },
   "0x2002": {
-    description: "MIDI regions map",
+    description: "MIDI regions map (v5)",
+  },
+  "0x2634": {
+    description: "MIDI regions map (v10)",
   },
   "0x2001": {
-    description: "MIDI region name, number",
+    description: "MIDI region name, number (v5)",
+  },
+  "0x2633": {
+    description: "MIDI regions name, number (v10)",
   },
   "0x1007": {
     description: "region name, number",
   },
   "0x1058": {
-    description: "MIDI track information",
+    description: "MIDI region->track full map",
+  },
+  "0x1057": {
+    description: "MIDI region->track map entries",
+  },
+  "0x1056": {
+    description: "MIDI region->track entry",
+  },
+  "0x262c": {
+    description: "COMPOUND region full map",
+  },
+  "0x2628": {
+    description: "COMPOUND region group",
+  },
+  "0x2523": {
+    description: "COMPOUND region element",
   },
   "0x2067": {
     description: "session info, path of session",
