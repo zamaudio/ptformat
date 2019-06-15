@@ -84,6 +84,86 @@ PTFFormat::~PTFFormat() {
 	cleanup();
 }
 
+std::string
+PTFFormat::get_content_description(uint16_t ctype) {
+	switch(ctype) {
+	case 0x0030:
+		return std::string("INFO product and version");
+	case 0x1004:
+		return std::string("WAV list full");
+	case 0x1007:
+		return std::string("region name, number");
+	case 0x1008:
+		return std::string("AUDIO region name, number (v5)");
+	case 0x100b:
+		return std::string("AUDIO region list (v5)");
+	case 0x100f:
+		return std::string("AUDIO region->track entry");
+	case 0x1011:
+		return std::string("AUDIO region->track map entries");
+	case 0x1012:
+		return std::string("AUDIO region->track full map");
+	case 0x1014:
+		return std::string("AUDIO track name, number");
+	case 0x1015:
+		return std::string("AUDIO tracks");
+	case 0x1017:
+		return std::string("PLUGIN entry");
+	case 0x1018:
+		return std::string("PLUGIN full list");
+	case 0x1021:
+		return std::string("I/O channel entry");
+	case 0x1022:
+		return std::string("I/O channel list");
+	case 0x1028:
+		return std::string("INFO sample rate");
+	case 0x103a:
+		return std::string("WAV list");
+	case 0x1056:
+		return std::string("MIDI region->track entry");
+	case 0x1057:
+		return std::string("MIDI region->track map entries");
+	case 0x1058:
+		return std::string("MIDI region->track full map");
+	case 0x2000:
+		return std::string("MIDI events block");
+	case 0x2001:
+		return std::string("MIDI region name, number (v5)");
+	case 0x2002:
+		return std::string("MIDI regions map (v5)");
+	case 0x2067:
+		return std::string("session info, path of session");
+	case 0x2511:
+		return std::string("Snaps block");
+	case 0x2519:
+		return std::string("TRACK full list");
+	case 0x251a:
+		return std::string("TRACK name, number");
+	case 0x2523:
+		return std::string("COMPOUND region element");
+	case 0x2602:
+		return std::string("I/O route");
+	case 0x2603:
+		return std::string("I/O routing table");
+	case 0x2628:
+		return std::string("COMPOUND region group");
+	case 0x2629:
+		return std::string("AUDIO region name, number (v10)");
+	case 0x262a:
+		return std::string("AUDIO region list (v10)");
+	case 0x262c:
+		return std::string("COMPOUND region full map");
+	case 0x2633:
+		return std::string("MIDI regions name, number (v10)");
+	case 0x2634:
+		return std::string("MIDI regions map (v10)");
+	case 0x271a:
+		return std::string("MARKER list");
+	default:
+		return std::string("UNKNOWN content type");
+	}
+}
+
 uint16_t
 PTFFormat::u_endian_read2(unsigned char *buf, bool bigendian)
 {
@@ -426,57 +506,6 @@ PTFFormat::gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) {
 	return 0;
 }
 
-/*
-int
-PTFFormat::parse(void) {
-	if (version == 5) {
-		parse5header();
-		setrates();
-		if (sessionrate < 44100 || sessionrate > 192000)
-		  return -1;
-		parseaudio5();
-		parserest5();
-		parsemidi();
-	} else if (version == 7) {
-		parse7header();
-		setrates();
-		if (sessionrate < 44100 || sessionrate > 192000)
-		  return -1;
-		parseaudio();
-		parserest89();
-		parsemidi();
-	} else if (version == 8) {
-		parse8header();
-		setrates();
-		if (sessionrate < 44100 || sessionrate > 192000)
-		  return -1;
-		parseaudio();
-		parserest89();
-		parsemidi();
-	} else if (version == 9) {
-		parse9header();
-		setrates();
-		if (sessionrate < 44100 || sessionrate > 192000)
-		  return -1;
-		parseaudio();
-		parserest89();
-		parsemidi();
-	} else if (version == 10 || version == 11 || version == 12) {
-		parse10header();
-		setrates();
-		if (sessionrate < 44100 || sessionrate > 192000)
-		  return -1;
-		parseaudio();
-		parserest12();
-		parsemidi12();
-	} else {
-		// Should not occur
-		return -1;
-	}
-	return 0;
-}
-*/
-
 void
 PTFFormat::setrates(void) {
 	ratefactor = 1.f;
@@ -535,8 +564,7 @@ PTFFormat::dump_block(struct block_t& b, int level)
 	for (i = 0; i < level; i++) {
 		printf("    ");
 	}
-	printf("Content type=0x%04x\n", b.content_type);
-	
+	printf("%s(0x%04x)\n", get_content_description(b.content_type).c_str(), b.content_type);
 	hexdump(&ptfunxored[b.offset], b.block_size, level);
 
 	for (vector<PTFFormat::block_t>::iterator c = b.child.begin();
@@ -545,8 +573,16 @@ PTFFormat::dump_block(struct block_t& b, int level)
 	}
 }
 
-int
-PTFFormat::parse(void) {
+void
+PTFFormat::dump(void) {
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		dump_block(*b, 0);
+	}
+}
+
+void
+PTFFormat::parseblocks(void) {
 	uint32_t i = 20;
 
 	while (i < len) {
@@ -556,15 +592,86 @@ PTFFormat::parse(void) {
 		}
 		i += b.block_size ? b.block_size + 7 : 1;
 	}
+}
 
-	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
-			b != blocks.end(); ++b) {
-		dump_block(*b, 0);
-	}
+int
+PTFFormat::parse(void) {
+	parseblocks();
+	dump();
+	if (!parseheader())
+		return -1;
+	setrates();
+	if (sessionrate < 44100 || sessionrate > 192000)
+		return -1;
+	//parseaudio();
+	//parserest();
+	//parsemidi();
 	return 0;
 }
 
+bool
+PTFFormat::parseheader(void) {
+	bool found = false;
+	
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type == 0x1028) {
+			sessionrate = u_endian_read4(&ptfunxored[b->offset+4], is_bigendian);
+			found = true;
+		}
+	}
+	return found;
+}
 
+#if 0
+int
+PTFFormat::parse(void) { 
+	if (version == 5) {
+		parse5header();
+		setrates();
+		if (sessionrate < 44100 || sessionrate > 192000)
+		  return -1;
+		parseaudio5();
+		parserest5();
+		parsemidi();
+	} else if (version == 7) {
+		parse7header();
+		setrates();
+		if (sessionrate < 44100 || sessionrate > 192000)
+		  return -1;
+		parseaudio();
+		parserest89();
+		parsemidi();
+	} else if (version == 8) {
+		parse8header();
+		setrates();
+		if (sessionrate < 44100 || sessionrate > 192000)
+		  return -1;
+		parseaudio();
+		parserest89();
+		parsemidi();
+	} else if (version == 9) {
+		parse9header();
+		setrates();
+		if (sessionrate < 44100 || sessionrate > 192000)
+		  return -1;
+		parseaudio();
+		parserest89();
+		parsemidi();
+	} else if (version == 10 || version == 11 || version == 12) {
+		parse10header();
+		setrates();
+		if (sessionrate < 44100 || sessionrate > 192000)
+		  return -1;
+		parseaudio();
+		parserest12();
+		parsemidi12();
+	} else {
+		// Should not occur
+		return -1;
+	}
+	return 0;
+}
 void
 PTFFormat::parse5header(void) {
 	uint32_t k;
@@ -2597,3 +2704,5 @@ nocustom:
 		}
 	}
 }
+
+#endif

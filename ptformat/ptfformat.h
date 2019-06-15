@@ -28,8 +28,9 @@
 #include <stdint.h>
 #include "ptformat/visibility.h"
 
-#define BITCODE	"0010111100101011"
-#define ZMARK	'\x5a'
+#define BITCODE			"0010111100101011"
+#define ZMARK			'\x5a'
+#define MAX_CONTENT_TYPE	0x3000
 
 class LIBPTFORMAT_API PTFFormat {
 public:
@@ -180,7 +181,12 @@ private:
 	uint32_t u_endian_read4(unsigned char *buf, bool);
 	uint64_t u_endian_read5(unsigned char *buf, bool);
 
+	std::string get_content_description(uint16_t ctype);
 	int parse(void);
+	void parseblocks(void);
+	bool parseheader(void);
+	bool parserest(void);
+	void dump(void);
 	bool parse_block_at(uint32_t pos, struct block_t *b, int level);
 	void dump_block(struct block_t& b, int level);
 	bool parse_version();
