@@ -89,6 +89,10 @@ PTFFormat::get_content_description(uint16_t ctype) {
 	switch(ctype) {
 	case 0x0030:
 		return std::string("INFO product and version");
+	case 0x1001:
+		return std::string("WAV samplerate, size");
+	case 0x1003:
+		return std::string("WAV metadata");
 	case 0x1004:
 		return std::string("WAV list full");
 	case 0x1007:
@@ -118,7 +122,7 @@ PTFFormat::get_content_description(uint16_t ctype) {
 	case 0x1028:
 		return std::string("INFO sample rate");
 	case 0x103a:
-		return std::string("WAV list");
+		return std::string("WAV names");
 	case 0x1056:
 		return std::string("MIDI region->track entry");
 	case 0x1057:
@@ -215,6 +219,30 @@ PTFFormat::u_endian_read5(unsigned char *buf, bool bigendian)
 			(uint64_t)(buf[4]);
 	} else {
 		return ((uint64_t)(buf[4]) << 32) |
+			((uint64_t)(buf[3]) << 24) |
+			((uint64_t)(buf[2]) << 16) |
+			((uint64_t)(buf[1]) << 8) |
+			(uint64_t)(buf[0]);
+	}
+}
+
+uint64_t
+PTFFormat::u_endian_read8(unsigned char *buf, bool bigendian)
+{
+	if (bigendian) {
+		return ((uint64_t)(buf[0]) << 56) |
+			((uint64_t)(buf[1]) << 48) |
+			((uint64_t)(buf[2]) << 40) |
+			((uint64_t)(buf[3]) << 32) |
+			((uint64_t)(buf[4]) << 24) |
+			((uint64_t)(buf[5]) << 16) |
+			((uint64_t)(buf[6]) << 8) |
+			(uint64_t)(buf[7]);
+	} else {
+		return ((uint64_t)(buf[7]) << 56) |
+			((uint64_t)(buf[6]) << 48) |
+			((uint64_t)(buf[5]) << 40) |
+			((uint64_t)(buf[4]) << 32) |
 			((uint64_t)(buf[3]) << 24) |
 			((uint64_t)(buf[2]) << 16) |
 			((uint64_t)(buf[1]) << 8) |
@@ -518,7 +546,7 @@ bool
 PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
 	struct block_t b;
 	int childjump;
-	int i;
+	uint32_t i;
 
 	if (pos + 7 > len)
 		return false;
@@ -603,7 +631,8 @@ PTFFormat::parse(void) {
 	setrates();
 	if (sessionrate < 44100 || sessionrate > 192000)
 		return -1;
-	//parseaudio();
+	if (!parseaudio())
+		return -1;
 	//parserest();
 	//parsemidi();
 	return 0;
@@ -622,6 +651,94 @@ PTFFormat::parseheader(void) {
 	}
 	return found;
 }
+
+char *
+PTFFormat::parsestring(uint32_t pos) {
+	uint32_t length = u_endian_read4(&ptfunxored[pos], is_bigendian);
+	pos += 4;
+	return strndup((const char *)&ptfunxored[pos], length);
+}
+
+bool
+PTFFormat::parseaudio(void) {
+	bool found = false;
+	uint32_t nwavs, nstrings, i, n;
+	uint32_t pos = 0;
+	char *str;
+	std::string wavtype;
+	std::string wavname;
+
+	// Parse wav names
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type == 0x1004) {
+
+			nwavs = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+
+			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+					c != b->child.end(); ++c) {
+				if (c->content_type == 0x103a) {
+					found = true;
+					nstrings = u_endian_read4(&ptfunxored[c->offset+1], is_bigendian);
+					pos = c->offset + 11;
+					// Found wav list
+					for (i = n = 0; (i < nstrings) && (n < nwavs); i++) {
+						str = parsestring(pos);
+						wavname = std::string(str);
+						pos += wavname.size() + 4;
+						str = strndup((const char *)&ptfunxored[pos], 4);
+						wavtype = std::string(str);
+						pos += 9;
+						if (foundin(wavname, std::string(".grp")))
+							continue;
+
+						if (foundin(wavname, std::string("Audio Files"))) {
+							continue;
+						}
+						if (foundin(wavname, std::string("Fade Files"))) {
+							continue;
+						}
+						if (!(		foundin(wavtype, std::string("WAVE")) ||
+								foundin(wavtype, std::string("EVAW")) ||
+								foundin(wavtype, std::string("AIFF")) ||
+								foundin(wavtype, std::string("FFIA"))) ) {
+							continue;
+						}
+						wav_t f = { wavname, (uint16_t)n, 0, 0 };
+						n++;
+						actualwavs.push_back(f);
+						audiofiles.push_back(f);
+					}
+				}
+			}
+		}
+	}
+
+	// Add wav length information
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type == 0x1004) {
+
+			vector<PTFFormat::wav_t>::iterator wav = audiofiles.begin();
+
+			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+					c != b->child.end(); ++c) {
+				if (c->content_type == 0x1003) {
+					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
+							d != c->child.end(); ++d) {
+						if (d->content_type == 0x1001) {
+							wav->length = u_endian_read8(&ptfunxored[d->offset+8], is_bigendian);
+							wav++;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return found;
+}
+
 
 #if 0
 int

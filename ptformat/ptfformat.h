@@ -180,12 +180,16 @@ private:
 	uint32_t u_endian_read3(unsigned char *buf, bool);
 	uint32_t u_endian_read4(unsigned char *buf, bool);
 	uint64_t u_endian_read5(unsigned char *buf, bool);
+	uint64_t u_endian_read8(unsigned char *buf, bool);
 
+
+	char *parsestring(uint32_t pos);
 	std::string get_content_description(uint16_t ctype);
 	int parse(void);
 	void parseblocks(void);
 	bool parseheader(void);
 	bool parserest(void);
+	bool parseaudio(void);
 	void dump(void);
 	bool parse_block_at(uint32_t pos, struct block_t *b, int level);
 	void dump_block(struct block_t& b, int level);
@@ -202,7 +206,6 @@ private:
 	void parserest89(void);
 	void parserest12(void);
 	void parseaudio5(void);
-	void parseaudio(void);
 	void parsemidi(void);
 	void parsemidi12(void);
 	void resort(std::vector<wav_t>& ws);
