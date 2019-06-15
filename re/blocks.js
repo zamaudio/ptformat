@@ -34,7 +34,7 @@ function readBlockAt (buffer, pos, parentBlock) {
     return;
   }
   const blockType = isBigEndian ? file.readUInt16BE(pos + 1) : file.readUInt16LE(pos + 1);
-  if (blockType > 0xf) {
+  if (blockType > 0xff) {
     console.log("Blocktype out of range, skipping");
     return;
   }

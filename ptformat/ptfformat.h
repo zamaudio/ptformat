@@ -28,6 +28,9 @@
 #include <stdint.h>
 #include "ptformat/visibility.h"
 
+#define BITCODE	"0010111100101011"
+#define ZMARK	'\x5a'
+
 class LIBPTFORMAT_API PTFFormat {
 public:
 	PTFFormat();
@@ -42,6 +45,17 @@ public:
 				-1           could not decrypt pt session
 	*/
 	int unxor(std::string path);
+
+	struct block_t;
+
+	struct block_t {
+		uint8_t zmark;			// 'Z'
+		uint16_t block_type;		// type of block
+		uint32_t block_size;		// size of block
+		uint16_t content_type;		// type of content
+		uint32_t offset;		// offset in file
+		std::vector<block_t> child;	// vector of child blocks
+	};
 
 	struct wav_t {
 		std::string filename;
@@ -108,6 +122,7 @@ public:
 		}
 	} track_t;
 
+	std::vector<block_t> blocks;
 	std::vector<wav_t> audiofiles;
 	std::vector<region_t> regions;
 	std::vector<region_t> midiregions;
@@ -166,6 +181,8 @@ private:
 	uint64_t u_endian_read5(unsigned char *buf, bool);
 
 	int parse(void);
+	bool parse_block_at(uint32_t pos, struct block_t *b, int level);
+	void dump_block(struct block_t& b, int level);
 	bool parse_version();
 	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative);
 	void setrates(void);

@@ -55,16 +55,17 @@ static bool regname_compare(PTFFormat::region_t& r1, PTFFormat::region_t& r2) {
 }
 
 static void
-hexdump(uint8_t *data, int len)
+hexdump(uint8_t *data, int length, int level)
 {
-	int i,j,end,step=16;
+	int i,j,k,end,step=16;
 
-	for (i = 0; i < len; i += step) {
-		printf("0x%02X: ", i);
+	for (i = 0; i < length; i += step) {
 		end = i + step;
-		if (end > len) end = len;
+		if (end > length) end = length;
+		for (k = 0; k < level; k++)
+			printf("    ");
 		for (j = i; j < end; j++) {
-			printf("0x%02X ", data[j]);
+			printf("%02X ", data[j]);
 		}
 		for (j = i; j < end; j++) {
 			if (data[j] < 128 && data[j] > 32)
@@ -337,6 +338,10 @@ PTFFormat::parse_version() {
 	uint8_t seg_type;
 	bool success = false;
 
+	if (ptfunxored[0] != '\x03' && foundat(ptfunxored, 0x100, BITCODE) != 1) {
+		return false;
+	}
+
 	while( ((uintptr_t)data < data_end) && (success == false) ) {
 
 		if (data[0] != 0x5a) {
@@ -421,6 +426,7 @@ PTFFormat::gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) {
 	return 0;
 }
 
+/*
 int
 PTFFormat::parse(void) {
 	if (version == 5) {
@@ -469,6 +475,7 @@ PTFFormat::parse(void) {
 	}
 	return 0;
 }
+*/
 
 void
 PTFFormat::setrates(void) {
@@ -477,6 +484,86 @@ PTFFormat::setrates(void) {
 		ratefactor = (float)targetrate / sessionrate;
 	}
 }
+
+bool
+PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
+	struct block_t b;
+	int childjump;
+	int i;
+
+	if (pos + 7 > len)
+		return false;
+	if (level > 10)
+		return false;
+	if (ptfunxored[pos] != ZMARK)
+		return false;
+
+	b.zmark = ZMARK;
+	b.block_type = u_endian_read2(&ptfunxored[pos+1], is_bigendian);
+	b.block_size = u_endian_read4(&ptfunxored[pos+3], is_bigendian);
+	b.content_type = u_endian_read2(&ptfunxored[pos+7], is_bigendian);
+	b.offset = pos + 7;
+	
+	if (b.block_size + b.offset > len)
+		return false;
+	if (b.block_type & 0xff00)
+		return false;
+	
+	block->zmark = b.zmark;
+	block->block_type = b.block_type;
+	block->block_size = b.block_size;
+	block->content_type = b.content_type;
+	block->offset = b.offset;
+
+	for (i = 1; (i < block->block_size) && (pos + i + childjump < len); i += childjump ? childjump : 1) {
+		int p = pos + i;
+		struct block_t bchild;
+		childjump = 0;
+		if (parse_block_at(p, &bchild, level+1)) {
+			block->child.push_back(bchild);
+			childjump = bchild.block_size + 7;
+		}
+	}
+	return true;
+}
+
+void
+PTFFormat::dump_block(struct block_t& b, int level)
+{
+	int i;
+
+	for (i = 0; i < level; i++) {
+		printf("    ");
+	}
+	printf("Content type=0x%04x\n", b.content_type);
+	
+	hexdump(&ptfunxored[b.offset], b.block_size, level);
+
+	for (vector<PTFFormat::block_t>::iterator c = b.child.begin();
+			c != b.child.end(); ++c) {
+		dump_block(*c, level + 1);
+	}
+}
+
+int
+PTFFormat::parse(void) {
+	uint32_t i = 20;
+
+	while (i < len) {
+		struct block_t b;
+		if (parse_block_at(i, &b, 0)) {
+			blocks.push_back(b);
+		}
+		i += b.block_size ? b.block_size + 7 : 1;
+	}
+
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		dump_block(*b, 0);
+	}
+	return 0;
+}
+
 
 void
 PTFFormat::parse5header(void) {
