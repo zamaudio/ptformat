@@ -625,7 +625,7 @@ PTFFormat::parseblocks(void) {
 int
 PTFFormat::parse(void) {
 	parseblocks();
-	dump();
+	//dump();
 	if (!parseheader())
 		return -1;
 	setrates();
@@ -633,7 +633,8 @@ PTFFormat::parse(void) {
 		return -1;
 	if (!parseaudio())
 		return -1;
-	//parserest();
+	if (!parserest())
+		return -1;
 	//parsemidi();
 	return 0;
 }
@@ -739,6 +740,134 @@ PTFFormat::parseaudio(void) {
 	return found;
 }
 
+
+bool
+PTFFormat::parserest(void) {
+	uint32_t j, findex;
+	uint16_t rindex;
+	uint8_t offsetbytes, lengthbytes, startbytes;
+	bool found = false;
+	char *reg;
+	std::string regionname;
+	rindex = 0;
+
+	// Parse source->regions
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type == 0x100b) {
+
+			//nregions = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+					c != b->child.end(); ++c) {
+				if (c->content_type == 0x1008) {
+					vector<PTFFormat::block_t>::iterator d = c->child.begin();
+					found = true;
+					j = c->offset + 11;
+					reg = parsestring(j);
+					regionname = std::string(reg);
+					j += regionname.size() + 4;
+					if (is_bigendian) {
+						offsetbytes = (ptfunxored[j+4] & 0xf0) >> 4;
+						lengthbytes = (ptfunxored[j+3] & 0xf0) >> 4;
+						startbytes = (ptfunxored[j+2] & 0xf0) >> 4;
+						//somethingbytes = (ptfunxored[j+2] & 0xf);
+						//skipbytes = ptfunxored[j+1];
+					} else {
+						offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4; //3
+						lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
+						startbytes = (ptfunxored[j+3] & 0xf0) >> 4; //1
+						//somethingbytes = (ptfunxored[j+3] & 0xf);
+						//skipbytes = ptfunxored[j+4];
+					}
+
+					findex = u_endian_read4(&ptfunxored[d->offset + d->block_size], is_bigendian);
+
+					uint32_t sampleoffset = 0;
+					switch (offsetbytes) {
+					case 4:
+						sampleoffset = u_endian_read4(&ptfunxored[j+5], false);
+						break;
+					case 3:
+						sampleoffset = u_endian_read3(&ptfunxored[j+5], false);
+						break;
+					case 2:
+						sampleoffset = (uint32_t)u_endian_read2(&ptfunxored[j+5], false);
+						break;
+					case 1:
+						sampleoffset = (uint32_t)(ptfunxored[j+5]);
+						break;
+					default:
+						break;
+					}
+					j+=offsetbytes;
+					uint32_t length = 0;
+					switch (lengthbytes) {
+					case 4:
+						length = u_endian_read4(&ptfunxored[j+5], false);
+						break;
+					case 3:
+						length = u_endian_read3(&ptfunxored[j+5], false);
+						break;
+					case 2:
+						length = (uint32_t)u_endian_read2(&ptfunxored[j+5], false);
+						break;
+					case 1:
+						length = (uint32_t)(ptfunxored[j+5]);
+						break;
+					default:
+						break;
+					}
+					j+=lengthbytes;
+					uint32_t start = 0;
+					switch (startbytes) {
+					case 4:
+						start = u_endian_read4(&ptfunxored[j+5], false);
+						break;
+					case 3:
+						start = u_endian_read3(&ptfunxored[j+5], false);
+						break;
+					case 2:
+						start = (uint32_t)u_endian_read2(&ptfunxored[j+5], false);
+						break;
+					case 1:
+						start = (uint32_t)(ptfunxored[j+5]);
+						break;
+					default:
+						break;
+					}
+					j+=startbytes;
+					wav_t f = {
+						"",
+						(uint16_t)findex,
+						(int64_t)(start*ratefactor),
+						(int64_t)(length*ratefactor),
+					};
+
+					vector<wav_t>::iterator begin = actualwavs.begin();
+					vector<wav_t>::iterator finish = actualwavs.end();
+					vector<wav_t>::iterator found;
+					if ((found = std::find(begin, finish, f)) != finish) {
+						f.filename = (*found).filename;
+					}
+					std::vector<midi_ev_t> m;
+					region_t r = {
+						regionname,
+						rindex,
+						(int64_t)(start*ratefactor),
+						(int64_t)(sampleoffset*ratefactor),
+						(int64_t)(length*ratefactor),
+						f,
+						m
+					};
+					regions.push_back(r);
+					rindex++;
+				}
+			}
+			found = true;
+		}
+	}
+	return found;
+}
 
 #if 0
 int
