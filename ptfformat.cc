@@ -775,6 +775,9 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 	}
 
 	switch (offsetbytes) {
+	case 5:
+		offset = u_endian_read5(&ptfunxored[j+5], false);
+		break;
 	case 4:
 		offset = u_endian_read4(&ptfunxored[j+5], false);
 		break;
@@ -793,6 +796,9 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 	}
 	j+=offsetbytes;
 	switch (lengthbytes) {
+	case 5:
+		length = u_endian_read5(&ptfunxored[j+5], false);
+		break;
 	case 4:
 		length = u_endian_read4(&ptfunxored[j+5], false);
 		break;
@@ -811,6 +817,9 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 	}
 	j+=lengthbytes;
 	switch (startbytes) {
+	case 5:
+		start = u_endian_read5(&ptfunxored[j+5], false);
+		break;
 	case 4:
 		start = u_endian_read4(&ptfunxored[j+5], false);
 		break;
@@ -858,8 +867,8 @@ PTFFormat::parse_region_info(uint32_t j, block_t& blk, region_t& r) {
 
 bool
 PTFFormat::parserest(void) {
-	uint32_t i, j, findex, count, n;
-	uint64_t start, offset, length;
+	uint32_t i, j, count, n;
+	uint64_t start;
 	uint16_t rindex, rawindex, tindex;
 	uint32_t nch;
 	uint16_t ch_map[MAX_CHANNELS_PER_TRACK];
@@ -915,7 +924,7 @@ PTFFormat::parserest(void) {
 						ch_map[i] = u_endian_read2(&ptfunxored[j], is_bigendian);
 
 						std::vector<track_t>::iterator ti;
-						if (!find_track(tindex, ti)) {
+						if (!find_track(ch_map[i], ti)) {
 							// Add a dummy region for now
 							wav_t w = { std::string(""), 0, 0, 0 };
 							std::vector<midi_ev_t> m;
@@ -1108,18 +1117,16 @@ struct mchunk {
 
 bool
 PTFFormat::parsemidi(void) {
-	uint32_t i, j, k, rindex, count;
-	uint64_t tr, n_midi_events, zero_ticks;
+	uint32_t i, j, k, rindex;
+	uint64_t n_midi_events, zero_ticks;
 	uint64_t midi_pos, midi_len, max_pos, region_pos;
 	uint8_t midi_velocity, midi_note;
-	uint16_t ridx;
-	uint16_t nmiditracks, regionnumber = 0;
-	uint32_t nregions, mr;
+	uint16_t regionnumber = 0;
+	std::string midiregionname;
 
 	std::vector<mchunk> midichunks;
 	midi_ev_t m;
 
-	bool found = false;
 	char *str;
 	std::string regionname, trackname;
 	rindex = 0;
@@ -1164,70 +1171,41 @@ PTFFormat::parsemidi(void) {
 				midichunks.push_back(mchunk (zero_ticks, max_pos, midi));
 			}
 
-			// Map midi chunks to regions
-			while (k < b->block_size + b->offset) {
-				char midiregionname[256];
-				uint8_t namelen;
+		// Put chunks onto regions
+		} else if (b->content_type == 0x2002) {
+			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+					c != b->child.end(); ++c) {
+				if (c->content_type == 0x2001) {
+					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
+							d != c->child.end(); ++d) {
+						if (d->content_type == 0x1007) {
+							j = d->offset + 2;
+							str = parsestring(d->offset + 2);
+							midiregionname = std::string(str);
+							j += 4 + midiregionname.size();
+							parse_three_point(j, region_pos, zero_ticks, midi_len);
+							j = d->offset + d->block_size;
+							rindex = u_endian_read4(&ptfunxored[j], is_bigendian);
+							struct mchunk mc = *(midichunks.begin()+rindex);
 
-				if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"MdTEL", 5)) {
-					break;
-				}
-
-				k += 41;
-
-				nregions = u_endian_read2(&ptfunxored[k], is_bigendian);
-
-				for (mr = 0; mr < nregions; mr++) {
-					if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x0c", 2)) {
-						break;
+							wav_t w = { std::string(""), 0, 0, 0 };
+							region_t r = {
+								midiregionname,
+								regionnumber++,
+								(int64_t)zero_ticks,
+								(int64_t)0,
+								//(int64_t)(max_pos*sessionrate*60/(960000*120)),
+								(int64_t)mc.maxlen,
+								w,
+								mc.chunk,
+							};
+							midiregions.push_back(r);
+							//printf("XXX MIDI %s : r(%d) (%llu, %llu, %llu)\n", str, rindex, zero_ticks, region_pos, midi_len);
+							//dump_block(*d, 1);
+						}
 					}
-
-					k += 9;
-
-					namelen = ptfunxored[k];
-					for (i = 0; i < namelen; i++) {
-						midiregionname[i] = ptfunxored[k+4+i];
-					}
-					midiregionname[namelen] = '\0';
-					k += 4 + namelen;
-
-					k += 5;
-					/*
-					region_pos = (uint64_t)ptfunxored[k] |
-							(uint64_t)ptfunxored[k+1] << 8 |
-							(uint64_t)ptfunxored[k+2] << 16 |
-							(uint64_t)ptfunxored[k+3] << 24 |
-							(uint64_t)ptfunxored[k+4] << 32;
-					*/
-					if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xfe\xff\xff\xff", 4)) {
-						break;
-					}
-
-					k += 40;
-
-					ridx = ptfunxored[k];
-					ridx |= ptfunxored[k+1] << 8;
-
-					struct mchunk mc = *(midichunks.begin()+ridx);
-
-					wav_t w = { std::string(""), 0, 0, 0 };
-					region_t r = {
-						midiregionname,
-						regionnumber++,
-						//(int64_t)mc.zero,
-						(int64_t)0xe8d4a51000ULL,
-						(int64_t)(0),
-						//(int64_t)(max_pos*sessionrate*60/(960000*120)),
-						(int64_t)mc.maxlen,
-						w,
-						mc.chunk,
-					};
-					midiregions.push_back(r);
-					//printf("XXX MIDI: %s: r(%d)\n", midiregionname, regionnumber-1);
 				}
 			}
-		} else if (b->content_type == 0x2002) {
-			dump_block(*b, 1);
 		}
 	}
 	return true;
@@ -1851,7 +1829,7 @@ PTFFormat::parsemidi(void) {
 		}
 		midichunks.push_back(mchunk (zero_ticks, max_pos, midi));
 	}
-{
+
 	// Map midi chunks to regions
 	while (k < len) {
 		char midiregionname[256];
@@ -1913,7 +1891,7 @@ PTFFormat::parsemidi(void) {
 			midiregions.push_back(r);
 		}
 	}
-}
+
 	// Put midi regions on midi tracks
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2)) {
 		return;
