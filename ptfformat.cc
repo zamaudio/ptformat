@@ -901,12 +901,26 @@ PTFFormat::parserest(void) {
 					j += 4;
 					for (i = 0; i < nch; i++) {
 						ch_map[i] = u_endian_read2(&ptfunxored[j], is_bigendian);
+
+						// Add a dummy region for now
+						wav_t w = { std::string(""), 0, 0, 0 };
+						std::vector<midi_ev_t> m;
+						region_t r = { std::string(""), 0, 0, 0, 0, w, m};
+
+						track_t t = {
+							trackname,
+							ch_map[i],
+							uint8_t(0),
+							r
+						};
+						tracks.push_back(t);
 						j += 2;
 					}
-					printf("XXX %s : %d(%d, %d)\n", reg, nch, ch_map[0], ch_map[1]);
+
+
 				}
 			}
-			dump_block(*b, 1);
+			//dump_block(*b, 1);
 		}
 	}
 
@@ -917,6 +931,7 @@ PTFFormat::parserest(void) {
 		if (b->content_type == 0x1012) {
 
 			//nregions = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			count = 0;
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x1011) {
@@ -929,21 +944,22 @@ PTFFormat::parserest(void) {
 									e != d->child.end(); ++e) {
 								if (e->content_type == 0x100e) {
 									// Region->track
-
+									std::vector<track_t>::iterator ti;
 									std::vector<region_t>::iterator ri;
 									j = e->offset + 4;
 									rawindex = u_endian_read4(&ptfunxored[j], is_bigendian);
 									j += 4;
 									find_region(rawindex, ri);
-									parse_three_point(j, start, offset, length);
-									printf("XXX %s : %d (%d, %d, %d)\n", reg, rawindex, start,offset, length);
+									find_track(count, ti);
+									(*ti).reg = *ri;
+									printf("XXX %s : %d\n", reg, rawindex);
+									count++;
 								}
 							}
 						}
 					}
 					found = true;
 				}
-				//dump_block(*c, 1);
 			}
 		} else if (b->content_type == 0x262c) {
 			tindex = 0;

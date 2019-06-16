@@ -120,7 +120,7 @@ public:
 		region_t    reg;
 
 		bool operator ==(const struct track& other) {
-			return (this->name == other.name);
+			return (this->index == other.index);
 		}
 	} track_t;
 
@@ -131,6 +131,24 @@ public:
 	std::vector<compound_t> compounds;
 	std::vector<track_t> tracks;
 	std::vector<track_t> miditracks;
+
+	bool find_track(uint16_t index, std::vector<track_t>::iterator& ti) {
+		std::vector<track_t>::iterator begin = tracks.begin();
+		std::vector<track_t>::iterator finish = tracks.end();
+		std::vector<track_t>::iterator found;
+
+		// Create dummy track with index
+		wav_t w = { std::string(""), 0, 0, 0 };
+		std::vector<midi_ev_t> m;
+		region_t r = { std::string(""), 0, 0, 0, 0, w, m};
+		track_t t = { std::string(""), index, 0, r};
+
+		if ((found = std::find(begin, finish, t)) != finish) {
+			ti = found;
+			return true;
+		}
+		return false;
+	}
 
 	bool find_region(uint16_t index, std::vector<region_t>::iterator& ri) {
 		std::vector<region_t>::iterator begin = regions.begin();
