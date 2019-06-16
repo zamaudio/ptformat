@@ -169,6 +169,40 @@ public:
 		}
 		return false;
 	}
+	
+	bool find_miditrack(uint16_t index, std::vector<track_t>::iterator& ti) {
+		std::vector<track_t>::iterator begin = miditracks.begin();
+		std::vector<track_t>::iterator finish = miditracks.end();
+		std::vector<track_t>::iterator found;
+
+		// Create dummy track with index
+		wav_t w = { std::string(""), 0, 0, 0 };
+		std::vector<midi_ev_t> m;
+		region_t r = { std::string(""), 0, 0, 0, 0, w, m};
+		track_t t = { std::string(""), index, 0, r};
+
+		if ((found = std::find(begin, finish, t)) != finish) {
+			ti = found;
+			return true;
+		}
+		return false;
+	}
+
+	bool find_midiregion(uint16_t index, std::vector<region_t>::iterator& ri) {
+		std::vector<region_t>::iterator begin = midiregions.begin();
+		std::vector<region_t>::iterator finish = midiregions.end();
+		std::vector<region_t>::iterator found;
+
+		wav_t w = { std::string(""), 0, 0, 0 };
+		std::vector<midi_ev_t> m;
+		region_t r = { std::string(""), index, 0, 0, 0, w, m};
+
+		if ((found = std::find(begin, finish, r)) != finish) {
+			ri = found;
+			return true;
+		}
+		return false;
+	}
 
 	bool find_wav(uint16_t index, std::vector<wav_t>::iterator& wi) {
 		std::vector<wav_t>::iterator begin = audiofiles.begin();

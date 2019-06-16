@@ -943,8 +943,6 @@ PTFFormat::parserest(void) {
 					}
 				}
 			}
-		}
-#if 0 // MIDI ?
 		} else if (b->content_type == 0x2519) {
 			tindex = 0;
 			//ntracks = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
@@ -962,7 +960,7 @@ PTFFormat::parserest(void) {
 					// Add a dummy region for now
 					wav_t w = { std::string(""), 0, 0, 0 };
 					std::vector<midi_ev_t> m;
-					region_t r = { std::string(""), 0, 0, 0, 0, w, m};
+					region_t r = { std::string(""), 65535, 0, 0, 0, w, m};
 
 					track_t t = {
 						trackname,
@@ -975,7 +973,6 @@ PTFFormat::parserest(void) {
 				}
 			}
 		}
-#endif
 	}
 
 	// Parse regions->tracks
@@ -1117,8 +1114,8 @@ struct mchunk {
 
 bool
 PTFFormat::parsemidi(void) {
-	uint32_t i, j, k, rindex;
-	uint64_t n_midi_events, zero_ticks;
+	uint32_t i, j, k, rindex, tindex, count, rawindex;
+	uint64_t n_midi_events, zero_ticks, start;
 	uint64_t midi_pos, midi_len, max_pos, region_pos;
 	uint8_t midi_velocity, midi_note;
 	uint16_t regionnumber = 0;
@@ -1192,7 +1189,7 @@ PTFFormat::parsemidi(void) {
 							region_t r = {
 								midiregionname,
 								regionnumber++,
-								(int64_t)zero_ticks,
+								(int64_t)0xe8d4a51000ULL,
 								(int64_t)0,
 								//(int64_t)(max_pos*sessionrate*60/(960000*120)),
 								(int64_t)mc.maxlen,
@@ -1206,6 +1203,59 @@ PTFFormat::parsemidi(void) {
 					}
 				}
 			}
+		// Put midi regions onto midi tracks 
+		} else if (b->content_type == 0x1058) {
+			//nregions = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			count = 0;
+			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+					c != b->child.end(); ++c) {
+				if (c->content_type == 0x1057) {
+					str = parsestring(c->offset + 2);
+					regionname = std::string(str);
+					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
+							d != c->child.end(); ++d) {
+						if (d->content_type == 0x1056) {
+							for (vector<PTFFormat::block_t>::iterator e = d->child.begin();
+									e != d->child.end(); ++e) {
+								if (e->content_type == 0x104f) {
+									// MIDI region->MIDI track
+									std::vector<track_t>::iterator ti;
+									std::vector<region_t>::iterator ri;
+									j = e->offset + 4;
+									rawindex = u_endian_read4(&ptfunxored[j], is_bigendian);
+									j += 4 + 1;
+									start = u_endian_read5(&ptfunxored[j], is_bigendian);
+									tindex = count;
+									if (!find_midiregion(rawindex, ri)) {
+										printf("XXX dropped region\n");
+										continue;
+									}
+									if (!find_miditrack(tindex, ti)) {
+										printf("XXX dropped t(%d) r(%d)\n", tindex, rawindex);
+										continue;
+									}
+									//printf("XXX MIDI : %s : t(%d) r(%d) %llu(%llu)\n", (*ti).name.c_str(), tindex, rawindex, start, (*ri).startpos);
+									(*ri).startpos = start - 0xe8d4a51000ULL;
+									if ((*ti).reg.index == 65535) {
+										(*ti).reg = *ri;
+									} else {
+										track_t t = *ti;
+										t.reg = *ri;
+										miditracks.push_back(t);
+									}
+								}
+							}
+						}
+					}
+					count++;
+				}
+			}
+		}
+	}
+	for (std::vector<track_t>::iterator tr = miditracks.begin();
+			tr != miditracks.end(); ++tr) {
+		if ((*tr).reg.index == 65535) {
+			miditracks.erase(tr--);
 		}
 	}
 	return true;
