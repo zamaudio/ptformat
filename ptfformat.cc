@@ -779,16 +779,16 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 		offset = u_endian_read5(&ptfunxored[j+5], false);
 		break;
 	case 4:
-		offset = u_endian_read4(&ptfunxored[j+5], false);
+		offset = (uint64_t)u_endian_read4(&ptfunxored[j+5], false);
 		break;
 	case 3:
-		offset = u_endian_read3(&ptfunxored[j+5], false);
+		offset = (uint64_t)u_endian_read3(&ptfunxored[j+5], false);
 		break;
 	case 2:
-		offset = (uint32_t)u_endian_read2(&ptfunxored[j+5], false);
+		offset = (uint64_t)u_endian_read2(&ptfunxored[j+5], false);
 		break;
 	case 1:
-		offset = (uint32_t)(ptfunxored[j+5]);
+		offset = (uint64_t)(ptfunxored[j+5]);
 		break;
 	default:
 		offset = 0;
@@ -800,16 +800,16 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 		length = u_endian_read5(&ptfunxored[j+5], false);
 		break;
 	case 4:
-		length = u_endian_read4(&ptfunxored[j+5], false);
+		length = (uint64_t)u_endian_read4(&ptfunxored[j+5], false);
 		break;
 	case 3:
-		length = u_endian_read3(&ptfunxored[j+5], false);
+		length = (uint64_t)u_endian_read3(&ptfunxored[j+5], false);
 		break;
 	case 2:
-		length = (uint32_t)u_endian_read2(&ptfunxored[j+5], false);
+		length = (uint64_t)u_endian_read2(&ptfunxored[j+5], false);
 		break;
 	case 1:
-		length = (uint32_t)(ptfunxored[j+5]);
+		length = (uint64_t)(ptfunxored[j+5]);
 		break;
 	default:
 		length = 0;
@@ -821,16 +821,16 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 		start = u_endian_read5(&ptfunxored[j+5], false);
 		break;
 	case 4:
-		start = u_endian_read4(&ptfunxored[j+5], false);
+		start = (uint64_t)u_endian_read4(&ptfunxored[j+5], false);
 		break;
 	case 3:
-		start = u_endian_read3(&ptfunxored[j+5], false);
+		start = (uint64_t)u_endian_read3(&ptfunxored[j+5], false);
 		break;
 	case 2:
-		start = (uint32_t)u_endian_read2(&ptfunxored[j+5], false);
+		start = (uint64_t)u_endian_read2(&ptfunxored[j+5], false);
 		break;
 	case 1:
-		start = (uint32_t)(ptfunxored[j+5]);
+		start = (uint64_t)(ptfunxored[j+5]);
 		break;
 	default:
 		start = 0;
