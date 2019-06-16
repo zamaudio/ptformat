@@ -31,6 +31,7 @@
 #define BITCODE			"0010111100101011"
 #define ZMARK			'\x5a'
 #define MAX_CONTENT_TYPE	0x3000
+#define MAX_CHANNELS_PER_TRACK	8
 
 class LIBPTFORMAT_API PTFFormat {
 public:
@@ -131,6 +132,36 @@ public:
 	std::vector<track_t> tracks;
 	std::vector<track_t> miditracks;
 
+	bool find_region(uint16_t index, std::vector<region_t>::iterator& ri) {
+		std::vector<region_t>::iterator begin = regions.begin();
+		std::vector<region_t>::iterator finish = regions.end();
+		std::vector<region_t>::iterator found;
+
+		wav_t w = { std::string(""), 0, 0, 0 };
+		std::vector<midi_ev_t> m;
+		region_t r = { std::string(""), index, 0, 0, 0, w, m};
+
+		if ((found = std::find(begin, finish, r)) != finish) {
+			ri = found;
+			return true;
+		}
+		return false;
+	}
+
+	bool find_wav(uint16_t index, std::vector<wav_t>::iterator& wi) {
+		std::vector<wav_t>::iterator begin = audiofiles.begin();
+		std::vector<wav_t>::iterator finish = audiofiles.end();
+		std::vector<wav_t>::iterator found;
+
+		wav_t w = { std::string(""), index, 0, 0 };
+
+		if ((found = std::find(begin, finish, w)) != finish) {
+			wi = found;
+			return true;
+		}
+		return false;
+	}
+
 	static bool regionexistsin(std::vector<region_t> reg, uint16_t index) {
 		std::vector<region_t>::iterator begin = reg.begin();
 		std::vector<region_t>::iterator finish = reg.end();
@@ -194,6 +225,8 @@ private:
 	bool parse_block_at(uint32_t pos, struct block_t *b, int level);
 	void dump_block(struct block_t& b, int level);
 	bool parse_version();
+	void parse_region_info(uint32_t j, block_t& blk, region_t& r);
+	void parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint64_t& length);
 	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative);
 	void setrates(void);
 	void cleanup(void);
