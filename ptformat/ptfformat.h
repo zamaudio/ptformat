@@ -119,6 +119,10 @@ public:
 		uint8_t     playlist;
 		region_t    reg;
 
+		bool operator <(const struct track& other) const {
+			return (this->index < other.index);
+		}
+
 		bool operator ==(const struct track& other) {
 			return (this->index == other.index);
 		}
