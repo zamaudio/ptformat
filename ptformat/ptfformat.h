@@ -243,6 +243,7 @@ private:
 	bool parseheader(void);
 	bool parserest(void);
 	bool parseaudio(void);
+	bool parsemidi(void);
 	void dump(void);
 	bool parse_block_at(uint32_t pos, struct block_t *b, int level);
 	void dump_block(struct block_t& b, int level);
@@ -261,7 +262,6 @@ private:
 	void parserest89(void);
 	void parserest12(void);
 	void parseaudio5(void);
-	void parsemidi(void);
 	void parsemidi12(void);
 	void resort(std::vector<wav_t>& ws);
 	void resort(std::vector<region_t>& rs);

@@ -144,7 +144,7 @@ PTFFormat::get_content_description(uint16_t ctype) {
 	case 0x2002:
 		return std::string("MIDI regions map (v5)");
 	case 0x2067:
-		return std::string("session info, path of session");
+		return std::string("INFO path of session");
 	case 0x2511:
 		return std::string("Snaps block");
 	case 0x2519:
@@ -649,7 +649,8 @@ PTFFormat::parse(void) {
 		return -1;
 	if (!parserest())
 		return -1;
-	//parsemidi();
+	if (!parsemidi())
+		return -1;
 	return 0;
 }
 
@@ -900,7 +901,6 @@ PTFFormat::parserest(void) {
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x1015) {
-			dump_block(*b, 1);
 			//ntracks = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
@@ -919,7 +919,7 @@ PTFFormat::parserest(void) {
 							// Add a dummy region for now
 							wav_t w = { std::string(""), 0, 0, 0 };
 							std::vector<midi_ev_t> m;
-							region_t r = { std::string(""), -1, 0, 0, 0, w, m};
+							region_t r = { std::string(""), 65535, 0, 0, 0, w, m};
 
 							track_t t = {
 								trackname,
@@ -929,7 +929,7 @@ PTFFormat::parserest(void) {
 							};
 							tracks.push_back(t);
 						}
-						printf("XXX %s : %d(%d)\n", reg, nch, ch_map[0]);
+						//printf("XXX %s : %d(%d)\n", reg, nch, ch_map[0]);
 						j += 2;
 					}
 				}
@@ -1049,7 +1049,6 @@ PTFFormat::parserest(void) {
 										t.reg = *ri;
 										tracks.push_back(t);
 									}
-									dump_block(*e, 1);
 								}
 							}
 						}
@@ -1094,6 +1093,144 @@ PTFFormat::parserest(void) {
 		}
 	}
 	return found;
+}
+
+struct mchunk {
+	mchunk (uint64_t zt, uint64_t ml, std::vector<PTFFormat::midi_ev_t> const& c)
+	: zero (zt)
+	, maxlen (ml)
+	, chunk (c)
+	{}
+	uint64_t zero;
+	uint64_t maxlen;
+	std::vector<PTFFormat::midi_ev_t> chunk;
+};
+
+bool
+PTFFormat::parsemidi(void) {
+	uint32_t i, j, k, rindex, count;
+	uint64_t tr, n_midi_events, zero_ticks;
+	uint64_t midi_pos, midi_len, max_pos, region_pos;
+	uint8_t midi_velocity, midi_note;
+	uint16_t ridx;
+	uint16_t nmiditracks, regionnumber = 0;
+	uint32_t nregions, mr;
+
+	std::vector<mchunk> midichunks;
+	midi_ev_t m;
+
+	bool found = false;
+	char *str;
+	std::string regionname, trackname;
+	rindex = 0;
+
+	// Parse MIDI events
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type == 0x2000) {
+
+			k = b->offset;
+
+			// Parse all midi chunks, not 1:1 mapping to regions yet
+			while (k + 35 < b->block_size + b->offset) {
+				max_pos = 0;
+				std::vector<midi_ev_t> midi;
+
+				if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"MdNLB", 5)) {
+					break;
+				}
+				k += 11;
+				n_midi_events = u_endian_read4(&ptfunxored[k], is_bigendian);
+
+				k += 4;
+				zero_ticks = u_endian_read5(&ptfunxored[k], is_bigendian);
+				for (i = 0; i < n_midi_events && k < len; i++, k += 35) {
+					midi_pos = u_endian_read5(&ptfunxored[k], is_bigendian);
+					midi_pos -= zero_ticks;
+					midi_note = ptfunxored[k+8];
+					midi_len = u_endian_read5(&ptfunxored[k+9], is_bigendian);
+					midi_velocity = ptfunxored[k+17];
+
+					if (midi_pos + midi_len > max_pos) {
+						max_pos = midi_pos + midi_len;
+					}
+
+					m.pos = midi_pos;
+					m.length = midi_len;
+					m.note = midi_note;
+					m.velocity = midi_velocity;
+					midi.push_back(m);
+				}
+				midichunks.push_back(mchunk (zero_ticks, max_pos, midi));
+			}
+
+			// Map midi chunks to regions
+			while (k < b->block_size + b->offset) {
+				char midiregionname[256];
+				uint8_t namelen;
+
+				if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"MdTEL", 5)) {
+					break;
+				}
+
+				k += 41;
+
+				nregions = u_endian_read2(&ptfunxored[k], is_bigendian);
+
+				for (mr = 0; mr < nregions; mr++) {
+					if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x0c", 2)) {
+						break;
+					}
+
+					k += 9;
+
+					namelen = ptfunxored[k];
+					for (i = 0; i < namelen; i++) {
+						midiregionname[i] = ptfunxored[k+4+i];
+					}
+					midiregionname[namelen] = '\0';
+					k += 4 + namelen;
+
+					k += 5;
+					/*
+					region_pos = (uint64_t)ptfunxored[k] |
+							(uint64_t)ptfunxored[k+1] << 8 |
+							(uint64_t)ptfunxored[k+2] << 16 |
+							(uint64_t)ptfunxored[k+3] << 24 |
+							(uint64_t)ptfunxored[k+4] << 32;
+					*/
+					if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\xfe\xff\xff\xff", 4)) {
+						break;
+					}
+
+					k += 40;
+
+					ridx = ptfunxored[k];
+					ridx |= ptfunxored[k+1] << 8;
+
+					struct mchunk mc = *(midichunks.begin()+ridx);
+
+					wav_t w = { std::string(""), 0, 0, 0 };
+					region_t r = {
+						midiregionname,
+						regionnumber++,
+						//(int64_t)mc.zero,
+						(int64_t)0xe8d4a51000ULL,
+						(int64_t)(0),
+						//(int64_t)(max_pos*sessionrate*60/(960000*120)),
+						(int64_t)mc.maxlen,
+						w,
+						mc.chunk,
+					};
+					midiregions.push_back(r);
+					//printf("XXX MIDI: %s: r(%d)\n", midiregionname, regionnumber-1);
+				}
+			}
+		} else if (b->content_type == 0x2002) {
+			dump_block(*b, 1);
+		}
+	}
+	return true;
 }
 
 #if 0
@@ -1657,17 +1794,6 @@ PTFFormat::parseaudio5(void) {
 	upto = i;
 }
 
-struct mchunk {
-	mchunk (uint64_t zt, uint64_t ml, std::vector<PTFFormat::midi_ev_t> const& c)
-	: zero (zt)
-	, maxlen (ml)
-	, chunk (c)
-	{}
-	uint64_t zero;
-	uint64_t maxlen;
-	std::vector<PTFFormat::midi_ev_t> chunk;
-};
-
 void
 PTFFormat::parsemidi(void) {
 	uint32_t i, k;
@@ -1725,7 +1851,7 @@ PTFFormat::parsemidi(void) {
 		}
 		midichunks.push_back(mchunk (zero_ticks, max_pos, midi));
 	}
-
+{
 	// Map midi chunks to regions
 	while (k < len) {
 		char midiregionname[256];
@@ -1787,7 +1913,7 @@ PTFFormat::parsemidi(void) {
 			midiregions.push_back(r);
 		}
 	}
-
+}
 	// Put midi regions on midi tracks
 	if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"\x5a\x03", 2)) {
 		return;
