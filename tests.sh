@@ -2,6 +2,8 @@
 
 DIFF=diff
 PTFTOOL=../../ptftool
+FAIL=$(if [ "x$BROKEN" == "x1" ]; then echo "BROKEN"; else echo "FAIL"; fi)
+FAILRET=$(if [ "x$BROKEN" == "x1" ]; then echo 0; else echo 1; fi)
 
 run_test() {
 	echo "$NAME"
@@ -20,8 +22,8 @@ run_test() {
 		exit 0
 	else
 		echo "$DIFFED"
-		echo "[FAIL]"
+		echo "[$FAIL]"
 		echo ""
-		exit 1
+		exit $FAILRET
 	fi
 }

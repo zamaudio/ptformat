@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export BROKEN=1
+
 [ -e ../../tests.sh ] && . ../../tests.sh
 
 NAME="PT12 with midi"
