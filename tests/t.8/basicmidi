@@ -7,17 +7,11 @@ FILE=../../bins/midi345x.ptf
 EXPECT='ProTools 8 Session: Samplerate = 48000Hz
 Target samplerate = 48000
 
-0 wavs, 6 regions, 0 active regions
+0 wavs, 0 regions, 0 active regions
 
 Audio file (WAV#) @ offset, length:
 
 Region (Region#) (WAV#) @ into-sample, length:
-`MIDI 1-01` r(0) w(0) @ 0, 11520000
-`MIDI 1-02` r(1) w(0) @ 0, 8000000
-`MIDI 1-03` r(2) w(2) @ 0, 8000000
-`MIDI 1-04` r(3) w(1) @ 0, 8000000
-`MIDI 1-05` r(4) w(1) @ 0, 10000000
-`MIDI 3-01` r(5) w(3) @ 0, 4000000
 
 MIDI Region (Region#) @ into-sample, length:
 `MIDI 1-01` r(0) @ 0, 8000000
@@ -141,6 +135,8 @@ Track name (Track#) (Region#) @ Absolute:
 
 MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 `MIDI 1` mt(0) mr(1) @ 0
+`MIDI 2` mt(1) mr(2) @ 8000000
+`MIDI 3` mt(2) mr(3) @ 16000000
 `MIDI 1` mt(0) mr(5) @ 8000000
 `MIDI 1` mt(0) mr(5) @ 12000000
 `MIDI 1` mt(0) mr(5) @ 16000000
@@ -149,14 +145,12 @@ MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 `MIDI 1` mt(0) mr(5) @ 28000000
 `MIDI 1` mt(0) mr(5) @ 32000000
 `MIDI 1` mt(0) mr(5) @ 36000000
-`MIDI 2` mt(1) mr(2) @ 8000000
 `MIDI 2` mt(1) mr(5) @ 16000000
 `MIDI 2` mt(1) mr(5) @ 20000000
 `MIDI 2` mt(1) mr(5) @ 24000000
 `MIDI 2` mt(1) mr(5) @ 28000000
 `MIDI 2` mt(1) mr(5) @ 32000000
 `MIDI 2` mt(1) mr(5) @ 36000000
-`MIDI 3` mt(2) mr(3) @ 16000000
 `MIDI 3` mt(2) mr(3) @ 24000000
 `MIDI 3` mt(2) mr(3) @ 32000000
 

@@ -32,25 +32,25 @@ Region (Region#) (WAV#) @ into-sample, length:
 MIDI Region (Region#) @ into-sample, length:
 
 Track name (Track#) (Region#) @ Absolute:
-`DR_L` t(1) r(4) @ 0
-`DR_R` t(2) r(5) @ 0
-`Rhodes_L` t(3) r(6) @ 0
-`Rhodes_R` t(4) r(7) @ 0
-`Bass_L` t(5) r(0) @ 0
-`Bass_R` t(6) r(1) @ 0
-`cymb_L` t(7) r(2) @ 0
-`cymb_R` t(8) r(3) @ 0
+`DR_L` t(0) r(4) @ 0
+`DR_R` t(1) r(5) @ 0
+`Rhodes_L` t(2) r(6) @ 0
+`Rhodes_R` t(3) r(7) @ 0
+`Bass_L` t(4) r(0) @ 0
+`Bass_R` t(5) r(1) @ 0
+`cymb_L` t(6) r(2) @ 0
+`cymb_R` t(7) r(3) @ 0
 
 MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 
 Track name (Track#) (WAV filename) @ Absolute + Into-sample, Length:
-`DR_L` t(1) (DR_L.aif) @ 0 + 0, 1377004
-`DR_R` t(2) (DR_R.aif) @ 0 + 0, 1377004
-`Rhodes_L` t(3) (Rhodes_L_01.aif) @ 0 + 0, 1377004
-`Rhodes_R` t(4) (Rhodes_R_01.aif) @ 0 + 0, 1377004
-`Bass_L` t(5) (Bass_L_01.aif) @ 0 + 0, 1377004
-`Bass_R` t(6) (Bass_R_01.aif) @ 0 + 0, 1377004
-`cymb_L` t(7) (cymb_L_01.aif) @ 0 + 0, 1355463
-`cymb_R` t(8) (cymb_R_01.aif) @ 0 + 0, 1355463'
+`DR_L` t(0) (DR_L.aif) @ 0 + 0, 1377004
+`DR_R` t(1) (DR_R.aif) @ 0 + 0, 1377004
+`Rhodes_L` t(2) (Rhodes_L_01.aif) @ 0 + 0, 1377004
+`Rhodes_R` t(3) (Rhodes_R_01.aif) @ 0 + 0, 1377004
+`Bass_L` t(4) (Bass_L_01.aif) @ 0 + 0, 1377004
+`Bass_R` t(5) (Bass_R_01.aif) @ 0 + 0, 1377004
+`cymb_L` t(6) (cymb_L_01.aif) @ 0 + 0, 1355463
+`cymb_R` t(7) (cymb_R_01.aif) @ 0 + 0, 1355463'
 
 run_test

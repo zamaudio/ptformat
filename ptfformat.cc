@@ -714,11 +714,22 @@ PTFFormat::parseaudio(void) {
 						if (foundin(wavname, std::string("Fade Files"))) {
 							continue;
 						}
-						if ((wavtype.size() != 0) && !(foundin(wavtype, std::string("WAVE")) ||
-								foundin(wavtype, std::string("EVAW")) ||
-								foundin(wavtype, std::string("AIFF")) ||
-								foundin(wavtype, std::string("FFIA"))) ) {
-							continue;
+						if (version < 10) {
+							if (!(foundin(wavtype, std::string("WAVE")) ||
+									foundin(wavtype, std::string("EVAW")) ||
+									foundin(wavtype, std::string("AIFF")) ||
+									foundin(wavtype, std::string("FFIA"))) ) {
+								continue;
+							}
+						} else {
+							if (wavtype.size() != 0) {
+								if (!(foundin(wavtype, std::string("WAVE")) ||
+										foundin(wavtype, std::string("EVAW")) ||
+										foundin(wavtype, std::string("AIFF")) ||
+										foundin(wavtype, std::string("FFIA"))) ) {
+									continue;
+								}
+							}
 						}
 						wav_t f = { wavname, (uint16_t)n, 0, 0 };
 						n++;
