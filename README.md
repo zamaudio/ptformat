@@ -23,13 +23,13 @@ What works?
 | **PT version** | **Decryption** | **Audio (Sources)** | **Audio (Regions)** | **Audio (Tracks)**| **MIDI (Chunks)** | **MIDI (Regions)** | **MIDI (Tracks)** |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 5 | Yes | Yes | Yes | Yes | ? | ? | ? |
-| 6 | Yes | ? | ? | ? | ? | ? | ? |
-| 7 | Yes | ? | ? | ? | ? | ? | ? |
+| 6 | Yes | Yes | Yes | Yes | ? | ? | ? |
+| 7 | Yes | Yes | Yes | Yes | ? | ? | ? |
 | 8 | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | 9 | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-|10 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
-|11 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
-|12 | Yes | Yes | No groups | Yes | Yes | Yes | Yes |
+|10 | Yes | Yes | No groups | Yes | Yes | No groups | Yes |
+|11 | Yes | Yes | No groups | Yes | Yes | No groups | Yes |
+|12 | Yes | Yes | No groups | Yes | Yes | No groups | Yes |
 
 
 Regression testing
@@ -68,9 +68,8 @@ License
 TODO
 ====
 
-- PT6 support (?)
-
-- PT7 support
+- Fix >= PT10 MIDI support
+- Add >= PT10 Compound MIDI/Audio region support
 
 
 Binaries in `bins/`
