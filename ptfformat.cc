@@ -678,7 +678,7 @@ PTFFormat::parsestring(uint32_t pos) {
 bool
 PTFFormat::parseaudio(void) {
 	bool found = false;
-	uint32_t nwavs, nstrings, i, n;
+	uint32_t nwavs, i, n;
 	uint32_t pos = 0;
 	char *str;
 	std::string wavtype;
@@ -695,10 +695,10 @@ PTFFormat::parseaudio(void) {
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x103a) {
 					found = true;
-					nstrings = u_endian_read4(&ptfunxored[c->offset+1], is_bigendian);
+					//nstrings = u_endian_read4(&ptfunxored[c->offset+1], is_bigendian);
 					pos = c->offset + 11;
 					// Found wav list
-					for (i = n = 0; (i < nstrings) && (n < nwavs); i++) {
+					for (i = n = 0; (pos < c->offset + c->block_size) && (n < nwavs); i++) {
 						str = parsestring(pos);
 						wavname = std::string(str);
 						pos += wavname.size() + 4;
@@ -743,7 +743,7 @@ PTFFormat::parseaudio(void) {
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
 						if (d->content_type == 0x1001) {
-							wav->length = u_endian_read8(&ptfunxored[d->offset+8], is_bigendian);
+							(*wav).length = u_endian_read8(&ptfunxored[d->offset+8], is_bigendian);
 							wav++;
 						}
 					}
@@ -1235,7 +1235,10 @@ PTFFormat::parsemidi(void) {
 										continue;
 									}
 									//printf("XXX MIDI : %s : t(%d) r(%d) %llu(%llu)\n", (*ti).name.c_str(), tindex, rawindex, start, (*ri).startpos);
-									(*ri).startpos = start - 0xe8d4a51000ULL;
+									int64_t signedstart = (int64_t)(start - ZERO_TICKS);
+									if (signedstart < 0)
+										signedstart = -signedstart;
+									(*ri).startpos = (uint64_t)signedstart;
 									if ((*ti).reg.index == 65535) {
 										(*ti).reg = *ri;
 									} else {
