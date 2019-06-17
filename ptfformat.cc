@@ -729,6 +729,9 @@ PTFFormat::parseaudio(void) {
 										foundin(wavtype, std::string("FFIA"))) ) {
 									continue;
 								}
+							} else if (!(foundin(wavname, std::string(".wav")) || 
+									foundin(wavname, std::string(".aif"))) ) {
+								continue;
 							}
 						}
 						wav_t f = { wavname, (uint16_t)n, 0, 0 };

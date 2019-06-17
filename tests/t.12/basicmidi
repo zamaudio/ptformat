@@ -57,8 +57,8 @@ MIDI Region (Region#) @ into-sample, length:
 
 Track name (Track#) (Region#) @ Absolute:
 `monoTone` t(0) r(0) @ 0
-`stereoTone` t(2) r(2) @ 0
-`stereoTone` t(4) r(3) @ 0
+`stereoTone` t(1) r(2) @ 0
+`stereoTone` t(2) r(3) @ 0
 
 MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 `MIDI 1` mt(0) mr(0) @ 0
@@ -67,7 +67,7 @@ MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 
 Track name (Track#) (WAV filename) @ Absolute + Into-sample, Length:
 `monoTone` t(0) (monoTone.1.aif) @ 0 + 0, 480000
-`stereoTone` t(2) (stereoTone.L.aif) @ 0 + 0, 480000
-`stereoTone` t(4) (stereoTone.R.aif) @ 0 + 0, 480000'
+`stereoTone` t(1) (stereoTone.L.aif) @ 0 + 0, 480000
+`stereoTone` t(2) (stereoTone.R.aif) @ 0 + 0, 480000'
 
 run_test
