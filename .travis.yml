@@ -3,9 +3,16 @@ os:
 
 languages: c++
 
-cache: false
+cache: apt
 
 dist: trusty
+
+addons:
+  apt:
+    packages:
+      - libglib2.0-dev
+      - libglib2.0-0
+      - pkg-config
 
 script:
 - make
