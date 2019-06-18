@@ -3,6 +3,8 @@ os:
 
 languages: c++
 
+cache: false
+
 dist: trusty
 
 script:
