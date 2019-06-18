@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 [ -e ../../tests.sh ] && . ../../tests.sh
 
