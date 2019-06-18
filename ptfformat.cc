@@ -883,7 +883,7 @@ bool
 PTFFormat::parserest(void) {
 	uint32_t i, j, count;
 	uint64_t start;
-	uint16_t rindex, rawindex, tindex;
+	uint16_t rindex, rawindex, tindex, mindex;
 	uint32_t nch;
 	uint16_t ch_map[MAX_CHANNELS_PER_TRACK];
 	bool found = false;
@@ -957,8 +957,15 @@ PTFFormat::parserest(void) {
 					}
 				}
 			}
-		} else if (b->content_type == 0x2519) {
+		}
+	}
+
+	// Reparse from scratch to exclude audio tracks from all tracks to get midi tracks
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type == 0x2519) {
 			tindex = 0;
+			mindex = 0;
 			//ntracks = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
@@ -978,11 +985,16 @@ PTFFormat::parserest(void) {
 
 					track_t t = {
 						trackname,
-						tindex,
+						mindex,
 						uint8_t(0),
 						r
 					};
-					miditracks.push_back(t);
+
+					// If the current track is not an audio track, insert as midi track
+					if (!(find_track(tindex, ti) && foundin(trackname, (*ti).name))) {
+						miditracks.push_back(t);
+						mindex++;
+					}
 					tindex++;
 				}
 			}
@@ -1156,13 +1168,13 @@ PTFFormat::parsemidi(void) {
 			}
 
 		// Put chunks onto regions
-		} else if (b->content_type == 0x2002) {
+		} else if ((b->content_type == 0x2002) || (b->content_type == 0x2634)) {
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
-				if (c->content_type == 0x2001) {
+				if ((c->content_type == 0x2001) || (c->content_type == 0x2633)) {
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
-						if (d->content_type == 0x1007) {
+						if ((d->content_type == 0x1007) || (d->content_type == 0x2628)) {
 							j = d->offset + 2;
 							str = parsestring(j);
 							midiregionname = std::string(str);

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-[ -e ../../tests.sh ] && BROKEN=1 . ../../tests.sh
+[ -e ../../tests.sh ] && . ../../tests.sh
 
 NAME="PT12 with midi"
 FILE=../../bins/TestPTX.ptx

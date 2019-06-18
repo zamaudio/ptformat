@@ -68,7 +68,6 @@ License
 TODO
 ====
 
-- Fix >= PT10 MIDI support
 - Add >= PT10 Compound MIDI/Audio region support
 
 
