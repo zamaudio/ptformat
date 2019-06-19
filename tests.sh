@@ -1,19 +1,37 @@
 #!/do/not/execute
 
-DIFF=diff
+DIFF=/usr/bin/diff
+GREP=/usr/bin/grep
 PTFTOOL=../../ptftool
 
 run_test() {
 	echo "$NAME"
 	if [ ! -e $FILE ]; then
-		echo "Can't find binary"
+		echo "Cannot find test file"
 		echo ""
-		exit 2
+		exit 1
 	fi
-	$PTFTOOL $FILE 2> /dev/null > .tmp1
-	echo "$EXPECT" > .tmp2
-	DIFFED=$($DIFF -U0 .tmp2 .tmp1 | grep -v -E '^\+\+\+ |^--- ')
-	rm -f .tmp1 .tmp2
+	if [ ! -e $DIFF ]; then
+		echo "Cannot find diff"
+		echo ""
+		exit 1
+	fi
+	if [ ! -e $GREP ]; then
+		echo "Cannot find grep"
+		echo ""
+		exit 1
+	fi
+	if [ ! -e $PTFTOOL ]; then
+		echo "Cannot find ptftool"
+		echo ""
+		exit 1
+	fi
+	TMP1=$(mktemp)
+	TMP2=$(mktemp)
+	$PTFTOOL $FILE 2> /dev/null > $TMP1
+	echo "$EXPECT" > $TMP2
+	DIFFED=$($DIFF -U0 $TMP2 $TMP1 | $GREP -v -E '^\+\+\+ |^--- ')
+	rm -f $TMP1 $TMP2
 	if [ -z "$DIFFED" ]; then
 		echo "[ OK ]"
 		echo ""
