@@ -28,6 +28,7 @@ run_test() {
 	fi
 	TMP1=$(mktemp)
 	TMP2=$(mktemp)
+	echo "$PTFTOOL $FILE"
 	$PTFTOOL $FILE > $TMP1
 	echo "$EXPECT" > $TMP2
 	DIFFED=$($DIFF -U0 $TMP2 $TMP1 | $GREP -v -E '^\+\+\+ |^--- ')

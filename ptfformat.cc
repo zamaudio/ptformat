@@ -437,15 +437,18 @@ PTFFormat::load(std::string ptf, int64_t targetsr) {
 		return -1;
 
 	if (parse_version())
-		return -1;
+		return -2;
 
 	if (version < 5 || version > 12)
-		return -1;
+		return -3;
 
 	targetrate = targetsr;
 
-	if (parse())
-		return -1;
+	int err = 0;
+	if ((err = parse())) {
+		printf ("PARSE FAILED %d\n", err);
+		return -4;
+	}
 
 	return 0;
 }
@@ -557,7 +560,7 @@ PTFFormat::setrates(void) {
 bool
 PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
 	struct block_t b;
-	int childjump;
+	int childjump = 0;
 	uint32_t i;
 
 	if (pos + 7 > len)
@@ -644,13 +647,13 @@ PTFFormat::parse(void) {
 		return -1;
 	setrates();
 	if (sessionrate < 44100 || sessionrate > 192000)
-		return -1;
+		return -2;
 	if (!parseaudio())
-		return -1;
+		return -3;
 	if (!parserest())
-		return -1;
+		return -4;
 	if (!parsemidi())
-		return -1;
+		return -5;
 	return 0;
 }
 

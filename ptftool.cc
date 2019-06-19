@@ -41,7 +41,19 @@ int main (int argc, char **argv) {
 	switch (ok) {
 	default:
 	case -1:
-		printf("Cannot open ptf, quit\n");
+		printf("Cannot decrypt ptf, quit\n");
+		exit(-1);
+		break;
+	case -2:
+		printf("Cannot extract version from ptf, quit\n");
+		exit(-1);
+		break;
+	case -3:
+		printf("Unsupported ptf version, quit\n");
+		exit(-1);
+		break;
+	case -4:
+		printf("Cannot parse ptf, quit\n");
 		exit(-1);
 		break;
 	case 0:
