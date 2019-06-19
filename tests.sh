@@ -1,22 +1,22 @@
 #!/do/not/execute
 
-DIFF=/usr/bin/diff
-GREP=/usr/bin/grep
+DIFF=$(which diff)
+GREP=$(which grep)
 PTFTOOL=../../ptftool
 
 run_test() {
 	echo "$NAME"
-	if [ ! -e $FILE ]; then
+	if [ "x$FILE" != "x" ] && [ ! -e $FILE ]; then
 		echo "Cannot find test file"
 		echo ""
 		exit 1
 	fi
-	if [ ! -e $DIFF ]; then
+	if [ "x$DIFF" != "x" ] && [ ! -e $DIFF ]; then
 		echo "Cannot find diff"
 		echo ""
 		exit 1
 	fi
-	if [ ! -e $GREP ]; then
+	if [ "x$GREP" != "x" ] && [ ! -e $GREP ]; then
 		echo "Cannot find grep"
 		echo ""
 		exit 1
