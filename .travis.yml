@@ -9,13 +9,17 @@ dist: trusty
 
 addons:
   apt:
+    sources:
+    - ubuntu-toolchain-r-test
     packages:
-      - libglib2.0-dev
-      - libglib2.0-0
-      - pkg-config
+    - gcc-4.9
+    - g++-4.9
+    - libglib2.0-dev
+    - libglib2.0-0
+    - pkg-config
 
 script:
-- make
+- CXX=g++-4.9 make
 - ./ptreg
 
 notifications:
