@@ -46,13 +46,13 @@ int main (int argc, char **argv) {
 		break;
 	case 0:
 		printf("#!/bin/bash\nset -e\nmkdir \"Audio Files\"\n");
-		for (vector<PTFFormat::wav_t>::iterator a = ptf.audiofiles.begin();
-					a != ptf.audiofiles.end(); ++a) {
+		for (vector<PTFFormat::wav_t>::const_iterator a = ptf.audiofiles().begin();
+					a != ptf.audiofiles().end(); ++a) {
 			if (!a->length) {
 				printf("# unknown length : %s\n", a->filename.c_str());
 			} else {
 				printf("sox --no-clobber -S -n -r %" PRId64 " -c 1 -b 16 \"Audio Files\"/\"%s\" synth %" PRId64 "s sine 1000 gain -18\n",
-					ptf.sessionrate,
+					ptf.sessionrate(),
 					a->filename.c_str(),
 					a->length
 				);

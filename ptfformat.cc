@@ -81,7 +81,16 @@ hexdump(uint8_t *data, int length, int level)
 	}
 }
 
-PTFFormat::PTFFormat() : ptfunxored(NULL), version(0), product(NULL) {
+PTFFormat::PTFFormat()
+	: _ptfunxored(0)
+	, _len(0)
+	, _sessionrate(0)
+	, _version(0)
+	, _product(NULL)
+	, _targetrate (0)
+	, _ratefactor (1.0)
+	, is_bigendian(false)
+{
 }
 
 PTFFormat::~PTFFormat() {
@@ -264,18 +273,19 @@ PTFFormat::u_endian_read8(unsigned char *buf, bool bigendian)
 
 void
 PTFFormat::cleanup(void) {
-	if (ptfunxored) {
-		free(ptfunxored);
-		ptfunxored = NULL;
-	}
-	audiofiles.clear();
-	regions.clear();
-	midiregions.clear();
-	tracks.clear();
-	miditracks.clear();
+	_len = 0;
+	_sessionrate = 0;
+	_version = 0;
+	free(_ptfunxored);
+	_ptfunxored = NULL;
+	free (_product);
+	_product = NULL;
+	_audiofiles.clear();
+	_regions.clear();
+	_midiregions.clear();
+	_tracks.clear();
+	_miditracks.clear();
 	free_all_blocks();
-	version = 0;
-	product = NULL;
 }
 
 int64_t
@@ -354,7 +364,7 @@ PTFFormat::foundin(std::string haystack, std::string needle) {
 			-1           could not decrypt pt session
 */
 int
-PTFFormat::unxor(std::string path) {
+PTFFormat::unxor(std::string const& path) {
 	FILE *fp;
 	unsigned char xxor[256];
 	unsigned char ct;
@@ -369,29 +379,29 @@ PTFFormat::unxor(std::string path) {
 	}
 
 	fseek(fp, 0, SEEK_END);
-	len = ftell(fp);
-	if (len < 0x14) {
+	_len = ftell(fp);
+	if (_len < 0x14) {
 		fclose(fp);
 		return -1;
 	}
 
-	if (! (ptfunxored = (unsigned char*) malloc(len * sizeof(unsigned char)))) {
+	if (! (_ptfunxored = (unsigned char*) malloc(_len * sizeof(unsigned char)))) {
 		/* Silently fail -- out of memory*/
 		fclose(fp);
-		ptfunxored = 0;
+		_ptfunxored = 0;
 		return -1;
 	}
 
 	/* The first 20 bytes are always unencrypted */
 	fseek(fp, 0x00, SEEK_SET);
-	i = fread(ptfunxored, 1, 0x14, fp);
+	i = fread(_ptfunxored, 1, 0x14, fp);
 	if (i < 0x14) {
 		fclose(fp);
 		return -1;
 	}
 
-	xor_type = ptfunxored[0x12];
-	xor_value = ptfunxored[0x13];
+	xor_type = _ptfunxored[0x12];
+	xor_value = _ptfunxored[0x13];
 	xor_len = 256;
 
 	// xor_type 0x01 = ProTools 5, 6, 7, 8 and 9
@@ -419,7 +429,7 @@ PTFFormat::unxor(std::string path) {
 	fseek(fp, i, SEEK_SET);
 	while (fread(&ct, 1, 1, fp) != 0) {
 		uint8_t xor_index = (xor_type == 0x01) ? i & 0xff : (i >> 12) & 0xff;
-		ptfunxored[i++] = ct ^ xxor[xor_index];
+		_ptfunxored[i++] = ct ^ xxor[xor_index];
 	}
 	fclose(fp);
 	return 0;
@@ -429,7 +439,7 @@ PTFFormat::unxor(std::string path) {
 			-1           could not parse pt session
 */
 int
-PTFFormat::load(std::string ptf, int64_t targetsr) {
+PTFFormat::load(std::string const& ptf, int64_t targetsr) {
 	cleanup();
 	path = ptf;
 
@@ -439,10 +449,10 @@ PTFFormat::load(std::string ptf, int64_t targetsr) {
 	if (parse_version())
 		return -2;
 
-	if (version < 5 || version > 12)
+	if (_version < 5 || _version > 12)
 		return -3;
 
-	targetrate = targetsr;
+	_targetrate = targetsr;
 
 	int err = 0;
 	if ((err = parse())) {
@@ -456,12 +466,12 @@ PTFFormat::load(std::string ptf, int64_t targetsr) {
 bool
 PTFFormat::parse_version() {
 	uint32_t seg_len,str_len;
-	uint8_t *data = ptfunxored + 0x14;
-	uintptr_t data_end = ((uintptr_t)ptfunxored) + 0x100;
+	uint8_t *data = _ptfunxored + 0x14;
+	uintptr_t data_end = ((uintptr_t)_ptfunxored) + 0x100;
 	uint8_t seg_type;
 	bool success = false;
 
-	if (ptfunxored[0] != '\x03' && foundat(ptfunxored, 0x100, BITCODE) != 1) {
+	if (_ptfunxored[0] != '\x03' && foundat(_ptfunxored, 0x100, BITCODE) != 1) {
 		return false;
 	}
 
@@ -495,7 +505,7 @@ PTFFormat::parse_version() {
 		data += 3;
 		seg_len -= 3;
 		str_len = (*(uint8_t *)data);
-		if (! (product = (uint8_t *)malloc((str_len+1) * sizeof(uint8_t)))) {
+		if (! (_product = (uint8_t *)malloc((str_len+1) * sizeof(uint8_t)))) {
 			success = false;
 			break;
 		}
@@ -504,8 +514,8 @@ PTFFormat::parse_version() {
 		data += 4;
 		seg_len -= 4;
 
-		memcpy(product, data, str_len);
-		product[str_len] = 0;
+		memcpy(_product, data, str_len);
+		_product[str_len] = 0;
 		data += str_len;
 		seg_len -= str_len;
 
@@ -513,9 +523,9 @@ PTFFormat::parse_version() {
 		data += 4;
 		seg_len -= 4;
 
-		version = data[0];
-		if (version == 0) {
-			version = data[3];
+		_version = data[0];
+		if (_version == 0) {
+			_version = data[3];
 		}
 		data += seg_len;
 		success = true;
@@ -523,14 +533,14 @@ PTFFormat::parse_version() {
 
 	/* If the above does not work, try other heuristics */
 	if ((uintptr_t)data >= data_end - seg_len) {
-		version = ptfunxored[0x40];
-		if (version == 0) {
-			version = ptfunxored[0x3d];
+		_version = _ptfunxored[0x40];
+		if (_version == 0) {
+			_version = _ptfunxored[0x3d];
 		}
-		if (version == 0) {
-			version = ptfunxored[0x3a] + 2;
+		if (_version == 0) {
+			_version = _ptfunxored[0x3a] + 2;
 		}
-		if (version != 0) {
+		if (_version != 0) {
 			success = true;
 		}
 	}
@@ -551,9 +561,9 @@ PTFFormat::gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) {
 
 void
 PTFFormat::setrates(void) {
-	ratefactor = 1.f;
-	if (sessionrate != 0) {
-		ratefactor = (float)targetrate / sessionrate;
+	_ratefactor = 1.f;
+	if (_sessionrate != 0) {
+		_ratefactor = (float)_targetrate / _sessionrate;
 	}
 }
 
@@ -563,20 +573,20 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
 	int childjump = 0;
 	uint32_t i;
 
-	if (pos + 7 > len)
+	if (pos + 7 > _len)
 		return false;
 	if (level > 10)
 		return false;
-	if (ptfunxored[pos] != ZMARK)
+	if (_ptfunxored[pos] != ZMARK)
 		return false;
 
 	b.zmark = ZMARK;
-	b.block_type = u_endian_read2(&ptfunxored[pos+1], is_bigendian);
-	b.block_size = u_endian_read4(&ptfunxored[pos+3], is_bigendian);
-	b.content_type = u_endian_read2(&ptfunxored[pos+7], is_bigendian);
+	b.block_type = u_endian_read2(&_ptfunxored[pos+1], is_bigendian);
+	b.block_size = u_endian_read4(&_ptfunxored[pos+3], is_bigendian);
+	b.content_type = u_endian_read2(&_ptfunxored[pos+7], is_bigendian);
 	b.offset = pos + 7;
 
-	if (b.block_size + b.offset > len)
+	if (b.block_size + b.offset > _len)
 		return false;
 	if (b.block_type & 0xff00)
 		return false;
@@ -587,7 +597,7 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
 	block->content_type = b.content_type;
 	block->offset = b.offset;
 
-	for (i = 1; (i < block->block_size) && (pos + i + childjump < len); i += childjump ? childjump : 1) {
+	for (i = 1; (i < block->block_size) && (pos + i + childjump < _len); i += childjump ? childjump : 1) {
 		int p = pos + i;
 		struct block_t bchild;
 		childjump = 0;
@@ -608,7 +618,7 @@ PTFFormat::dump_block(struct block_t& b, int level)
 		printf("    ");
 	}
 	printf("%s(0x%04x)\n", get_content_description(b.content_type).c_str(), b.content_type);
-	hexdump(&ptfunxored[b.offset], b.block_size, level);
+	hexdump(&_ptfunxored[b.offset], b.block_size, level);
 
 	for (vector<PTFFormat::block_t>::iterator c = b.child.begin();
 			c != b.child.end(); ++c) {
@@ -650,7 +660,7 @@ void
 PTFFormat::parseblocks(void) {
 	uint32_t i = 20;
 
-	while (i < len) {
+	while (i < _len) {
 		struct block_t b;
 		if (parse_block_at(i, &b, 0)) {
 			blocks.push_back(b);
@@ -668,7 +678,7 @@ PTFFormat::parse(void) {
 	if (!parseheader())
 		return -1;
 	setrates();
-	if (sessionrate < 44100 || sessionrate > 192000)
+	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
 	if (!parseaudio())
 		return -3;
@@ -686,7 +696,7 @@ PTFFormat::parseheader(void) {
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x1028) {
-			sessionrate = u_endian_read4(&ptfunxored[b->offset+4], is_bigendian);
+			_sessionrate = u_endian_read4(&_ptfunxored[b->offset+4], is_bigendian);
 			found = true;
 		}
 	}
@@ -695,9 +705,9 @@ PTFFormat::parseheader(void) {
 
 char *
 PTFFormat::parsestring(uint32_t pos) {
-	uint32_t length = u_endian_read4(&ptfunxored[pos], is_bigendian);
+	uint32_t length = u_endian_read4(&_ptfunxored[pos], is_bigendian);
 	pos += 4;
-	return strndup((const char *)&ptfunxored[pos], length);
+	return strndup((const char *)&_ptfunxored[pos], length);
 }
 
 bool
@@ -714,13 +724,13 @@ PTFFormat::parseaudio(void) {
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x1004) {
 
-			nwavs = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			nwavs = u_endian_read4(&_ptfunxored[b->offset+2], is_bigendian);
 
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x103a) {
 					found = true;
-					//nstrings = u_endian_read4(&ptfunxored[c->offset+1], is_bigendian);
+					//nstrings = u_endian_read4(&_ptfunxored[c->offset+1], is_bigendian);
 					pos = c->offset + 11;
 					// Found wav list
 					for (i = n = 0; (pos < c->offset + c->block_size) && (n < nwavs); i++) {
@@ -728,7 +738,7 @@ PTFFormat::parseaudio(void) {
 						wavname = std::string(str);
 						free(str);
 						pos += wavname.size() + 4;
-						str = strndup((const char *)&ptfunxored[pos], 4);
+						str = strndup((const char *)&_ptfunxored[pos], 4);
 						wavtype = std::string(str);
 						free(str);
 						pos += 9;
@@ -741,7 +751,7 @@ PTFFormat::parseaudio(void) {
 						if (foundin(wavname, std::string("Fade Files"))) {
 							continue;
 						}
-						if (version < 10) {
+						if (_version < 10) {
 							if (!(foundin(wavtype, std::string("WAVE")) ||
 									foundin(wavtype, std::string("EVAW")) ||
 									foundin(wavtype, std::string("AIFF")) ||
@@ -764,7 +774,7 @@ PTFFormat::parseaudio(void) {
 						wav_t f (n);
 						f.filename = wavname;
 						n++;
-						audiofiles.push_back(f);
+						_audiofiles.push_back(f);
 					}
 				}
 			}
@@ -776,7 +786,7 @@ PTFFormat::parseaudio(void) {
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x1004) {
 
-			vector<PTFFormat::wav_t>::iterator wav = audiofiles.begin();
+			vector<PTFFormat::wav_t>::iterator wav = _audiofiles.begin();
 
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
@@ -784,7 +794,7 @@ PTFFormat::parseaudio(void) {
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
 						if (d->content_type == 0x1001) {
-							(*wav).length = u_endian_read8(&ptfunxored[d->offset+8], is_bigendian);
+							(*wav).length = u_endian_read8(&_ptfunxored[d->offset+8], is_bigendian);
 							wav++;
 						}
 					}
@@ -802,34 +812,34 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 	uint8_t offsetbytes, lengthbytes, startbytes;
 
 	if (is_bigendian) {
-		offsetbytes = (ptfunxored[j+4] & 0xf0) >> 4;
-		lengthbytes = (ptfunxored[j+3] & 0xf0) >> 4;
-		startbytes = (ptfunxored[j+2] & 0xf0) >> 4;
-		//somethingbytes = (ptfunxored[j+2] & 0xf);
-		//skipbytes = ptfunxored[j+1];
+		offsetbytes = (_ptfunxored[j+4] & 0xf0) >> 4;
+		lengthbytes = (_ptfunxored[j+3] & 0xf0) >> 4;
+		startbytes = (_ptfunxored[j+2] & 0xf0) >> 4;
+		//somethingbytes = (_ptfunxored[j+2] & 0xf);
+		//skipbytes = _ptfunxored[j+1];
 	} else {
-		offsetbytes = (ptfunxored[j+1] & 0xf0) >> 4; //3
-		lengthbytes = (ptfunxored[j+2] & 0xf0) >> 4;
-		startbytes = (ptfunxored[j+3] & 0xf0) >> 4; //1
-		//somethingbytes = (ptfunxored[j+3] & 0xf);
-		//skipbytes = ptfunxored[j+4];
+		offsetbytes = (_ptfunxored[j+1] & 0xf0) >> 4; //3
+		lengthbytes = (_ptfunxored[j+2] & 0xf0) >> 4;
+		startbytes = (_ptfunxored[j+3] & 0xf0) >> 4; //1
+		//somethingbytes = (_ptfunxored[j+3] & 0xf);
+		//skipbytes = _ptfunxored[j+4];
 	}
 
 	switch (offsetbytes) {
 	case 5:
-		offset = u_endian_read5(&ptfunxored[j+5], false);
+		offset = u_endian_read5(&_ptfunxored[j+5], false);
 		break;
 	case 4:
-		offset = (uint64_t)u_endian_read4(&ptfunxored[j+5], false);
+		offset = (uint64_t)u_endian_read4(&_ptfunxored[j+5], false);
 		break;
 	case 3:
-		offset = (uint64_t)u_endian_read3(&ptfunxored[j+5], false);
+		offset = (uint64_t)u_endian_read3(&_ptfunxored[j+5], false);
 		break;
 	case 2:
-		offset = (uint64_t)u_endian_read2(&ptfunxored[j+5], false);
+		offset = (uint64_t)u_endian_read2(&_ptfunxored[j+5], false);
 		break;
 	case 1:
-		offset = (uint64_t)(ptfunxored[j+5]);
+		offset = (uint64_t)(_ptfunxored[j+5]);
 		break;
 	default:
 		offset = 0;
@@ -838,19 +848,19 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 	j+=offsetbytes;
 	switch (lengthbytes) {
 	case 5:
-		length = u_endian_read5(&ptfunxored[j+5], false);
+		length = u_endian_read5(&_ptfunxored[j+5], false);
 		break;
 	case 4:
-		length = (uint64_t)u_endian_read4(&ptfunxored[j+5], false);
+		length = (uint64_t)u_endian_read4(&_ptfunxored[j+5], false);
 		break;
 	case 3:
-		length = (uint64_t)u_endian_read3(&ptfunxored[j+5], false);
+		length = (uint64_t)u_endian_read3(&_ptfunxored[j+5], false);
 		break;
 	case 2:
-		length = (uint64_t)u_endian_read2(&ptfunxored[j+5], false);
+		length = (uint64_t)u_endian_read2(&_ptfunxored[j+5], false);
 		break;
 	case 1:
-		length = (uint64_t)(ptfunxored[j+5]);
+		length = (uint64_t)(_ptfunxored[j+5]);
 		break;
 	default:
 		length = 0;
@@ -859,19 +869,19 @@ PTFFormat::parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint
 	j+=lengthbytes;
 	switch (startbytes) {
 	case 5:
-		start = u_endian_read5(&ptfunxored[j+5], false);
+		start = u_endian_read5(&_ptfunxored[j+5], false);
 		break;
 	case 4:
-		start = (uint64_t)u_endian_read4(&ptfunxored[j+5], false);
+		start = (uint64_t)u_endian_read4(&_ptfunxored[j+5], false);
 		break;
 	case 3:
-		start = (uint64_t)u_endian_read3(&ptfunxored[j+5], false);
+		start = (uint64_t)u_endian_read3(&_ptfunxored[j+5], false);
 		break;
 	case 2:
-		start = (uint64_t)u_endian_read2(&ptfunxored[j+5], false);
+		start = (uint64_t)u_endian_read2(&_ptfunxored[j+5], false);
 		break;
 	case 1:
-		start = (uint64_t)(ptfunxored[j+5]);
+		start = (uint64_t)(_ptfunxored[j+5]);
 		break;
 	default:
 		start = 0;
@@ -885,20 +895,20 @@ PTFFormat::parse_region_info(uint32_t j, block_t& blk, region_t& r) {
 
 	parse_three_point(j, start, sampleoffset, length);
 
-	findex = u_endian_read4(&ptfunxored[blk.offset + blk.block_size], is_bigendian);
+	findex = u_endian_read4(&_ptfunxored[blk.offset + blk.block_size], is_bigendian);
 	wav_t f (findex);
-	f.posabsolute = start * ratefactor;
-	f.length = length * ratefactor;
+	f.posabsolute = start * _ratefactor;
+	f.length = length * _ratefactor;
 
-	vector<wav_t>::iterator found;
+	wav_t found;
 	if (find_wav(findex, found)) {
-		f.filename = (*found).filename;
+		f.filename = found.filename;
 	}
 
 	std::vector<midi_ev_t> m;
-	r.startpos = (int64_t)(start*ratefactor);
-	r.sampleoffset = (int64_t)(sampleoffset*ratefactor);
-	r.length = (int64_t)(length*ratefactor);
+	r.startpos = (int64_t)(start*_ratefactor);
+	r.sampleoffset = (int64_t)(sampleoffset*_ratefactor);
+	r.length = (int64_t)(length*_ratefactor);
 	r.wave = f;
 	r.midi = m;
 }
@@ -919,7 +929,7 @@ PTFFormat::parserest(void) {
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x100b || b->content_type == 0x262a) {
-			//nregions = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			//nregions = u_endian_read4(&_ptfunxored[b->offset+2], is_bigendian);
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x1008 || c->content_type == 0x2629) {
@@ -937,7 +947,7 @@ PTFFormat::parserest(void) {
 					r.index = rindex;
 					parse_region_info(j, *d, r);
 
-					regions.push_back(r);
+					_regions.push_back(r);
 					rindex++;
 				}
 			}
@@ -949,7 +959,7 @@ PTFFormat::parserest(void) {
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x1015) {
-			//ntracks = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			//ntracks = u_endian_read4(&_ptfunxored[b->offset+2], is_bigendian);
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x1014) {
@@ -957,19 +967,19 @@ PTFFormat::parserest(void) {
 					reg = parsestring(j);
 					trackname = std::string(reg);
 					j += trackname.size() + 5;
-					nch = u_endian_read4(&ptfunxored[j], is_bigendian);
+					nch = u_endian_read4(&_ptfunxored[j], is_bigendian);
 					j += 4;
 					for (i = 0; i < nch; i++) {
-						ch_map[i] = u_endian_read2(&ptfunxored[j], is_bigendian);
+						ch_map[i] = u_endian_read2(&_ptfunxored[j], is_bigendian);
 
-						std::vector<track_t>::iterator ti;
+						track_t ti;
 						if (!find_track(ch_map[i], ti)) {
 							// Add a dummy region for now
 							region_t r (65535);
 							track_t t (ch_map[i]);
 							t.name = trackname;
 							t.reg = r;
-							tracks.push_back(t);
+							_tracks.push_back(t);
 						}
 						//verbose_printf("%s : %d(%d)\n", reg, nch, ch_map[0]);
 						j += 2;
@@ -986,7 +996,7 @@ PTFFormat::parserest(void) {
 		if (b->content_type == 0x2519) {
 			tindex = 0;
 			mindex = 0;
-			//ntracks = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			//ntracks = u_endian_read4(&_ptfunxored[b->offset+2], is_bigendian);
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x251a) {
@@ -995,9 +1005,7 @@ PTFFormat::parserest(void) {
 					trackname = std::string(reg);
 					free(reg);
 					j += trackname.size() + 4 + 18;
-					//tindex = u_endian_read4(&ptfunxored[j], is_bigendian);
-
-					std::vector<track_t>::iterator ti;
+					//tindex = u_endian_read4(&_ptfunxored[j], is_bigendian);
 
 					// Add a dummy region for now
 					region_t r (65535);
@@ -1005,9 +1013,10 @@ PTFFormat::parserest(void) {
 					t.name = trackname;
 					t.reg = r;
 
+					track_t ti;
 					// If the current track is not an audio track, insert as midi track
-					if (!(find_track(tindex, ti) && foundin(trackname, (*ti).name))) {
-						miditracks.push_back(t);
+					if (!(find_track(tindex, ti) && foundin(trackname, ti.name))) {
+						_miditracks.push_back(t);
 						mindex++;
 					}
 					tindex++;
@@ -1021,7 +1030,7 @@ PTFFormat::parserest(void) {
 			b != blocks.end(); ++b) {
 		tindex = 0;
 		if (b->content_type == 0x1012) {
-			//nregions = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			//nregions = u_endian_read4(&_ptfunxored[b->offset+2], is_bigendian);
 			count = 0;
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
@@ -1036,20 +1045,15 @@ PTFFormat::parserest(void) {
 									e != d->child.end(); ++e) {
 								if (e->content_type == 0x100e) {
 									// Region->track
-									std::vector<track_t>::iterator ti;
-									std::vector<region_t>::iterator ri;
+									track_t ti;
 									j = e->offset + 4;
-									rawindex = u_endian_read4(&ptfunxored[j], is_bigendian);
-									if (!find_region(rawindex, ri))
-										continue;
+									rawindex = u_endian_read4(&_ptfunxored[j], is_bigendian);
 									if (!find_track(count, ti))
 										continue;
-									if ((*ti).reg.index == 65535) {
-										(*ti).reg = *ri;
-									} else {
-										track_t t = *ti;
-										t.reg = *ri;
-										tracks.push_back(t);
+									if (!find_region(rawindex, ti.reg))
+										continue;
+									if (ti.reg.index != 65535) {
+										_tracks.push_back(ti);
 									}
 								}
 							}
@@ -1060,7 +1064,7 @@ PTFFormat::parserest(void) {
 				}
 			}
 		} else if (b->content_type == 0x1054) {
-			//nregions = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			//nregions = u_endian_read4(&_ptfunxored[b->offset+2], is_bigendian);
 			count = 0;
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
@@ -1075,28 +1079,23 @@ PTFFormat::parserest(void) {
 									e != d->child.end(); ++e) {
 								if (e->content_type == 0x104f) {
 									// Region->track
-									std::vector<track_t>::iterator ti;
-									std::vector<region_t>::iterator ri;
 									j = e->offset + 4;
-									rawindex = u_endian_read4(&ptfunxored[j], is_bigendian);
+									rawindex = u_endian_read4(&_ptfunxored[j], is_bigendian);
 									j += 4 + 1;
-									start = u_endian_read4(&ptfunxored[j], is_bigendian);
+									start = u_endian_read4(&_ptfunxored[j], is_bigendian);
 									tindex = count;
-									if (!find_region(rawindex, ri)) {
-										verbose_printf("dropped region %d\n", rawindex);
-										continue;
-									}
+									track_t ti;
 									if (!find_track(tindex, ti)) {
 										verbose_printf("dropped track %d\n", tindex);
 										continue;
 									}
-									(*ri).startpos = start;
-									if ((*ti).reg.index == 65535) {
-										(*ti).reg = *ri;
-									} else {
-										track_t t = *ti;
-										t.reg = *ri;
-										tracks.push_back(t);
+									if (!find_region(rawindex, ti.reg)) {
+										verbose_printf("dropped region %d\n", rawindex);
+										continue;
+									}
+									ti.reg.startpos = start;
+									if (ti.reg.index != 65535) {
+										_tracks.push_back(ti);
 									}
 								}
 							}
@@ -1108,10 +1107,10 @@ PTFFormat::parserest(void) {
 			}
 		}
 	}
-	for (std::vector<track_t>::iterator tr = tracks.begin();
-			tr != tracks.end(); ++tr) {
+	for (std::vector<track_t>::iterator tr = _tracks.begin();
+			tr != _tracks.end(); ++tr) {
 		if ((*tr).reg.index == 65535) {
-			tracks.erase(tr--);
+			_tracks.erase(tr--);
 		}
 	}
 	return found;
@@ -1156,20 +1155,20 @@ PTFFormat::parsemidi(void) {
 				max_pos = 0;
 				std::vector<midi_ev_t> midi;
 
-				if (!jumpto(&k, ptfunxored, len, (const unsigned char *)"MdNLB", 5)) {
+				if (!jumpto(&k, _ptfunxored, _len, (const unsigned char *)"MdNLB", 5)) {
 					break;
 				}
 				k += 11;
-				n_midi_events = u_endian_read4(&ptfunxored[k], is_bigendian);
+				n_midi_events = u_endian_read4(&_ptfunxored[k], is_bigendian);
 
 				k += 4;
-				zero_ticks = u_endian_read5(&ptfunxored[k], is_bigendian);
-				for (i = 0; i < n_midi_events && k < len; i++, k += 35) {
-					midi_pos = u_endian_read5(&ptfunxored[k], is_bigendian);
+				zero_ticks = u_endian_read5(&_ptfunxored[k], is_bigendian);
+				for (i = 0; i < n_midi_events && k < _len; i++, k += 35) {
+					midi_pos = u_endian_read5(&_ptfunxored[k], is_bigendian);
 					midi_pos -= zero_ticks;
-					midi_note = ptfunxored[k+8];
-					midi_len = u_endian_read5(&ptfunxored[k+9], is_bigendian);
-					midi_velocity = ptfunxored[k+17];
+					midi_note = _ptfunxored[k+8];
+					midi_len = u_endian_read5(&_ptfunxored[k+9], is_bigendian);
+					midi_velocity = _ptfunxored[k+17];
 
 					if (midi_pos + midi_len > max_pos) {
 						max_pos = midi_pos + midi_len;
@@ -1198,7 +1197,7 @@ PTFFormat::parsemidi(void) {
 							j += 4 + midiregionname.size();
 							parse_three_point(j, region_pos, zero_ticks, midi_len);
 							j = d->offset + d->block_size;
-							rindex = u_endian_read4(&ptfunxored[j], is_bigendian);
+							rindex = u_endian_read4(&_ptfunxored[j], is_bigendian);
 							struct mchunk mc = *(midichunks.begin()+rindex);
 
 							region_t r (regionnumber++);
@@ -1208,7 +1207,7 @@ PTFFormat::parsemidi(void) {
 							r.length = mc.maxlen;
 							r.midi = mc.chunk;
 
-							midiregions.push_back(r);
+							_midiregions.push_back(r);
 							//verbose_printf("MIDI %s : r(%d) (%llu, %llu, %llu)\n", str, rindex, zero_ticks, region_pos, midi_len);
 							//dump_block(*d, 1);
 							free(str);
@@ -1237,16 +1236,16 @@ PTFFormat::parsemidi(void) {
 							j += 4 + regionname.size();
 							parse_three_point(j, start, offset, length);
 							j = d->offset + d->block_size + 2;
-							n = u_endian_read2(&ptfunxored[j], is_bigendian);
+							n = u_endian_read2(&_ptfunxored[j], is_bigendian);
 
 							for (vector<PTFFormat::block_t>::iterator e = d->child.begin();
 									e != d->child.end(); ++e) {
 								if (e->content_type == 0x2523) {
 									// FIXME Compound MIDI region
 									j = e->offset + 39;
-									rawindex = u_endian_read4(&ptfunxored[j], is_bigendian);
+									rawindex = u_endian_read4(&_ptfunxored[j], is_bigendian);
 									j += 12; 
-									start2 = u_endian_read5(&ptfunxored[j], is_bigendian);
+									start2 = u_endian_read5(&_ptfunxored[j], is_bigendian);
 									int64_t signedval = (int64_t)start2;
 									signedval -= ZERO_TICKS;
 									if (signedval < 0) {
@@ -1254,7 +1253,7 @@ PTFFormat::parsemidi(void) {
 									}
 									start2 = signedval;
 									j += 8;
-									stop2 = u_endian_read5(&ptfunxored[j], is_bigendian);
+									stop2 = u_endian_read5(&_ptfunxored[j], is_bigendian);
 									signedval = (int64_t)stop2;
 									signedval -= ZERO_TICKS;
 									if (signedval < 0) {
@@ -1262,7 +1261,7 @@ PTFFormat::parsemidi(void) {
 									}
 									stop2 = signedval;
 									j += 16;
-									//nn = u_endian_read4(&ptfunxored[j], is_bigendian);
+									//nn = u_endian_read4(&_ptfunxored[j], is_bigendian);
 									//verbose_printf("COMPOUND %s : c(%d) r(%d) ?(%d) ?(%d) (%llu %llu)(%llu %llu %llu)\n", str, mindex, rawindex, n, nn, start2, stop2, start, offset, length);
 									count++;
 								}
@@ -1276,7 +1275,7 @@ PTFFormat::parsemidi(void) {
 								r.startpos = (int64_t)0xe8d4a51000ULL;
 								r.length = mc.maxlen;
 								r.midi = mc.chunk;
-								midiregions.push_back(r);
+								_midiregions.push_back(r);
 								verbose_printf("%s : MIDI region mr(%d) ?(%d) (%llu %llu %llu)\n", str, mindex, n, start, offset, length);
 								mindex++;
 							}
@@ -1292,7 +1291,7 @@ PTFFormat::parsemidi(void) {
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x1058) {
-			//nregions = u_endian_read4(&ptfunxored[b->offset+2], is_bigendian);
+			//nregions = u_endian_read4(&_ptfunxored[b->offset+2], is_bigendian);
 			count = 0;
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
@@ -1307,32 +1306,27 @@ PTFFormat::parsemidi(void) {
 									e != d->child.end(); ++e) {
 								if (e->content_type == 0x104f) {
 									// MIDI region->MIDI track
-									std::vector<track_t>::iterator ti;
-									std::vector<region_t>::iterator ri;
+									track_t ti;
 									j = e->offset + 4;
-									rawindex = u_endian_read4(&ptfunxored[j], is_bigendian);
+									rawindex = u_endian_read4(&_ptfunxored[j], is_bigendian);
 									j += 4 + 1;
-									start = u_endian_read5(&ptfunxored[j], is_bigendian);
+									start = u_endian_read5(&_ptfunxored[j], is_bigendian);
 									tindex = count;
-									if (!find_midiregion(rawindex, ri)) {
-										verbose_printf("dropped midiregion\n");
-										continue;
-									}
 									if (!find_miditrack(tindex, ti)) {
 										verbose_printf("dropped midi t(%d) r(%d)\n", tindex, rawindex);
 										continue;
 									}
-									//verbose_printf("MIDI : %s : t(%d) r(%d) %llu(%llu)\n", (*ti).name.c_str(), tindex, rawindex, start, (*ri).startpos);
+									if (!find_midiregion(rawindex, ti.reg)) {
+										verbose_printf("dropped midiregion\n");
+										continue;
+									}
+									//verbose_printf("MIDI : %s : t(%d) r(%d) %llu(%llu)\n", ti.name.c_str(), tindex, rawindex, start, ti.reg.startpos);
 									int64_t signedstart = (int64_t)(start - ZERO_TICKS);
 									if (signedstart < 0)
 										signedstart = -signedstart;
-									(*ri).startpos = (uint64_t)signedstart;
-									if ((*ti).reg.index == 65535) {
-										(*ti).reg = *ri;
-									} else {
-										track_t t = *ti;
-										t.reg = *ri;
-										miditracks.push_back(t);
+									ti.reg.startpos = (uint64_t)signedstart;
+									if (ti.reg.index != 65535) {
+										_miditracks.push_back(ti);
 									}
 								}
 							}
@@ -1343,10 +1337,10 @@ PTFFormat::parsemidi(void) {
 			}
 		}
 	}
-	for (std::vector<track_t>::iterator tr = miditracks.begin();
-			tr != miditracks.end(); ++tr) {
+	for (std::vector<track_t>::iterator tr = _miditracks.begin();
+			tr != _miditracks.end(); ++tr) {
 		if ((*tr).reg.index == 65535) {
-			miditracks.erase(tr--);
+			_miditracks.erase(tr--);
 		}
 	}
 	return true;

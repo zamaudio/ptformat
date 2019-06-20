@@ -42,12 +42,12 @@ public:
 	/* Return values:	0            success
 				-1           could not parse pt session
 	*/
-	int load(std::string path, int64_t targetsr);
+	int load(std::string const& path, int64_t targetsr);
 
 	/* Return values:	0            success
 				-1           could not decrypt pt session
 	*/
-	int unxor(std::string path);
+	int unxor(std::string const& path);
 
 	struct wav_t {
 		std::string filename;
@@ -113,117 +113,131 @@ public:
 		track_t (uint16_t idx = 0) : index (idx), playlist (0) {}
 	};
 
-	bool find_track(uint16_t index, std::vector<track_t>::iterator& ti) {
-		std::vector<track_t>::iterator begin = tracks.begin();
-		std::vector<track_t>::iterator finish = tracks.end();
-		std::vector<track_t>::iterator found;
+	bool find_track(uint16_t index, track_t& tt) const {
+		std::vector<track_t>::const_iterator begin = _tracks.begin();
+		std::vector<track_t>::const_iterator finish = _tracks.end();
+		std::vector<track_t>::const_iterator found;
 
 		track_t t (index);
 
 		if ((found = std::find(begin, finish, t)) != finish) {
-			ti = found;
+			tt = *found;
 			return true;
 		}
 		return false;
 	}
 
-	bool find_region(uint16_t index, std::vector<region_t>::iterator& ri) {
-		std::vector<region_t>::iterator begin = regions.begin();
-		std::vector<region_t>::iterator finish = regions.end();
-		std::vector<region_t>::iterator found;
+	bool find_region(uint16_t index, region_t& rr) const {
+		std::vector<region_t>::const_iterator begin = _regions.begin();
+		std::vector<region_t>::const_iterator finish = _regions.end();
+		std::vector<region_t>::const_iterator found;
 
 		region_t r;
 		r.index = index;
 
 		if ((found = std::find(begin, finish, r)) != finish) {
-			ri = found;
+			rr = *found;
 			return true;
 		}
 		return false;
 	}
 	
-	bool find_miditrack(uint16_t index, std::vector<track_t>::iterator& ti) {
-		std::vector<track_t>::iterator begin = miditracks.begin();
-		std::vector<track_t>::iterator finish = miditracks.end();
-		std::vector<track_t>::iterator found;
+	bool find_miditrack(uint16_t index, track_t& tt) const {
+		std::vector<track_t>::const_iterator begin = _miditracks.begin();
+		std::vector<track_t>::const_iterator finish = _miditracks.end();
+		std::vector<track_t>::const_iterator found;
 
 		track_t t (index);
 
 		if ((found = std::find(begin, finish, t)) != finish) {
-			ti = found;
+			tt = *found;
 			return true;
 		}
 		return false;
 	}
 
-	bool find_midiregion(uint16_t index, std::vector<region_t>::iterator& ri) {
-		std::vector<region_t>::iterator begin = midiregions.begin();
-		std::vector<region_t>::iterator finish = midiregions.end();
-		std::vector<region_t>::iterator found;
+	bool find_midiregion(uint16_t index, region_t& rr) const {
+		std::vector<region_t>::const_iterator begin = _midiregions.begin();
+		std::vector<region_t>::const_iterator finish = _midiregions.end();
+		std::vector<region_t>::const_iterator found;
 
 		region_t r (index);
 
 		if ((found = std::find(begin, finish, r)) != finish) {
-			ri = found;
+			rr = *found;
 			return true;
 		}
 		return false;
 	}
 
-	bool find_wav(uint16_t index, std::vector<wav_t>::iterator& wi) {
-		std::vector<wav_t>::iterator begin = audiofiles.begin();
-		std::vector<wav_t>::iterator finish = audiofiles.end();
-		std::vector<wav_t>::iterator found;
+	bool find_wav(uint16_t index, wav_t& ww) const {
+		std::vector<wav_t>::const_iterator begin = _audiofiles.begin();
+		std::vector<wav_t>::const_iterator finish = _audiofiles.end();
+		std::vector<wav_t>::const_iterator found;
 
 		wav_t w (index);
 
 		if ((found = std::find(begin, finish, w)) != finish) {
-			wi = found;
+			ww = *found;
 			return true;
 		}
 		return false;
 	}
 
-	static bool regionexistsin(std::vector<region_t> reg, uint16_t index) {
-		std::vector<region_t>::iterator begin = reg.begin();
-		std::vector<region_t>::iterator finish = reg.end();
-		std::vector<region_t>::iterator found;
+	static bool regionexistsin(std::vector<region_t> const& reg, uint16_t index) {
+		std::vector<region_t>::const_iterator begin = reg.begin();
+		std::vector<region_t>::const_iterator finish = reg.end();
 
 		region_t r (index);
 
-		if ((found = std::find(begin, finish, r)) != finish) {
+		if (std::find(begin, finish, r) != finish) {
 			return true;
 		}
 		return false;
 	}
 
-	static bool wavexistsin(std::vector<wav_t> wv, uint16_t index) {
-		std::vector<wav_t>::iterator begin = wv.begin();
-		std::vector<wav_t>::iterator finish = wv.end();
-		std::vector<wav_t>::iterator found;
+	static bool wavexistsin (std::vector<wav_t> const& wv, uint16_t index) {
+		std::vector<wav_t>::const_iterator begin = wv.begin();
+		std::vector<wav_t>::const_iterator finish = wv.end();
 
 		wav_t w (index);
 
-		if ((found = std::find(begin, finish, w)) != finish) {
+		if (std::find(begin, finish, w) != finish) {
 			return true;
 		}
 		return false;
 	}
 
-	std::vector<wav_t> audiofiles;
-	std::vector<region_t> regions;
-	std::vector<region_t> midiregions;
-	std::vector<track_t> tracks;
-	std::vector<track_t> miditracks;
+	uint8_t version () const { return _version; }
+	int64_t sessionrate () const { return _sessionrate ; }
 
-	std::string path;
-	unsigned char *ptfunxored;
-	uint64_t len;
-	int64_t sessionrate;
-	uint8_t version;
+	const std::vector<wav_t>&    audiofiles () const { return _audiofiles ; }
+	const std::vector<region_t>& regions () const { return _regions ; }
+	const std::vector<region_t>& midiregions () const { return _midiregions ; }
+	const std::vector<track_t>&  tracks () const { return _tracks ; }
+	const std::vector<track_t>&  miditracks () const { return _miditracks ; }
+
+	const unsigned char* unxored_data () const { return _ptfunxored; }
+	uint64_t             unxored_size () const { return _len; }
 
 private:
-	struct block_t;
+
+	std::vector<wav_t>    _audiofiles;
+	std::vector<region_t> _regions;
+	std::vector<region_t> _midiregions;
+	std::vector<track_t>  _tracks;
+	std::vector<track_t>  _miditracks;
+
+	std::string path;
+
+	unsigned char* _ptfunxored;
+	uint64_t       _len;
+	int64_t        _sessionrate;
+	uint8_t        _version;
+	uint8_t*       _product;
+	int64_t        _targetrate;
+	float          _ratefactor;
+	bool           is_bigendian;
 
 	struct block_t {
 		uint8_t zmark;			// 'Z'
@@ -234,13 +248,6 @@ private:
 		std::vector<block_t> child;	// vector of child blocks
 	};
 	std::vector<block_t> blocks;
-
-	unsigned char c0;
-	unsigned char c1;
-	uint8_t *product;
-	bool is_bigendian;
-	int64_t targetrate;
-	float ratefactor;
 
 	bool jumpback(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen);
 	bool jumpto(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen);

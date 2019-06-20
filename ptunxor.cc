@@ -37,9 +37,12 @@ int main(int argc, char** argv) {
 		fprintf(stderr, "Can't decrypt pt session, still try to dump...\n");
 	}
 
-	if (ptf.ptfunxored) {
-		for (i = 0; i < ptf.len; i++) {
-			printf("%c", ptf.ptfunxored[i]);
+	const unsigned char* unxored = ptf.unxored_data();
+	uint64_t len = ptf.unxored_size ();
+
+	if (unxored) {
+		for (i = 0; i < len; i++) {
+			printf("%c", unxored[i]);
 		}
 	}
 
