@@ -135,8 +135,6 @@ Track name (Track#) (Region#) @ Absolute:
 
 MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 `MIDI 1` mt(0) mr(1) @ 0
-`MIDI 2` mt(1) mr(2) @ 8000000
-`MIDI 3` mt(2) mr(3) @ 16000000
 `MIDI 1` mt(0) mr(5) @ 8000000
 `MIDI 1` mt(0) mr(5) @ 12000000
 `MIDI 1` mt(0) mr(5) @ 16000000
@@ -145,12 +143,14 @@ MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
 `MIDI 1` mt(0) mr(5) @ 28000000
 `MIDI 1` mt(0) mr(5) @ 32000000
 `MIDI 1` mt(0) mr(5) @ 36000000
+`MIDI 2` mt(1) mr(2) @ 8000000
 `MIDI 2` mt(1) mr(5) @ 16000000
 `MIDI 2` mt(1) mr(5) @ 20000000
 `MIDI 2` mt(1) mr(5) @ 24000000
 `MIDI 2` mt(1) mr(5) @ 28000000
 `MIDI 2` mt(1) mr(5) @ 32000000
 `MIDI 2` mt(1) mr(5) @ 36000000
+`MIDI 3` mt(2) mr(3) @ 16000000
 `MIDI 3` mt(2) mr(3) @ 24000000
 `MIDI 3` mt(2) mr(3) @ 32000000
 
