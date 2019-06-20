@@ -704,9 +704,11 @@ PTFFormat::parseaudio(void) {
 					for (i = n = 0; (pos < c->offset + c->block_size) && (n < nwavs); i++) {
 						str = parsestring(pos);
 						wavname = std::string(str);
+						free(str);
 						pos += wavname.size() + 4;
 						str = strndup((const char *)&ptfunxored[pos], 4);
 						wavtype = std::string(str);
+						free(str);
 						pos += 9;
 						if (foundin(wavname, std::string(".grp")))
 							continue;
@@ -909,6 +911,7 @@ PTFFormat::parserest(void) {
 					j = c->offset + 11;
 					reg = parsestring(j);
 					regionname = std::string(reg);
+					free(reg);
 					j += regionname.size() + 4;
 
 					r.name = regionname;
@@ -958,6 +961,7 @@ PTFFormat::parserest(void) {
 						//verbose_printf("%s : %d(%d)\n", reg, nch, ch_map[0]);
 						j += 2;
 					}
+					free(reg);
 				}
 			}
 		}
@@ -976,6 +980,7 @@ PTFFormat::parserest(void) {
 					j = c->offset + 4;
 					reg = parsestring(j);
 					trackname = std::string(reg);
+					free(reg);
 					j += trackname.size() + 4 + 18;
 					//tindex = u_endian_read4(&ptfunxored[j], is_bigendian);
 
@@ -1016,6 +1021,7 @@ PTFFormat::parserest(void) {
 				if (c->content_type == 0x1011) {
 					reg = parsestring(c->offset + 2);
 					regionname = std::string(reg);
+					free(reg);
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
 						if (d->content_type == 0x100f) {
@@ -1054,6 +1060,7 @@ PTFFormat::parserest(void) {
 				if (c->content_type == 0x1052) {
 					reg = parsestring(c->offset + 2);
 					regionname = std::string(reg);
+					free(reg);
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
 						if (d->content_type == 0x1050) {
@@ -1201,6 +1208,7 @@ PTFFormat::parsemidi(void) {
 							midiregions.push_back(r);
 							//verbose_printf("MIDI %s : r(%d) (%llu, %llu, %llu)\n", str, rindex, zero_ticks, region_pos, midi_len);
 							//dump_block(*d, 1);
+							free(str);
 						}
 					}
 				}
@@ -1275,6 +1283,7 @@ PTFFormat::parsemidi(void) {
 								verbose_printf("%s : MIDI region mr(%d) ?(%d) (%llu %llu %llu)\n", str, mindex, n, start, offset, length);
 								mindex++;
 							}
+							free(str);
 						}
 					}
 				}
@@ -1293,6 +1302,7 @@ PTFFormat::parsemidi(void) {
 				if (c->content_type == 0x1057) {
 					str = parsestring(c->offset + 2);
 					regionname = std::string(str);
+					free(str);
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
 						if (d->content_type == 0x1056) {
