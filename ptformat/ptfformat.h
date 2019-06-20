@@ -66,6 +66,7 @@ public:
 				this->index == other.index);
 		}
 
+		wav_t (uint16_t idx = 0) : index (idx), posabsolute (0), length (0) {}
 	};
 
 	struct midi_ev_t {
@@ -73,9 +74,10 @@ public:
 		uint64_t length;
 		uint8_t note;
 		uint8_t velocity;
+		midi_ev_t () : pos (0), length (0), note (0), velocity (0) {}
 	};
 
-	typedef struct region {
+	struct region_t {
 		std::string name;
 		uint16_t    index;
 		int64_t     startpos;
@@ -84,41 +86,39 @@ public:
 		wav_t       wave;
 		std::vector<midi_ev_t> midi;
 
-		bool operator ==(const struct region& other) {
+		bool operator ==(const region_t& other) const {
 			return (this->index == other.index);
 		}
 
-		bool operator <(const struct region& other) const {
+		bool operator <(const region_t& other) const {
 			return (strcasecmp(this->name.c_str(),
 					other.name.c_str()) < 0);
 		}
-	} region_t;
+		region_t (uint16_t idx = 0) : index (idx), startpos (0), sampleoffset (0), length (0) {}
+	};
 
-	typedef struct track {
+	struct track_t {
 		std::string name;
 		uint16_t    index;
 		uint8_t     playlist;
 		region_t    reg;
 
-		bool operator <(const struct track& other) const {
+		bool operator <(const track_t& other) const {
 			return (this->index < other.index);
 		}
 
-		bool operator ==(const struct track& other) {
+		bool operator ==(const track_t& other) const {
 			return (this->index == other.index);
 		}
-	} track_t;
+		track_t (uint16_t idx = 0) : index (idx), playlist (0) {}
+	};
 
 	bool find_track(uint16_t index, std::vector<track_t>::iterator& ti) {
 		std::vector<track_t>::iterator begin = tracks.begin();
 		std::vector<track_t>::iterator finish = tracks.end();
 		std::vector<track_t>::iterator found;
 
-		// Create dummy track with index
-		wav_t w = { std::string(""), 0, 0, 0 };
-		std::vector<midi_ev_t> m;
-		region_t r = { std::string(""), 0, 0, 0, 0, w, m};
-		track_t t = { std::string(""), index, 0, r};
+		track_t t (index);
 
 		if ((found = std::find(begin, finish, t)) != finish) {
 			ti = found;
@@ -132,9 +132,8 @@ public:
 		std::vector<region_t>::iterator finish = regions.end();
 		std::vector<region_t>::iterator found;
 
-		wav_t w = { std::string(""), 0, 0, 0 };
-		std::vector<midi_ev_t> m;
-		region_t r = { std::string(""), index, 0, 0, 0, w, m};
+		region_t r;
+		r.index = index;
 
 		if ((found = std::find(begin, finish, r)) != finish) {
 			ri = found;
@@ -148,11 +147,7 @@ public:
 		std::vector<track_t>::iterator finish = miditracks.end();
 		std::vector<track_t>::iterator found;
 
-		// Create dummy track with index
-		wav_t w = { std::string(""), 0, 0, 0 };
-		std::vector<midi_ev_t> m;
-		region_t r = { std::string(""), 0, 0, 0, 0, w, m};
-		track_t t = { std::string(""), index, 0, r};
+		track_t t (index);
 
 		if ((found = std::find(begin, finish, t)) != finish) {
 			ti = found;
@@ -166,9 +161,7 @@ public:
 		std::vector<region_t>::iterator finish = midiregions.end();
 		std::vector<region_t>::iterator found;
 
-		wav_t w = { std::string(""), 0, 0, 0 };
-		std::vector<midi_ev_t> m;
-		region_t r = { std::string(""), index, 0, 0, 0, w, m};
+		region_t r (index);
 
 		if ((found = std::find(begin, finish, r)) != finish) {
 			ri = found;
@@ -182,7 +175,7 @@ public:
 		std::vector<wav_t>::iterator finish = audiofiles.end();
 		std::vector<wav_t>::iterator found;
 
-		wav_t w = { std::string(""), index, 0, 0 };
+		wav_t w (index);
 
 		if ((found = std::find(begin, finish, w)) != finish) {
 			wi = found;
@@ -196,9 +189,7 @@ public:
 		std::vector<region_t>::iterator finish = reg.end();
 		std::vector<region_t>::iterator found;
 
-		wav_t w = { std::string(""), 0, 0, 0 };
-		std::vector<midi_ev_t> m;
-		region_t r = { std::string(""), index, 0, 0, 0, w, m};
+		region_t r (index);
 
 		if ((found = std::find(begin, finish, r)) != finish) {
 			return true;
@@ -211,7 +202,7 @@ public:
 		std::vector<wav_t>::iterator finish = wv.end();
 		std::vector<wav_t>::iterator found;
 
-		wav_t w = { std::string(""), index, 0, 0 };
+		wav_t w (index);
 
 		if ((found = std::find(begin, finish, w)) != finish) {
 			return true;

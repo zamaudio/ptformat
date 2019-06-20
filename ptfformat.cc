@@ -761,7 +761,8 @@ PTFFormat::parseaudio(void) {
 								continue;
 							}
 						}
-						wav_t f = { wavname, (uint16_t)n, 0, 0 };
+						wav_t f (n);
+						f.filename = wavname;
 						n++;
 						audiofiles.push_back(f);
 					}
@@ -885,12 +886,9 @@ PTFFormat::parse_region_info(uint32_t j, block_t& blk, region_t& r) {
 	parse_three_point(j, start, sampleoffset, length);
 
 	findex = u_endian_read4(&ptfunxored[blk.offset + blk.block_size], is_bigendian);
-	wav_t f = {
-		"",
-		(uint16_t)findex,
-		(int64_t)(start*ratefactor),
-		(int64_t)(length*ratefactor),
-	};
+	wav_t f (findex);
+	f.posabsolute = start * ratefactor;
+	f.length = length * ratefactor;
 
 	vector<wav_t>::iterator found;
 	if (find_wav(findex, found)) {
@@ -967,16 +965,10 @@ PTFFormat::parserest(void) {
 						std::vector<track_t>::iterator ti;
 						if (!find_track(ch_map[i], ti)) {
 							// Add a dummy region for now
-							wav_t w = { std::string(""), 0, 0, 0 };
-							std::vector<midi_ev_t> m;
-							region_t r = { std::string(""), 65535, 0, 0, 0, w, m};
-
-							track_t t = {
-								trackname,
-								ch_map[i],
-								uint8_t(0),
-								r
-							};
+							region_t r (65535);
+							track_t t (ch_map[i]);
+							t.name = trackname;
+							t.reg = r;
 							tracks.push_back(t);
 						}
 						//verbose_printf("%s : %d(%d)\n", reg, nch, ch_map[0]);
@@ -1008,16 +1000,10 @@ PTFFormat::parserest(void) {
 					std::vector<track_t>::iterator ti;
 
 					// Add a dummy region for now
-					wav_t w = { std::string(""), 0, 0, 0 };
-					std::vector<midi_ev_t> m;
-					region_t r = { std::string(""), 65535, 0, 0, 0, w, m};
-
-					track_t t = {
-						trackname,
-						mindex,
-						uint8_t(0),
-						r
-					};
+					region_t r (65535);
+					track_t t (mindex);
+					t.name = trackname;
+					t.reg = r;
 
 					// If the current track is not an audio track, insert as midi track
 					if (!(find_track(tindex, ti) && foundin(trackname, (*ti).name))) {
@@ -1215,17 +1201,13 @@ PTFFormat::parsemidi(void) {
 							rindex = u_endian_read4(&ptfunxored[j], is_bigendian);
 							struct mchunk mc = *(midichunks.begin()+rindex);
 
-							wav_t w = { std::string(""), 0, 0, 0 };
-							region_t r = {
-								midiregionname,
-								regionnumber++,
-								(int64_t)0xe8d4a51000ULL,
-								(int64_t)0,
-								//(int64_t)(max_pos*sessionrate*60/(960000*120)),
-								(int64_t)mc.maxlen,
-								w,
-								mc.chunk,
-							};
+							region_t r (regionnumber++);
+							r.name = midiregionname;
+							r.startpos = (int64_t)0xe8d4a51000ULL;
+							r.sampleoffset = 0;
+							r.length = mc.maxlen;
+							r.midi = mc.chunk;
+
 							midiregions.push_back(r);
 							//verbose_printf("MIDI %s : r(%d) (%llu, %llu, %llu)\n", str, rindex, zero_ticks, region_pos, midi_len);
 							//dump_block(*d, 1);
@@ -1289,17 +1271,11 @@ PTFFormat::parsemidi(void) {
 								// Plain MIDI region
 								struct mchunk mc = *(midichunks.begin()+n);
 
-								wav_t w = { std::string(""), 0, 0, 0 };
-								region_t r = {
-									midiregionname,
-									(uint16_t)n,
-									(int64_t)0xe8d4a51000ULL,
-									(int64_t)0,
-									//(int64_t)(max_pos*sessionrate*60/(960000*120)),
-									(int64_t)mc.maxlen,
-									w,
-									mc.chunk,
-								};
+								region_t r (n);
+								r.name = midiregionname;
+								r.startpos = (int64_t)0xe8d4a51000ULL;
+								r.length = mc.maxlen;
+								r.midi = mc.chunk;
 								midiregions.push_back(r);
 								verbose_printf("%s : MIDI region mr(%d) ?(%d) (%llu %llu %llu)\n", str, mindex, n, start, offset, length);
 								mindex++;
