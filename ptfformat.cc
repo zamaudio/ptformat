@@ -81,7 +81,7 @@ hexdump(uint8_t *data, int length, int level)
 	}
 }
 
-PTFFormat::PTFFormat() : version(0), product(NULL), ptfunxored(NULL) {
+PTFFormat::PTFFormat() : ptfunxored(NULL), version(0), product(NULL) {
 }
 
 PTFFormat::~PTFFormat() {
@@ -271,7 +271,6 @@ PTFFormat::cleanup(void) {
 	audiofiles.clear();
 	regions.clear();
 	midiregions.clear();
-	compounds.clear();
 	tracks.clear();
 	miditracks.clear();
 	version = 0;
@@ -741,7 +740,6 @@ PTFFormat::parseaudio(void) {
 						}
 						wav_t f = { wavname, (uint16_t)n, 0, 0 };
 						n++;
-						actualwavs.push_back(f);
 						audiofiles.push_back(f);
 					}
 				}

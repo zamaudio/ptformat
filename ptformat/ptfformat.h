@@ -49,17 +49,6 @@ public:
 	*/
 	int unxor(std::string path);
 
-	struct block_t;
-
-	struct block_t {
-		uint8_t zmark;			// 'Z'
-		uint16_t block_type;		// type of block
-		uint32_t block_size;		// size of block
-		uint16_t content_type;		// type of content
-		uint32_t offset;		// offset in file
-		std::vector<block_t> child;	// vector of child blocks
-	};
-
 	struct wav_t {
 		std::string filename;
 		uint16_t    index;
@@ -105,15 +94,6 @@ public:
 		}
 	} region_t;
 
-	typedef struct compound {
-		uint16_t curr_index;
-		uint16_t unknown1;
-		uint16_t level;
-		uint16_t ontopof_index;
-		uint16_t next_index;
-		std::string name;
-	} compound_t;
-
 	typedef struct track {
 		std::string name;
 		uint16_t    index;
@@ -128,14 +108,6 @@ public:
 			return (this->index == other.index);
 		}
 	} track_t;
-
-	std::vector<block_t> blocks;
-	std::vector<wav_t> audiofiles;
-	std::vector<region_t> regions;
-	std::vector<region_t> midiregions;
-	std::vector<compound_t> compounds;
-	std::vector<track_t> tracks;
-	std::vector<track_t> miditracks;
 
 	bool find_track(uint16_t index, std::vector<track_t>::iterator& ti) {
 		std::vector<track_t>::iterator begin = tracks.begin();
@@ -247,19 +219,38 @@ public:
 		return false;
 	}
 
-	int64_t sessionrate;
-	int64_t targetrate;
-	uint8_t version;
-	uint8_t *product;
+	std::vector<wav_t> audiofiles;
+	std::vector<region_t> regions;
+	std::vector<region_t> midiregions;
+	std::vector<track_t> tracks;
+	std::vector<track_t> miditracks;
+
 	std::string path;
+	unsigned char *ptfunxored;
+	uint64_t len;
+	int64_t sessionrate;
+	uint8_t version;
+
+private:
+	struct block_t;
+
+	struct block_t {
+		uint8_t zmark;			// 'Z'
+		uint16_t block_type;		// type of block
+		uint32_t block_size;		// size of block
+		uint16_t content_type;		// type of content
+		uint32_t offset;		// offset in file
+		std::vector<block_t> child;	// vector of child blocks
+	};
+	std::vector<block_t> blocks;
 
 	unsigned char c0;
 	unsigned char c1;
-	unsigned char *ptfunxored;
-	uint64_t len;
+	uint8_t *product;
 	bool is_bigendian;
+	int64_t targetrate;
+	float ratefactor;
 
-private:
 	bool jumpback(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen);
 	bool jumpto(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen);
 	bool foundin(std::string haystack, std::string needle);
@@ -269,7 +260,6 @@ private:
 	uint32_t u_endian_read4(unsigned char *buf, bool);
 	uint64_t u_endian_read5(unsigned char *buf, bool);
 	uint64_t u_endian_read8(unsigned char *buf, bool);
-
 
 	char *parsestring(uint32_t pos);
 	std::string get_content_description(uint16_t ctype);
@@ -288,24 +278,6 @@ private:
 	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative);
 	void setrates(void);
 	void cleanup(void);
-	void parse5header(void);
-	void parse7header(void);
-	void parse8header(void);
-	void parse9header(void);
-	void parse10header(void);
-	void parserest5(void);
-	void parserest89(void);
-	void parserest12(void);
-	void parseaudio5(void);
-	void parsemidi12(void);
-	void resort(std::vector<wav_t>& ws);
-	void resort(std::vector<region_t>& rs);
-	void filter(std::vector<region_t>& rs);
-	std::vector<wav_t> actualwavs;
-	float ratefactor;
-	std::string extension;
-	uint32_t upto;
 };
-
 
 #endif
