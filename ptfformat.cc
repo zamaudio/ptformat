@@ -273,6 +273,7 @@ PTFFormat::cleanup(void) {
 	midiregions.clear();
 	tracks.clear();
 	miditracks.clear();
+	free_all_blocks();
 	version = 0;
 	product = NULL;
 }
@@ -613,6 +614,28 @@ PTFFormat::dump_block(struct block_t& b, int level)
 			c != b.child.end(); ++c) {
 		dump_block(*c, level + 1);
 	}
+}
+
+void
+PTFFormat::free_block(struct block_t& b)
+{
+	for (vector<PTFFormat::block_t>::iterator c = b.child.begin();
+			c != b.child.end(); ++c) {
+		free_block(*c);
+	}
+
+	b.child.clear();
+}
+
+void
+PTFFormat::free_all_blocks(void)
+{
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		free_block(*b);
+	}
+
+	blocks.clear();
 }
 
 void

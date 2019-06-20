@@ -278,6 +278,8 @@ private:
 	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative);
 	void setrates(void);
 	void cleanup(void);
+	void free_block(struct block_t& b);
+	void free_all_blocks(void);
 };
 
 #endif
