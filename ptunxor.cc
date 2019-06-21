@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <cstdio>
 #include <inttypes.h>
-#include "ptformat/ptfformat.h"
+#include "ptformat/ptformat.h"
 
 int main(int argc, char** argv) {
 	

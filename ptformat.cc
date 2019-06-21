@@ -28,7 +28,13 @@
 
 #include <glib/gstdio.h>
 
-#include "ptformat/ptfformat.h"
+#include "ptformat/ptformat.h"
+
+#define BITCODE			"0010111100101011"
+#define ZMARK			'\x5a'
+#define ZERO_TICKS		0xe8d4a51000ULL
+#define MAX_CONTENT_TYPE	0x3000
+#define MAX_CHANNELS_PER_TRACK	8
 
 #if 0
 #define DEBUG
@@ -41,22 +47,6 @@
 #endif
 
 using namespace std;
-
-static bool wavidx_compare(PTFFormat::wav_t& w1, PTFFormat::wav_t& w2) {
-	return w1.index < w2.index;
-}
-
-static bool wavname_compare(PTFFormat::wav_t& w1, PTFFormat::wav_t& w2) {
-	return (strcasecmp(w1.filename.c_str(), w2.filename.c_str()) < 0);
-}
-
-static bool regidx_compare(PTFFormat::region_t& r1, PTFFormat::region_t& r2) {
-	return r1.index < r2.index;
-}
-
-static bool regname_compare(PTFFormat::region_t& r1, PTFFormat::region_t& r2) {
-	return (strcasecmp(r1.name.c_str(), r2.name.c_str()) < 0);
-}
 
 static void
 hexdump(uint8_t *data, int length, int level)
@@ -97,7 +87,7 @@ PTFFormat::~PTFFormat() {
 	cleanup();
 }
 
-std::string
+const std::string
 PTFFormat::get_content_description(uint16_t ctype) {
 	switch(ctype) {
 	case 0x0030:
@@ -351,7 +341,7 @@ PTFFormat::jumpback(uint32_t *currpos, unsigned char *buf, const uint32_t maxoff
 }
 
 bool
-PTFFormat::foundin(std::string haystack, std::string needle) {
+PTFFormat::foundin(std::string const& haystack, std::string const& needle) {
 	size_t found = haystack.find(needle);
 	if (found != std::string::npos) {
 		return true;

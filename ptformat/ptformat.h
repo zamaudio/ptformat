@@ -28,12 +28,6 @@
 #include <stdint.h>
 #include "ptformat/visibility.h"
 
-#define BITCODE			"0010111100101011"
-#define ZMARK			'\x5a'
-#define ZERO_TICKS		0xe8d4a51000ULL
-#define MAX_CONTENT_TYPE	0x3000
-#define MAX_CHANNELS_PER_TRACK	8
-
 class LIBPTFORMAT_API PTFFormat {
 public:
 	PTFFormat();
@@ -251,7 +245,7 @@ private:
 
 	bool jumpback(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen);
 	bool jumpto(uint32_t *currpos, unsigned char *buf, const uint32_t maxoffset, const unsigned char *needle, const uint32_t needlelen);
-	bool foundin(std::string haystack, std::string needle);
+	bool foundin(std::string const& haystack, std::string const& needle);
 	int64_t foundat(unsigned char *haystack, uint64_t n, const char *needle);
 	uint16_t u_endian_read2(unsigned char *buf, bool);
 	uint32_t u_endian_read3(unsigned char *buf, bool);
@@ -260,7 +254,7 @@ private:
 	uint64_t u_endian_read8(unsigned char *buf, bool);
 
 	char *parsestring(uint32_t pos);
-	std::string get_content_description(uint16_t ctype);
+	const std::string get_content_description(uint16_t ctype);
 	int parse(void);
 	void parseblocks(void);
 	bool parseheader(void);
