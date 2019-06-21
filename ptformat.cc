@@ -351,7 +351,7 @@ PTFFormat::foundin(std::string const& haystack, std::string const& needle) {
 }
 
 /* Return values:	0            success
-			-1           could not decrypt pt session
+			-1           error decrypting pt session
 */
 int
 PTFFormat::unxor(std::string const& path) {
@@ -426,7 +426,10 @@ PTFFormat::unxor(std::string const& path) {
 }
 
 /* Return values:	0            success
-			-1           could not parse pt session
+			-1           error decrypting pt session
+			-2           error detecting pt session
+			-3           incompatible pt version
+			-4           error parsing pt session
 */
 int
 PTFFormat::load(std::string const& ptf, int64_t targetsr) {

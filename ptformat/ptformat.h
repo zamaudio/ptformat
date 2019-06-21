@@ -34,12 +34,15 @@ public:
 	~PTFFormat();
 
 	/* Return values:	0            success
-				-1           could not parse pt session
+				-1           error decrypting pt session
+				-2           error detecting pt session
+				-3           incompatible pt version
+				-4           error parsing pt session
 	*/
 	int load(std::string const& path, int64_t targetsr);
 
 	/* Return values:	0            success
-				-1           could not decrypt pt session
+				-1           error decrypting pt session
 	*/
 	int unxor(std::string const& path);
 
