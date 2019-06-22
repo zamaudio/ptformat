@@ -1,7 +1,8 @@
 /*
  * libptformat - a library to read ProTools sessions
  *
- * Copyright (C) 2015  Damien Zammit
+ * Copyright (C) 2015-2019  Damien Zammit
+ * Copyright (C) 2015-2019  Robin Gareus
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
