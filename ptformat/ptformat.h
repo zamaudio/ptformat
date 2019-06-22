@@ -267,7 +267,7 @@ private:
 	bool parseaudio(void);
 	bool parsemidi(void);
 	void dump(void);
-	bool parse_block_at(uint32_t pos, struct block_t *b, int level);
+	bool parse_block_at(uint32_t pos, struct block_t *b, struct block_t *parent, int level);
 	void dump_block(struct block_t& b, int level);
 	bool parse_version();
 	void parse_region_info(uint32_t j, block_t& blk, region_t& r);

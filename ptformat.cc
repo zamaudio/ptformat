@@ -566,17 +566,17 @@ PTFFormat::setrates(void) {
 }
 
 bool
-PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
+PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, struct block_t *parent, int level) {
 	struct block_t b;
 	int childjump = 0;
 	uint32_t i;
+	uint32_t max = _len;
 
-	if (pos + 7 > _len)
-		return false;
-	if (level > 5)
-		return false;
 	if (_ptfunxored[pos] != ZMARK)
 		return false;
+
+	if (parent)
+		max = parent->block_size + parent->offset;
 
 	b.zmark = ZMARK;
 	b.block_type = u_endian_read2(&_ptfunxored[pos+1], is_bigendian);
@@ -584,7 +584,7 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
 	b.content_type = u_endian_read2(&_ptfunxored[pos+7], is_bigendian);
 	b.offset = pos + 7;
 
-	if (b.block_size + b.offset > _len)
+	if (b.block_size + b.offset > max)
 		return false;
 	if (b.block_type & 0xff00)
 		return false;
@@ -596,11 +596,11 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
 	block->offset = b.offset;
 	memset(&block->child, 0, sizeof(block->child));
 
-	for (i = 1; (i < block->block_size) && (pos + i + childjump < _len); i += childjump ? childjump : 1) {
+	for (i = 1; (i < block->block_size) && (pos + i + childjump < max); i += childjump ? childjump : 1) {
 		int p = pos + i;
 		struct block_t bchild;
 		childjump = 0;
-		if (parse_block_at(p, &bchild, level+1)) {
+		if (parse_block_at(p, &bchild, block, level+1)) {
 			block->child.push_back(bchild);
 			childjump = bchild.block_size + 7;
 		}
@@ -661,7 +661,7 @@ PTFFormat::parseblocks(void) {
 
 	while (i < _len) {
 		struct block_t b;
-		if (parse_block_at(i, &b, 0)) {
+		if (parse_block_at(i, &b, NULL, 0)) {
 			blocks.push_back(b);
 		}
 		i += b.block_size ? b.block_size + 7 : 1;
