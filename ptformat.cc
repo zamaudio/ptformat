@@ -434,9 +434,9 @@ PTFFormat::unxor(std::string const& path) {
 int
 PTFFormat::load(std::string const& ptf, int64_t targetsr) {
 	cleanup();
-	path = ptf;
+	_path = ptf;
 
-	if (unxor(path))
+	if (unxor(_path))
 		return -1;
 
 	if (parse_version())
@@ -1101,9 +1101,11 @@ PTFFormat::parserest(void) {
 		}
 	}
 	for (std::vector<track_t>::iterator tr = _tracks.begin();
-			tr != _tracks.end(); ++tr) {
+			tr != _tracks.end(); /* noop */) {
 		if ((*tr).reg.index == 65535) {
-			_tracks.erase(tr--);
+			tr = _tracks.erase(tr);
+		} else {
+			tr++;
 		}
 	}
 	return found;
@@ -1331,9 +1333,11 @@ PTFFormat::parsemidi(void) {
 		}
 	}
 	for (std::vector<track_t>::iterator tr = _miditracks.begin();
-			tr != _miditracks.end(); ++tr) {
+			tr != _miditracks.end(); /* noop */) {
 		if ((*tr).reg.index == 65535) {
-			_miditracks.erase(tr--);
+			tr = _miditracks.erase(tr);
+		} else {
+			tr++;
 		}
 	}
 	return true;

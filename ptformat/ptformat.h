@@ -207,6 +207,7 @@ public:
 
 	uint8_t version () const { return _version; }
 	int64_t sessionrate () const { return _sessionrate ; }
+	const std::string& path () { return _path; }
 
 	const std::vector<wav_t>&    audiofiles () const { return _audiofiles ; }
 	const std::vector<region_t>& regions () const { return _regions ; }
@@ -225,7 +226,7 @@ private:
 	std::vector<track_t>  _tracks;
 	std::vector<track_t>  _miditracks;
 
-	std::string path;
+	std::string _path;
 
 	unsigned char* _ptfunxored;
 	uint64_t       _len;
