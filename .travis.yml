@@ -1,7 +1,17 @@
 os:
 - linux
+- osx
 
-languages: c++
+languages: generic
+
+env:
+- CXX=g++-4.9
+- CXX=clang++
+
+matrix:
+    exclude:
+    - os: osx
+      env: CXX=g++-4.9
 
 cache: apt
 
@@ -17,9 +27,10 @@ addons:
     - libglib2.0-dev
     - libglib2.0-0
     - pkg-config
+    - clang
 
 script:
-- CXX=g++-4.9 make
+- make
 - ./ptreg
 
 notifications:
