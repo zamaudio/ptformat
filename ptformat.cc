@@ -573,7 +573,7 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
 
 	if (pos + 7 > _len)
 		return false;
-	if (level > 10)
+	if (level > 5)
 		return false;
 	if (_ptfunxored[pos] != ZMARK)
 		return false;
@@ -594,6 +594,7 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, int level) {
 	block->block_size = b.block_size;
 	block->content_type = b.content_type;
 	block->offset = b.offset;
+	memset(&block->child, 0, sizeof(block->child));
 
 	for (i = 1; (i < block->block_size) && (pos + i + childjump < _len); i += childjump ? childjump : 1) {
 		int p = pos + i;
