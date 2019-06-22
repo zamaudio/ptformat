@@ -24,8 +24,6 @@ addons:
     packages:
     - gcc-4.9
     - g++-4.9
-    - libglib2.0-dev
-    - libglib2.0-0
     - pkg-config
     - clang
 

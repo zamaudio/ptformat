@@ -26,7 +26,12 @@
 #include <string.h>
 #include <assert.h>
 
-#include <glib/gstdio.h>
+#ifdef HAVE_GLIB
+# include <glib/gstdio.h>
+# define ptf_open	g_fopen
+#else
+# define ptf_open	fopen
+#endif
 
 #include "ptformat/ptformat.h"
 
@@ -364,7 +369,7 @@ PTFFormat::unxor(std::string const& path) {
 	uint8_t xor_delta;
 	uint16_t xor_len;
 
-	if (! (fp = g_fopen(path.c_str(), "rb"))) {
+	if (! (fp = ptf_open(path.c_str(), "rb"))) {
 		return -1;
 	}
 
