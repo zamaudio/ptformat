@@ -253,7 +253,7 @@ private:
 	bool foundin(std::string const& haystack, std::string const& needle);
 	int64_t foundat(unsigned char *haystack, uint64_t n, const char *needle);
 
-	char *parsestring(uint32_t pos);
+	std::string parsestring(uint32_t pos);
 	const std::string get_content_description(uint16_t ctype);
 	int parse(void);
 	void parseblocks(void);
