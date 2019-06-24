@@ -184,8 +184,8 @@ PTFFormat::get_content_description(uint16_t ctype) {
 	}
 }
 
-uint16_t
-PTFFormat::u_endian_read2(unsigned char *buf, bool bigendian)
+static uint16_t
+u_endian_read2(unsigned char *buf, bool bigendian)
 {
 	if (bigendian) {
 		return ((uint16_t)(buf[0]) << 8) | (uint16_t)(buf[1]);
@@ -194,8 +194,8 @@ PTFFormat::u_endian_read2(unsigned char *buf, bool bigendian)
 	}
 }
 
-uint32_t
-PTFFormat::u_endian_read3(unsigned char *buf, bool bigendian)
+static uint32_t
+u_endian_read3(unsigned char *buf, bool bigendian)
 {
 	if (bigendian) {
 		return ((uint32_t)(buf[0]) << 16) |
@@ -208,8 +208,8 @@ PTFFormat::u_endian_read3(unsigned char *buf, bool bigendian)
 	}
 }
 
-uint32_t
-PTFFormat::u_endian_read4(unsigned char *buf, bool bigendian)
+static uint32_t
+u_endian_read4(unsigned char *buf, bool bigendian)
 {
 	if (bigendian) {
 		return ((uint32_t)(buf[0]) << 24) |
@@ -224,8 +224,8 @@ PTFFormat::u_endian_read4(unsigned char *buf, bool bigendian)
 	}
 }
 
-uint64_t
-PTFFormat::u_endian_read5(unsigned char *buf, bool bigendian)
+static uint64_t
+u_endian_read5(unsigned char *buf, bool bigendian)
 {
 	if (bigendian) {
 		return ((uint64_t)(buf[0]) << 32) |
@@ -242,8 +242,8 @@ PTFFormat::u_endian_read5(unsigned char *buf, bool bigendian)
 	}
 }
 
-uint64_t
-PTFFormat::u_endian_read8(unsigned char *buf, bool bigendian)
+static uint64_t
+u_endian_read8(unsigned char *buf, bool bigendian)
 {
 	if (bigendian) {
 		return ((uint64_t)(buf[0]) << 56) |
