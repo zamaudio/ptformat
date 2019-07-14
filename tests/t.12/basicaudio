@@ -1,0 +1,40 @@
+#!/bin/sh
+
+[ -e ../../tests.sh ] && . ../../tests.sh
+
+NAME="PT12 with audio"
+FILE=../../bins/RegionTest.ptx
+EXPECT='ProTools 12 Session: Samplerate = 44100Hz
+Target samplerate = 48000
+
+1 wavs, 3 regions, 6 active regions
+
+Audio file (WAV#) @ offset, length:
+`region_name_WAV.wav` w(0) @ 0, 5910132
+
+Region (Region#) (WAV#) @ into-sample, length:
+`region_name_region` r(0) w(0) @ 0, 6432797
+`region_name_region-01` r(1) w(0) @ 0, 2884353
+`region_name_region-03` r(2) w(0) @ 1034013, 1404081
+
+MIDI Region (Region#) @ into-sample, length:
+
+Track name (Track#) (Region#) @ Absolute:
+`Track_Name` t(0) r(1) @ 0
+`Audio 1` t(1) r(1) @ 0
+`Audio 2` t(2) r(1) @ 0
+`Audio 2` t(3) r(1) @ 0
+`Audio 3` t(4) r(2) @ 1034013
+`Audio 3` t(5) r(2) @ 1034013
+
+MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
+
+Track name (Track#) (WAV filename) @ Absolute + Into-sample, Length:
+`Track_Name` t(0) (region_name_WAV.wav) @ 0 + 0, 2884353
+`Audio 1` t(1) (region_name_WAV.wav) @ 0 + 0, 2884353
+`Audio 2` t(2) (region_name_WAV.wav) @ 0 + 0, 2884353
+`Audio 2` t(3) (region_name_WAV.wav) @ 0 + 0, 2884353
+`Audio 3` t(4) (region_name_WAV.wav) @ 1034013 + 1034013, 1404081
+`Audio 3` t(5) (region_name_WAV.wav) @ 1034013 + 1034013, 1404081'
+
+run_test
