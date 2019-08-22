@@ -79,7 +79,7 @@ def make_sox_cmds(args, coords):
     cmds = []
     sox_exe = shutil.which("sox")
     for k, v in coords.items():
-        for region in v:
+        for i, region in enumerate(v):
             #print(region)
             # puts toether the cmd: sox 'input_file' output_file -p 552s || echo "error"
             cmd = str(
@@ -87,7 +87,7 @@ def make_sox_cmds(args, coords):
                 os.path.join(args.ptx_audio_dir, region[1]) + "' " +
                 os.path.join(args.output_dir,
                              "\(" + str(k) + "\)" +
-                             region[0] + "__" +
+                             region[0] + "__" + str(i) + "_" +
                              region[1].replace(" ", "")
                 ) + " pad " + str(
                     region[2] - region[3]) +
