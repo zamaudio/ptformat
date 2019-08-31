@@ -1,10 +1,11 @@
 ptformat [![travis](https://travis-ci.org/zamaudio/ptformat.svg?branch=master)](https://travis-ci.org/zamaudio/ptformat)
 ========
+
 ptformat reads and parses ProTools session files.
 
 Audio and MIDI source/region/track information is extracted, as well as MIDI note events.
 
-The idea is to make ardour open PT sessions.
+The idea is to make [ardour](https://ardour.org/) open PT sessions.
 
 Current functionality:
 
@@ -15,6 +16,7 @@ Decrypt and parse a PT file:
 
 API
 ===
+
 See ptftool.cc for example usage
 
 What works?
@@ -69,6 +71,7 @@ TODO
 ====
 
 - Add >= PT10 Compound MIDI/Audio region support
+
 
 
 Binaries in `bins/`
