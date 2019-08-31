@@ -1,7 +1,7 @@
 ptformat [![travis](https://travis-ci.org/zamaudio/ptformat.svg?branch=master)](https://travis-ci.org/zamaudio/ptformat)
 ========
 
-ptformat reads and parses ProTools session files.
+ptformat reads and parses [ProTools](https://www.avid.com/pro-tools) session files.
 
 Audio and MIDI source/region/track information is extracted, as well as MIDI note events.
 
@@ -72,7 +72,6 @@ TODO
 ====
 
 - Add >= PT10 Compound MIDI/Audio region support
-
 
 
 Binaries in `bins/`
