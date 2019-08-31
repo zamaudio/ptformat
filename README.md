@@ -6,7 +6,8 @@ Audio and MIDI source/region/track information is extracted, as well as MIDI not
 
 The idea is to make ardour open PT sessions.
 
-Current functionality:
+Current functionality
+===
 
 Decrypt and parse a PT file:
 
