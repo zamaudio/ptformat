@@ -29,6 +29,11 @@
 #include <stdint.h>
 #include "ptformat/visibility.h"
 
+#ifdef _MSC_VER 
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif
+
 class LIBPTFORMAT_API PTFFormat {
 public:
 	PTFFormat();
