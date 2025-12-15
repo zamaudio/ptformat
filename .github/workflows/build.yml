@@ -1,0 +1,10 @@
+name: ptformat_builder_action
+run-name: Testing ptformat changes from ${{ github.actor }}
+on: [push]
+jobs:
+  check-pt-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: make
+      - run: ./ptreg

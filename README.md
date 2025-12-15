@@ -1,4 +1,4 @@
-ptformat [![travis](https://travis-ci.org/zamaudio/ptformat.svg?branch=master)](https://travis-ci.org/zamaudio/ptformat)
+ptformat [![badge](https://github.com/zamaudio/ptformat/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/zamaudio/ptformat/actions)
 ========
 
 ptformat reads and parses [ProTools](https://www.avid.com/pro-tools) session files.
