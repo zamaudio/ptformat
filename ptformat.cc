@@ -702,7 +702,9 @@ PTFFormat::parseaudio(void) {
 							if (!(foundin(wavtype, std::string("WAVE")) ||
 									foundin(wavtype, std::string("EVAW")) ||
 									foundin(wavtype, std::string("AIFF")) ||
-									foundin(wavtype, std::string("FFIA"))) ) {
+									foundin(wavtype, std::string("FFIA")) ||
+									foundin(wavtype, std::string("fFXM")) ||
+									foundin(wavtype, std::string("MXFf"))) ) {
 								continue;
 							}
 						} else {
@@ -710,11 +712,14 @@ PTFFormat::parseaudio(void) {
 								if (!(foundin(wavtype, std::string("WAVE")) ||
 										foundin(wavtype, std::string("EVAW")) ||
 										foundin(wavtype, std::string("AIFF")) ||
-										foundin(wavtype, std::string("FFIA"))) ) {
+										foundin(wavtype, std::string("FFIA")) ||
+										foundin(wavtype, std::string("fFXM")) ||
+										foundin(wavtype, std::string("MXFf"))) ) {
 									continue;
 								}
-							} else if (!(foundin(wavname, std::string(".wav")) || 
-									foundin(wavname, std::string(".aif"))) ) {
+							} else if (!(foundin(wavname, std::string(".wav")) ||
+									foundin(wavname, std::string(".aif")) ||
+									foundin(wavname, std::string(".mxf"))) ) {
 								continue;
 							}
 						}
