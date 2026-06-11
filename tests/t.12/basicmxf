@@ -1,0 +1,28 @@
+#!/bin/sh
+
+[ -e ../../tests.sh ] && . ../../tests.sh
+
+NAME="PT12 with MXF audio"
+FILE=../../bins/TestMXF.ptx
+EXPECT='ProTools 12 Session: Samplerate = 48000Hz
+Target samplerate = 48000
+
+1 wavs, 1 regions, 1 active regions
+
+Audio file (WAV#) @ offset, length:
+`sine.mxf` w(0) @ 0, 96000
+
+Region (Region#) (WAV#) @ into-sample, length:
+`sine` r(0) w(0) @ 0, 96000
+
+MIDI Region (Region#) @ into-sample, length:
+
+Track name (Track#) (Region#) @ Absolute:
+`sine` t(0) r(0) @ 226560
+
+MIDI Track name (MIDITrack#) (MIDIRegion#) @ Absolute:
+
+Track name (Track#) (WAV filename) @ Absolute + Into-sample, Length:
+`sine` t(0) (sine.mxf) @ 226560 + 0, 96000'
+
+run_test
