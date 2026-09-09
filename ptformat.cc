@@ -1038,7 +1038,10 @@ PTFFormat::parserest(void) {
 									j = e->offset + 4;
 									rawindex = u_endian_read4(&_ptfunxored[j], is_bigendian);
 									j += 4 + 1;
-									start = u_endian_read4(&_ptfunxored[j], is_bigendian);
+									start = u_endian_read5(&_ptfunxored[j], is_bigendian);
+									if (start >= ZERO_TICKS) {
+										start = start - ZERO_TICKS;
+									}
 									tindex = count;
 									track_t ti;
 									if (!find_track(tindex, ti)) {
