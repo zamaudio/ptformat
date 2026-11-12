@@ -243,6 +243,27 @@ others are refused because the session holds another input path with
 the name). Not yet checked in Pro Tools.
 
 
+Rendering a track
+=================
+
+To write the audio of one track to a 32-bit float WAV file, with the
+clip gain of each region and the track volume applied:
+
+	make
+	./ptbounce [--from at] [--to at] file.pt{x,f} track out.wav [audio dir ...]
+
+The WAV has one channel per track channel and runs from the start of the
+first region to the end of the last one, or from --from to --to
+(timecode or samples); its bext chunk holds the start. Clip gain and
+volume (the volume automation, or the fader without it) are added in dB;
+between two automation points the volume is taken as a straight line in
+dB, which is not yet checked against Pro Tools. Muted regions are
+silent. Plugins, fades, clip gain lines of more than one point, trim,
+VCA, mute and pan are not applied. On a real mono track the result
+matches the source files with the clip gain applied to within float
+rounding.
+
+
 Hacking
 =======
 
