@@ -112,6 +112,37 @@ public:
 		region_t (uint16_t idx = 0) : index (idx), startpos (0), sampleoffset (0), length (0), channel (0) {}
 	};
 
+	/* A memory location: its number, name and position in samples at the
+	 * target rate; start == end for a marker. */
+	struct marker_t {
+		uint16_t    index;
+		std::string name;
+		int64_t     start;
+		int64_t     end;
+		marker_t () : index (0), start (0), end (0) {}
+	};
+
+	/* A plugin the session uses: its name, its three 4-character AAX
+	 * codes as stored in the catalog (12 characters), and its bundle id
+	 * (for example com.avid.aax.trim). */
+	struct plugin_t {
+		std::string name;
+		std::string codes;
+		std::string bundle;
+	};
+
+	/* A plugin inserted in a mixer strip. slot counts from 0 (insert A);
+	 * strip_type is the strip's block type: 0x261c for audio tracks and
+	 * 0x261e for aux tracks in the sessions seen. plugin is empty when the
+	 * inserted plugin is not in the catalog. */
+	struct insert_t {
+		std::string strip;
+		uint16_t    strip_type;
+		uint16_t    slot;
+		plugin_t    plugin;
+		insert_t () : strip_type (0), slot (0) {}
+	};
+
 	struct track_t {
 		std::string name;
 		uint16_t    index;
@@ -242,6 +273,9 @@ public:
 	const std::vector<region_t>& midiregions () const { return _midiregions ; }
 	const std::vector<track_t>&  tracks () const { return _tracks ; }
 	const std::vector<track_t>&  miditracks () const { return _miditracks ; }
+	const std::vector<marker_t>& markers () const { return _markers ; }
+	const std::vector<plugin_t>& plugins () const { return _plugins ; }
+	const std::vector<insert_t>& inserts () const { return _inserts ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -253,6 +287,9 @@ private:
 	std::vector<region_t> _midiregions;
 	std::vector<track_t>  _tracks;
 	std::vector<track_t>  _miditracks;
+	std::vector<marker_t> _markers;
+	std::vector<plugin_t> _plugins;
+	std::vector<insert_t> _inserts;
 
 	std::string _path;
 	std::vector<std::string> _sessionpath;
@@ -290,6 +327,9 @@ private:
 	void parseblocks(void);
 	bool parseheader(void);
 	void parsepaths(void);
+	void parsemarkers(void);
+	void parseplugins(void);
+	bool readstring(uint32_t& pos, uint32_t end, std::string& out);
 	bool parserest(void);
 	bool parseaudio(void);
 	bool parsemidi(void);

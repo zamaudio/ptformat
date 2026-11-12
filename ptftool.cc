@@ -178,6 +178,30 @@ int main (int argc, char **argv) {
 				a->reg.length
 				);
 		}
+		if (verbose) {
+			printf("\nMarker (Marker#) @ start, end:\n");
+			for (vector<PTFFormat::marker_t>::const_iterator
+					m = ptf.markers().begin();
+					m != ptf.markers().end(); ++m) {
+				printf("`%s` m(%d) @ %" PRId64 ", %" PRId64 "\n",
+					m->name.c_str(), m->index, m->start, m->end);
+			}
+
+			printf("\nPlugin (codes) bundle:\n");
+			for (vector<PTFFormat::plugin_t>::const_iterator
+					p = ptf.plugins().begin();
+					p != ptf.plugins().end(); ++p) {
+				printf("`%s` (%s) %s\n", p->name.c_str(), p->codes.c_str(), p->bundle.c_str());
+			}
+
+			printf("\nInsert (strip) slot: plugin\n");
+			for (vector<PTFFormat::insert_t>::const_iterator
+					i = ptf.inserts().begin();
+					i != ptf.inserts().end(); ++i) {
+				printf("`%s` %c: %s\n", i->strip.c_str(), 'A' + i->slot,
+					i->plugin.name.empty() ? "?" : i->plugin.name.c_str());
+			}
+		}
 		break;
 	}
 	exit(0);

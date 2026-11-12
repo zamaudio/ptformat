@@ -285,6 +285,9 @@ PTFFormat::cleanup(void) {
 	_miditracks.clear();
 	_sessionpath.clear();
 	_sourcepath.clear();
+	_markers.clear();
+	_plugins.clear();
+	_inserts.clear();
 	free_all_blocks();
 }
 
@@ -644,6 +647,8 @@ PTFFormat::parse(void) {
 		return -1;
 	parsepaths();
 	setrates();
+	parsemarkers();
+	parseplugins();
 	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
 	if (!parseaudio())
@@ -747,6 +752,143 @@ PTFFormat::parsepaths(void) {
 		}
 		_sourcepath = path;
 		return;
+	}
+}
+
+/* Read a 4-byte length and that many bytes at pos, if they fit before
+ * end; advance pos past them. */
+bool
+PTFFormat::readstring(uint32_t& pos, uint32_t end, std::string& out) {
+	if (pos > end || end - pos < 4)
+		return false;
+	uint32_t len = u_endian_read4(&_ptfunxored[pos], is_bigendian);
+	if (len > end - pos - 4)
+		return false;
+	out = std::string((const char *)&_ptfunxored[pos + 4], len);
+	pos += 4 + len;
+	return true;
+}
+
+/* Memory locations: the 0x2030 block holds one 0x2077 block per
+ * location, with its number (2 bytes) at +2, its name at +8 and then its
+ * start and end in samples (8 bytes each). */
+void
+PTFFormat::parsemarkers(void) {
+	_markers.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2030)
+			continue;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != 0x2077 || c->block_size < 8)
+				continue;
+			uint32_t end = c->offset + c->block_size;
+			uint32_t pos = c->offset + 8;
+			marker_t m;
+			m.index = u_endian_read2(&_ptfunxored[c->offset + 2], is_bigendian);
+			if (!readstring(pos, end, m.name) || end - pos < 16)
+				continue;
+			/* In double: a float loses samples past 2^24. */
+			m.start = (int64_t)((double)u_endian_read8(&_ptfunxored[pos], is_bigendian) * _ratefactor);
+			m.end = (int64_t)((double)u_endian_read8(&_ptfunxored[pos + 8], is_bigendian) * _ratefactor);
+			_markers.push_back(m);
+		}
+	}
+}
+
+/* The plugin catalog is the 0x1018 block: one 0x1017 per plugin with its
+ * name at +3, the 12 bytes of its three AAX codes right after it, and its
+ * bundle id 7 bytes later. Inserts are in the mixer (0x2624): each strip
+ * block (0x261c, 0x261e, ...) has a 0x261b with the strip name in
+ * 0x102d/0x2619 and the insert slots in 0x2627, where each slot is a
+ * 0x2616 (plugin) or a 0x2625 (empty). A 0x2616 holds the same three
+ * codes with each one's bytes reversed. */
+void
+PTFFormat::parseplugins(void) {
+	_plugins.clear();
+	_inserts.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x1018)
+			continue;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != 0x1017)
+				continue;
+			uint32_t end = c->offset + c->block_size;
+			uint32_t pos = c->offset + 3;
+			plugin_t pl;
+			if (!readstring(pos, end, pl.name) || end - pos < 19)
+				continue;
+			pl.codes = std::string((const char *)&_ptfunxored[pos], 12);
+			pos += 19;
+			if (!readstring(pos, end, pl.bundle))
+				pl.bundle.clear();
+			_plugins.push_back(pl);
+		}
+	}
+
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2624)
+			continue;
+		for (vector<PTFFormat::block_t>::iterator s = b->child.begin();
+				s != b->child.end(); ++s) {
+			for (vector<PTFFormat::block_t>::iterator x = s->child.begin();
+					x != s->child.end(); ++x) {
+				if (x->content_type != 0x261b)
+					continue;
+				std::string strip;
+				for (vector<PTFFormat::block_t>::iterator y = x->child.begin();
+						y != x->child.end(); ++y) {
+					if (y->content_type != 0x102d)
+						continue;
+					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
+							z != y->child.end(); ++z) {
+						if (z->content_type == 0x2619) {
+							uint32_t pos = z->offset + 2;
+							readstring(pos, z->offset + z->block_size, strip);
+						}
+					}
+				}
+				for (vector<PTFFormat::block_t>::iterator y = x->child.begin();
+						y != x->child.end(); ++y) {
+					if (y->content_type != 0x2627)
+						continue;
+					uint16_t slot = 0;
+					for (vector<PTFFormat::block_t>::iterator i = y->child.begin();
+							i != y->child.end(); ++i) {
+						if (i->content_type == 0x2616) {
+							insert_t ins;
+							ins.strip = strip;
+							ins.strip_type = s->content_type;
+							ins.slot = slot;
+							/* Find the reversed codes of a catalog plugin. */
+							uint32_t end = i->offset + i->block_size;
+							for (vector<plugin_t>::const_iterator pl = _plugins.begin();
+									pl != _plugins.end() && ins.plugin.name.empty(); ++pl) {
+								if (pl->codes.size() != 12)
+									continue;
+								unsigned char want[12];
+								for (int k = 0; k < 3; k++)
+									for (int q = 0; q < 4; q++)
+										want[k * 4 + q] = pl->codes[k * 4 + 3 - q];
+								for (uint32_t at = i->offset; at + 12 <= end; at++) {
+									if (memcmp(&_ptfunxored[at], want, 12) == 0) {
+										ins.plugin = *pl;
+										break;
+									}
+								}
+							}
+							_inserts.push_back(ins);
+						}
+						if (i->content_type == 0x2616 || i->content_type == 0x2625)
+							slot++;
+					}
+				}
+			}
+		}
 	}
 }
 
