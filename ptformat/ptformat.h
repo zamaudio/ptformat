@@ -350,6 +350,19 @@ public:
 	 * parsed again. Changes nothing on disk until save(). */
 	bool set_position(const track_t& placement, int64_t pos);
 
+	/* Split one placement of tracks() at cut, in samples from
+	 * 00:00:00:00: two regions are added for the parts before and after
+	 * the cut, named like Pro Tools names them (the region's name, -01,
+	 * -02, after the highest number in use), with the layout of the
+	 * sub-regions Pro Tools makes in the sessions seen. The placement then
+	 * plays the first part and a new placement right after it the
+	 * second. Each channel of a multichannel track is a placement of its
+	 * own. Only when the session was loaded at its own rate; false, with
+	 * nothing changed, when the cut is not inside the placement, a fade
+	 * touches it, or the region or session has a layout not seen. The
+	 * session is then parsed again. Changes nothing on disk until save(). */
+	bool split_region(const track_t& placement, int64_t cut);
+
 	/* Rename a region of regions() in the loaded session; every
 	 * placement of it shows the new name. The name is stored in the
 	 * region's 0x2628 block, so that block and the two holding it change
@@ -592,7 +605,17 @@ private:
 	void parse_region_info(uint32_t j, block_t& blk, region_t& r);
 	void parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint64_t& length);
 	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) const;
+	/* A 0x1050 entry of a playlist: where it is stored, where its 0x104f
+	 * is, whether it is a fade, and the time it covers. */
+	struct playlist_slot {
+		uint32_t start, end, entry;
+		bool fade;
+		int64_t from, to;
+	};
+	bool playlist_of(uint32_t e, const block_t*& list, std::vector<playlist_slot>& slots, size_t& self);
 	bool reparse(void);
+	std::string region_part(const block_t& def, const block_t& info, const std::string& name,
+		uint64_t offset, uint64_t length, const std::string& id) const;
 	bool region_blocks(uint16_t index, const block_t*& list, const block_t*& def, const block_t*& info) const;
 	uint32_t gain_field(const block_t& info) const;
 	bool splice(uint32_t at, uint32_t oldlen, const std::string& data,

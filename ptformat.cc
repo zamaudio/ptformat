@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 #include <map>
 #include <set>
 #include <string>
@@ -518,13 +519,6 @@ PTFFormat::set_muted(const track_t& placement, bool muted) {
 	return true;
 }
 
-/* A 0x1050 entry of a playlist, for set_position(). */
-struct playlist_slot {
-	uint32_t start, end, entry;
-	bool fade;
-	int64_t from, to;
-};
-
 static bool
 first_less(const std::pair<uint64_t, std::string>& a, const std::pair<uint64_t, std::string>& b)
 {
@@ -744,17 +738,18 @@ PTFFormat::rename_region(const region_t& region, const std::string& name) {
 	return splice(at, 4 + oldlen, data, grow, std::vector<std::pair<uint32_t, uint32_t> >());
 }
 
+/* The playlist (0x1052) holding the 0x104f entry at e, its 0x1050
+ * entries in order (stored back to back, each with one 0x104f) with the
+ * time each covers, and which of them is e. */
 bool
-PTFFormat::set_position(const track_t& placement, int64_t pos) {
-	uint32_t e = placement.entry;
-	if (!_ptfunxored || is_bigendian || pos < 0 || _ratefactor <= 0 || e < 7
+PTFFormat::playlist_of(uint32_t e, const block_t*& list, std::vector<playlist_slot>& slots, size_t& self) {
+	if (!_ptfunxored || is_bigendian || _ratefactor <= 0 || e < 7
 			|| (uint64_t)e + 17 > _len || _ptfunxored[e - 7] != ZMARK
 			|| u_endian_read2(&_ptfunxored[e], false) != 0x104f)
 		return false;
 
-	/* The playlist (0x1052) holding the entry: its 0x1050 children, each
-	 * with one 0x104f, stored back to back. */
-	const block_t *list = NULL;
+	list = NULL;
+	slots.clear();
 	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && !list; ++b) {
 		if (b->content_type != 0x1054)
 			continue;
@@ -772,7 +767,6 @@ PTFFormat::set_position(const track_t& placement, int64_t pos) {
 	if (!list)
 		return false;
 
-	std::vector<playlist_slot> slots;
 	for (std::vector<block_t>::const_iterator c = list->child.begin(); c != list->child.end(); ++c) {
 		if (c->content_type != 0x1050)
 			continue;
@@ -807,12 +801,21 @@ PTFFormat::set_position(const track_t& placement, int64_t pos) {
 		slots.push_back(sl);
 	}
 
-	size_t self = slots.size();
+	self = slots.size();
 	for (size_t i = 0; i < slots.size(); i++) {
 		if (slots[i].entry == e)
 			self = i;
 	}
-	if (self == slots.size() || slots[self].fade)
+	return self < slots.size() && !slots[self].fade;
+}
+
+bool
+PTFFormat::set_position(const track_t& placement, int64_t pos) {
+	uint32_t e = placement.entry;
+	const block_t *list;
+	std::vector<playlist_slot> slots;
+	size_t self;
+	if (pos < 0 || !playlist_of(e, list, slots, self))
 		return false;
 	int64_t length = slots[self].to - slots[self].from;
 	int64_t lo = std::min(slots[self].from, pos), hi = std::max(slots[self].to, pos + length);
@@ -852,6 +855,275 @@ PTFFormat::set_position(const track_t& placement, int64_t pos) {
 	}
 	memcpy(&_ptfunxored[slots[0].start], bytes.data(), bytes.size());
 	return reparse();
+}
+
+/* Little-endian value of n bytes at p. */
+static uint64_t
+readle(const unsigned char *p, int n)
+{
+	uint64_t v = 0;
+	for (int i = 0; i < n; i++)
+		v |= (uint64_t)p[i] << (8 * i);
+	return v;
+}
+
+static void
+appendle(std::string& s, uint64_t v, int n)
+{
+	for (int i = 0; i < n; i++)
+		s += (char)((v >> (8 * i)) & 0xff);
+}
+
+/* Bytes needed for v, 0 for 0. */
+static int
+width(uint64_t v)
+{
+	int w = 0;
+	while (v) {
+		w++;
+		v >>= 8;
+	}
+	return w;
+}
+
+/* 16 random bytes shaped as a version 4 UUID. */
+static std::string
+new_uuid(void)
+{
+	unsigned char b[16];
+	FILE *fp = fopen("/dev/urandom", "rb");
+	bool ok = fp && fread(b, 1, 16, fp) == 16;
+	if (fp)
+		fclose(fp);
+	if (!ok) {
+		srand((unsigned)time(NULL) ^ (unsigned)clock());
+		for (int i = 0; i < 16; i++)
+			b[i] = rand() & 0xff;
+	}
+	b[6] = (b[6] & 0x0f) | 0x40;
+	b[8] = (b[8] & 0x3f) | 0x80;
+	return std::string((const char *)b, 16);
+}
+
+/* A new 0x2629 for a part of the region whose 0x2629 is def (with info,
+ * its 0x2628): the same bytes with another name, the part's offset and
+ * length in the file, a new UUID and the 8-byte id id. Sub-regions
+ * Pro Tools makes store 01 <offset width << 4> <length width << 4> 44 08,
+ * the offset and length in the fewest bytes, the region's two file
+ * references moved by the offset, eight ff bytes and then the rest of
+ * the whole-file layout, with the recording track cleared. Empty when
+ * the region has another layout. */
+std::string
+PTFFormat::region_part(const block_t& def, const block_t& info, const std::string& name,
+		uint64_t offset, uint64_t length, const std::string& id) const {
+	uint32_t at = info.offset + 2;
+	uint32_t nl = u_endian_read4(&_ptfunxored[at], false);
+	uint32_t end = info.offset + info.block_size;
+	uint32_t A = at + 4 + nl;
+	if (nl > info.block_size || A + 5 > end || _ptfunxored[A + 3] != 0x44)
+		return "";
+	int wo = _ptfunxored[A + 1] >> 4, wl = _ptfunxored[A + 2] >> 4;
+	if ((_ptfunxored[A + 1] & 0x0f) || (_ptfunxored[A + 2] & 0x0f) || wo > 4 || wl < 1 || wl > 4
+			|| _ptfunxored[A] > 1)
+		return "";
+	bool whole = (_ptfunxored[A + 4] == 0x00);
+	if (whole ? (wo != 0 || _ptfunxored[A] != 0) : _ptfunxored[A + 4] != 0x08)
+		return "";
+	uint32_t p = A + 5 + wo + wl;	/* the two file references */
+	uint32_t tail = p + 8 + (whole ? 0 : 8);
+	if (tail + 20 > end)
+		return "";
+	if (!whole && memcmp(&_ptfunxored[p + 8], "\xff\xff\xff\xff\xff\xff\xff\xff", 8) != 0)
+		return "";
+	uint64_t oldoff = readle(&_ptfunxored[A + 5], wo);
+	if (length == 0 || offset < oldoff || width(offset) > 4 || width(length) > 4)
+		return "";
+	uint32_t move = (uint32_t)(offset - oldoff);
+
+	std::string mid;
+	mid += (char)0x01;
+	mid += (char)(width(offset) << 4);
+	mid += (char)(width(length) << 4);
+	mid += (char)0x44;
+	mid += (char)0x08;
+	appendle(mid, offset, width(offset));
+	appendle(mid, length, width(length));
+	appendle(mid, (uint32_t)(u_endian_read4(&_ptfunxored[p], false) + move), 4);
+	appendle(mid, (uint32_t)(u_endian_read4(&_ptfunxored[p + 4], false) + move), 4);
+	mid.append(8, '\xff');
+	std::string rest((const char *)&_ptfunxored[tail], end - tail);
+	if (whole && rest.size() >= 33 && memcmp(rest.data() + 20, "\x2a\0\0\0", 4) == 0)
+		rest.replace(20, 13, std::string(13, '\0'));
+	mid += rest;
+
+	std::string info_payload((const char *)&_ptfunxored[info.offset], 2);
+	appendle(info_payload, name.size(), 4);
+	info_payload += name + mid;
+	std::string after((const char *)&_ptfunxored[end], def.offset + def.block_size - end);
+
+	std::string out((const char *)&_ptfunxored[def.offset - 7], 3);
+	appendle(out, 2 + 7 + info_payload.size() + after.size(), 4);
+	out.append((const char *)&_ptfunxored[def.offset], 2);
+	out.append((const char *)&_ptfunxored[info.offset - 7], 3);
+	appendle(out, info_payload.size(), 4);
+	out += info_payload + after;
+
+	/* The UUID is stored after a 0xff in the rest of the 0x2629 and,
+	 * in newer saves, at the end of the 0x2628; replace every copy. */
+	uint32_t u = end + 23;
+	if (u + 16 > def.offset + def.block_size || _ptfunxored[end + 22] != 0xff)
+		return "";
+	std::string olduid((const char *)&_ptfunxored[u], 16), uid = new_uuid();
+	for (size_t i = out.find(olduid); i != std::string::npos; i = out.find(olduid, i + 16))
+		out.replace(i, 16, uid);
+	/* The 8-byte id after the 0x2a 21 bytes from the end. */
+	if (out.size() < 21 || readle((const unsigned char *)out.data() + out.size() - 21, 4) != 0x2a)
+		return "";
+	out.replace(out.size() - 17, 8, id);
+	return out;
+}
+
+bool
+PTFFormat::split_region(const track_t& placement, int64_t cut) {
+	if (_ratefactor != 1.0)
+		return false;
+	const block_t *list;
+	std::vector<playlist_slot> slots;
+	size_t self;
+	uint32_t e = placement.entry;
+	if (!playlist_of(e, list, slots, self))
+		return false;
+	int64_t start = slots[self].from, end = slots[self].to;
+	if (cut <= start || cut >= end)
+		return false;
+	for (size_t i = 0; i < slots.size(); i++) {
+		if (slots[i].fade && slots[i].from <= end && slots[i].to >= start)
+			return false;
+	}
+	region_t r;
+	if (!find_region(u_endian_read4(&_ptfunxored[e + 4], false), r) || (int64_t)r.length != end - start)
+		return false;
+	const block_t *regions, *def, *info;
+	if (!region_blocks(r.index, regions, def, info))
+		return false;
+	uint32_t count = u_endian_read4(&_ptfunxored[regions->offset + 2], false);
+	uint32_t n = 0;
+	for (std::vector<block_t>::const_iterator c = regions->child.begin(); c != regions->child.end(); ++c)
+		n += (c->content_type == 0x2629);
+	if (count != n || n != _regions.size())
+		return false;
+
+	/* Names as Pro Tools gives them: the region's name, a dash and the
+	 * next two numbers after the highest already used. */
+	std::string base = r.name;
+	int high = 0;
+	for (std::vector<region_t>::const_iterator o = _regions.begin(); o != _regions.end(); ++o) {
+		if (o->name.size() > base.size() + 1 && o->name.compare(0, base.size() + 1, base + "-") == 0) {
+			const char *d = o->name.c_str() + base.size() + 1;
+			char *stop;
+			long v = strtol(d, &stop, 10);
+			if (!*stop && v > high)
+				high = (int)v;
+		}
+	}
+	char left[16], right[16];
+	snprintf(left, sizeof left, "-%02d", high + 1);
+	snprintf(right, sizeof right, "-%02d", high + 2);
+
+	/* Two new 8-byte ids after the highest in use, found nowhere else. */
+	uint64_t top = 0;
+	for (std::vector<block_t>::const_iterator c = regions->child.begin(); c != regions->child.end(); ++c) {
+		uint32_t z = c->offset + c->block_size;
+		if (c->content_type == 0x2629 && c->block_size >= 21
+				&& u_endian_read4(&_ptfunxored[z - 21], false) == 0x2a) {
+			uint64_t v = readle(&_ptfunxored[z - 17], 8);
+			if (v > top)
+				top = v;
+		}
+	}
+	std::string ids[2];
+	for (int k = 0; k < 2; k++) {
+		appendle(ids[k], top + 1 + k, 8);
+		for (uint64_t i = 0; i + 8 <= _len; i++) {
+			if (memcmp(&_ptfunxored[i], ids[k].data(), 8) == 0)
+				return false;
+		}
+	}
+
+	uint64_t into = (uint64_t)(cut - start);
+	std::string a = region_part(*def, *info, base + left, r.sampleoffset, into, ids[0]);
+	std::string b = region_part(*def, *info, base + right, r.sampleoffset + into, r.length - into, ids[1]);
+	if (a.empty() || b.empty())
+		return false;
+
+	/* The playlist entry count follows the playlist name. */
+	uint32_t pl = list->offset + 2;
+	uint32_t namelen = u_endian_read4(&_ptfunxored[pl], false);
+	uint32_t countat = pl + 4 + namelen;
+	if (namelen > list->block_size || countat + 4 > list->offset + list->block_size
+			|| u_endian_read4(&_ptfunxored[countat], false) != slots.size())
+		return false;
+
+	/* Keep the session as it is, to restore it if the second step fails. */
+	std::string saved((const char *)_ptfunxored, _len);
+
+	/* 1. Add both regions at the end of the region list. */
+	uint32_t at = regions->offset + regions->block_size;
+	std::vector<const block_t*> grow(1, regions);
+	std::vector<std::pair<uint32_t, uint32_t> > set;
+	set.push_back(std::make_pair(regions->offset + 2, count + 2));
+	int64_t added = (int64_t)(a.size() + b.size());
+	if (!splice(at, 0, a + b, grow, set))
+		return false;
+	if (e >= at)
+		e += added;
+
+	/* 2. The placement plays the left part; a copy of its entry right
+	 * after it plays the right part from the cut. */
+	bool ok = playlist_of(e, list, slots, self);
+	if (ok) {
+		pl = list->offset + 2;
+		countat = pl + 4 + u_endian_read4(&_ptfunxored[pl], false);
+		std::string entry((const char *)&_ptfunxored[slots[self].start], slots[self].end - slots[self].start);
+		uint32_t idx = e - slots[self].start + 4;
+		uint32_t stamp = e - slots[self].start + 9;
+		std::string copy = entry;
+		for (int k = 0; k < 4; k++)
+			copy[idx + k] = (char)(((n + 1) >> (8 * k)) & 0xff);
+		for (int k = 0; k < 8; k++)
+			copy[stamp + k] = (char)(((uint64_t)cut >> (8 * k)) & 0xff);
+		const block_t *map = NULL;
+		for (std::vector<block_t>::const_iterator m = blocks.begin(); m != blocks.end() && !map; ++m) {
+			if (m->content_type != 0x1054)
+				continue;
+			for (std::vector<block_t>::const_iterator l = m->child.begin(); l != m->child.end(); ++l) {
+				if (&*l == list)
+					map = &*m;
+			}
+		}
+		ok = map != NULL;
+		if (ok) {
+			std::vector<const block_t*> grow2;
+			grow2.push_back(list);
+			grow2.push_back(map);
+			std::vector<std::pair<uint32_t, uint32_t> > set2;
+			set2.push_back(std::make_pair(e + 4, n));
+			set2.push_back(std::make_pair(countat, (uint32_t)slots.size() + 1));
+			ok = splice(slots[self].end, 0, copy, grow2, set2);
+		}
+	}
+	if (!ok) {
+		unsigned char *buf = (unsigned char *)malloc(saved.size());
+		if (buf) {
+			memcpy(buf, saved.data(), saved.size());
+			free(_ptfunxored);
+			_ptfunxored = buf;
+			_len = saved.size();
+		}
+		reparse();
+		return false;
+	}
+	return true;
 }
 
 bool

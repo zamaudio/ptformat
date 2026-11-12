@@ -146,6 +146,18 @@ region, or touches or crosses a fade, is refused. Moving and moving
 back gives the original file in all 1,025 tries on 200 sessions. Not
 yet checked in Pro Tools.
 
+To write a copy of a PT10 to PT12 session with the regions of a track
+split at one place:
+
+	./ptsplit in.ptx out.ptx track at
+
+Each part becomes a new region named like Pro Tools does (name-01,
+name-02), built the way Pro Tools builds its own sub-regions in the
+sessions checked. All channels of a multichannel track split together.
+A split where a fade touches the region, or of a region whose layout
+has no Pro Tools example to follow, is refused. Not yet checked in
+Pro Tools.
+
 
 Hacking
 =======
