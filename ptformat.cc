@@ -549,7 +549,11 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, struct block_t *p
 	block->offset = b.offset;
 	block->child.clear();
 
-	for (i = 1; (i < block->block_size) && (pos + i + childjump < max); i += childjump ? childjump : 1) {
+	/* The WAV list starts with a 4-byte file count. When its low byte is
+	 * ZMARK (e.g. 602 = 0x025a) the scan would take it for a block header
+	 * and swallow the WAV names, so start scanning after the count. */
+	i = (block->content_type == 0x1004) ? 13 : 1;
+	for (; (i < block->block_size) && (pos + i + childjump < max); i += childjump ? childjump : 1) {
 		int p = pos + i;
 		struct block_t bchild;
 		childjump = 0;
