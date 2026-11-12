@@ -299,6 +299,7 @@ PTFFormat::cleanup(void) {
 	_gains.clear();
 	_routes.clear();
 	_strips.clear();
+	_groups.clear();
 	_videofiles.clear();
 	_fades.clear();
 	_iopaths.clear();
@@ -1587,6 +1588,7 @@ PTFFormat::parse(void) {
 	setrates();
 	parsemarkers();
 	parseplugins();
+	parsegroups();
 	parsevolumes();
 	parsegains();
 	parsevideo();
@@ -2040,6 +2042,63 @@ PTFFormat::parsemarkers(void) {
 			m.end = (int64_t)(u_endian_read8(&_ptfunxored[pos + 8], is_bigendian) * _ratefactor);
 			_markers.push_back(m);
 		}
+	}
+}
+
+/* Groups: the 0x202b block holds a group count (4 bytes) and then that
+ * many 0x202a blocks, twice (the copies were identical in every session
+ * seen). A 0x202a holds its name at +2, 7 more bytes, the member count
+ * (4 bytes) and one 2-byte track number per member. A track number is
+ * the track's position in the 0x2519 track list, from 0: the <ALL>
+ * group lists 0 to n-1 for the n tracks of that list in every session
+ * seen. */
+void
+PTFFormat::parsegroups(void) {
+	_groups.clear();
+	std::vector<std::string> names;
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2519)
+			continue;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != 0x251a)
+				continue;
+			uint32_t pos = c->offset + 4;
+			std::string name;
+			if (!readstring(pos, c->offset + c->block_size, name))
+				break;
+			names.push_back(name);
+		}
+		break;
+	}
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x202b || b->block_size < 6)
+			continue;
+		uint32_t count = u_endian_read4(&_ptfunxored[b->offset + 2], is_bigendian);
+		for (uint32_t i = 0; i < count && i < b->child.size(); i++) {
+			const block_t& g = b->child[i];
+			if (g.content_type != 0x202a)
+				break;
+			uint32_t end = g.offset + g.block_size;
+			uint32_t pos = g.offset + 2;
+			group_t gr;
+			if (!readstring(pos, end, gr.name) || end - pos < 11)
+				continue;
+			pos += 7;
+			uint32_t n = u_endian_read4(&_ptfunxored[pos], is_bigendian);
+			pos += 4;
+			if (n > (end - pos) / 2)
+				continue;
+			for (uint32_t k = 0; k < n; k++) {
+				uint16_t t = u_endian_read2(&_ptfunxored[pos + 2 * k], is_bigendian);
+				if (t < names.size())
+					gr.tracks.push_back(names[t]);
+			}
+			_groups.push_back(gr);
+		}
+		break;
 	}
 }
 

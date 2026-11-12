@@ -233,6 +233,17 @@ int main (int argc, char **argv) {
 				printf("`%s` (%d) (%d) %d, %s\n", st->name.c_str(), st->type, st->format, st->order, st->playlist.c_str());
 			}
 
+			printf("\nGroup: tracks\n");
+			for (vector<PTFFormat::group_t>::const_iterator
+					g = ptf.groups().begin();
+					g != ptf.groups().end(); ++g) {
+				printf("`%s`:", g->name.c_str());
+				for (vector<string>::const_iterator t = g->tracks.begin();
+						t != g->tracks.end(); ++t)
+					printf("%s `%s`", t == g->tracks.begin() ? "" : ",", t->c_str());
+				printf("\n");
+			}
+
 			printf("\nPlugin (codes) bundle:\n");
 			for (vector<PTFFormat::plugin_t>::const_iterator
 					p = ptf.plugins().begin();

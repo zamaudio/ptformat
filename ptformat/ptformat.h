@@ -166,6 +166,16 @@ public:
 	 * order is the track's position among the shown tracks, from 1, and 0
 	 * for a hidden track (video tracks hold 0 too), as described in the
 	 * format notes of the pt_api project. */
+	/* A group of tracks, from the 0x202b block. tracks holds the names
+	 * of its member tracks, in the order the group stores them. The
+	 * built-in <ALL> group lists every track. Membership is read from
+	 * the session's own track numbering (the full track list, video
+	 * tracks included); not checked against Pro Tools. */
+	struct group_t {
+		std::string name;
+		std::vector<std::string> tracks;
+	};
+
 	struct strip_t {
 		std::string name;
 		uint16_t    type;
@@ -531,6 +541,7 @@ public:
 	const std::vector<volume_t>& volumes () const { return _volumes ; }
 	const std::vector<route_t>&  routes () const { return _routes ; }
 	const std::vector<strip_t>&  strips () const { return _strips ; }
+	const std::vector<group_t>&  groups () const { return _groups ; }
 	const std::vector<video_t>&  videofiles () const { return _videofiles ; }
 	const std::vector<fade_t>&   fades () const { return _fades ; }
 	const std::vector<iopath_t>& iopaths () const { return _iopaths ; }
@@ -553,6 +564,7 @@ private:
 	std::vector<volume_t> _volumes;
 	std::vector<route_t>  _routes;
 	std::vector<strip_t>  _strips;
+	std::vector<group_t>  _groups;
 	std::vector<video_t>  _videofiles;
 	std::vector<fade_t>   _fades;
 	std::vector<iopath_t> _iopaths;
@@ -602,6 +614,7 @@ private:
 	void parsepaths(void);
 	void parsemarkers(void);
 	void parseplugins(void);
+	void parsegroups(void);
 	void parsevolumes(void);
 	void parsegains(void);
 	void parsevideo(void);
