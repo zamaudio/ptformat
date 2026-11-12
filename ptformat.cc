@@ -1108,11 +1108,24 @@ PTFFormat::parseplugins(void) {
 						y != x->child.end(); ++y) {
 					if (y->content_type != 0x260d)
 						continue;
+					/* The slot's 0x1029 holds its level in tenths of dB
+					 * at +3, a flag at +7 and pans at +15 and +43. */
+					route_t settings;
+					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
+							z != y->child.end(); ++z) {
+						if (z->content_type != 0x1029 || z->block_size < 47)
+							continue;
+						settings.level = (int32_t)u_endian_read4(&_ptfunxored[z->offset + 3], is_bigendian) / 10.0f;
+						settings.muted = (_ptfunxored[z->offset + 7] != 0);
+						settings.pan = (int32_t)u_endian_read4(&_ptfunxored[z->offset + 15], is_bigendian);
+						settings.pan_right = (int32_t)u_endian_read4(&_ptfunxored[z->offset + 43], is_bigendian);
+						break;
+					}
 					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
 							z != y->child.end(); ++z) {
 						if (z->content_type != 0x260e || z->block_size < 42)
 							continue;
-						route_t rt;
+						route_t rt = settings;
 						uint32_t pos = z->offset + 38;
 						if (!readstring(pos, z->offset + z->block_size, rt.destination))
 							continue;

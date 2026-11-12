@@ -248,14 +248,15 @@ int main (int argc, char **argv) {
 			}
 
 			/* Slot 0 looks like the main output, 1 to 10 like sends A-J. */
-			printf("\nRoute (strip) (Strip#) slot: destination\n");
+			printf("\nRoute (strip) (Strip#) slot: destination, level, pan\n");
 			for (vector<PTFFormat::route_t>::const_iterator
 					r = ptf.routes().begin();
 					r != ptf.routes().end(); ++r) {
 				if (r->slot == 0)
-					printf("`%s` s(%d) out: %s\n", r->strip.c_str(), r->strip_index, r->destination.c_str());
+					printf("`%s` s(%d) out: %s", r->strip.c_str(), r->strip_index, r->destination.c_str());
 				else
-					printf("`%s` s(%d) send %c: %s\n", r->strip.c_str(), r->strip_index, 'A' + r->slot - 1, r->destination.c_str());
+					printf("`%s` s(%d) send %c: %s", r->strip.c_str(), r->strip_index, 'A' + r->slot - 1, r->destination.c_str());
+				printf(", %+.1f dB%s, pan %d/%d\n", r->level, r->muted ? " muted" : "", r->pan, r->pan_right);
 			}
 		}
 		break;

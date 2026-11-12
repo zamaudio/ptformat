@@ -173,14 +173,27 @@ public:
 	 * path of one of its 11 slots (a slot can have several). In the
 	 * sessions seen, slot 0 is the strip's main output and slots 1 to 10
 	 * are sends A to J; this is deduced from the routing, not checked in
-	 * Pro Tools. strip, strip_index and strip_type are as in insert_t. */
+	 * Pro Tools. strip, strip_index and strip_type are as in insert_t.
+	 *
+	 * level is the slot's level in dB (stored in tenths): the track
+	 * fader for slot 0, the send level for the others. muted is a flag
+	 * stored with it; in a dubbing session it is set on the output of
+	 * the original dialogue tracks, so it looks like mute, but what it
+	 * means on a send is not known. pan and pan_right run from -100
+	 * (left) to 100 (right); a stereo strip holds -100 and 100, a mono
+	 * strip 0 in both. These four are deduced from the values, not
+	 * checked in Pro Tools. */
 	struct route_t {
 		std::string strip;
 		uint16_t    strip_index;
 		uint16_t    strip_type;
 		uint16_t    slot;
 		std::string destination;
-		route_t () : strip_index (0), strip_type (0), slot (0) {}
+		float       level;
+		bool        muted;
+		int32_t     pan;
+		int32_t     pan_right;
+		route_t () : strip_index (0), strip_type (0), slot (0), level (0), muted (false), pan (0), pan_right (0) {}
 	};
 
 	/* A volume the session uses: its name and where it was mounted (for
