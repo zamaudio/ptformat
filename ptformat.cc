@@ -1485,7 +1485,9 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, struct block_t *p
 	b.content_type = u_endian_read2(&_ptfunxored[pos+7], is_bigendian);
 	b.offset = pos + 7;
 
-	if (b.block_size + b.offset > max)
+	/* Compare without adding: a size near 4 GB would wrap the sum and
+	 * let a block run past its parent and the file. */
+	if (b.offset > max || b.block_size > max - b.offset)
 		return false;
 	if (b.block_type & 0xff00)
 		return false;
