@@ -3402,14 +3402,25 @@ PTFFormat::parseplugins(void) {
 					uint16_t slot = 0;
 					for (vector<PTFFormat::block_t>::iterator i = y->child.begin();
 							i != y->child.end(); ++i) {
-						if (i->content_type == 0x2616) {
+						/* A slot is a 0x2616 (plugin), a 0x2625 (empty)
+						 * or a 0x2617 holding a 0x2616; what tells a
+						 * 0x2617 apart is not known. Each strip in the
+						 * sessions seen has 10 slots counting all three. */
+						const block_t *plug = NULL;
+						if (i->content_type == 0x2616)
+							plug = &*i;
+						else if (i->content_type == 0x2617)
+							for (vector<PTFFormat::block_t>::const_iterator c = i->child.begin(); c != i->child.end() && !plug; ++c)
+								if (c->content_type == 0x2616)
+									plug = &*c;
+						if (plug) {
 							insert_t ins;
 							ins.strip = strip;
 							ins.strip_index = sidx;
 							ins.strip_type = s->content_type;
 							ins.slot = slot;
 							/* Find the reversed codes of a catalog plugin. */
-							uint32_t end = i->offset + i->block_size;
+							uint32_t end = plug->offset + plug->block_size;
 							for (vector<plugin_t>::const_iterator pl = _plugins.begin();
 									pl != _plugins.end() && ins.plugin.name.empty(); ++pl) {
 								if (pl->codes.size() != 12)
@@ -3418,17 +3429,17 @@ PTFFormat::parseplugins(void) {
 								for (int k = 0; k < 3; k++)
 									for (int q = 0; q < 4; q++)
 										want[k * 4 + q] = pl->codes[k * 4 + 3 - q];
-								for (uint32_t at = i->offset; at + 12 <= end; at++) {
+								for (uint32_t at = plug->offset; at + 12 <= end; at++) {
 									if (memcmp(&_ptfunxored[at], want, 12) == 0) {
 										ins.plugin = *pl;
 										break;
 									}
 								}
 							}
-							read_params(*i, ins.params);
+							read_params(*plug, ins.params);
 							_inserts.push_back(ins);
 						}
-						if (i->content_type == 0x2616 || i->content_type == 0x2625)
+						if (i->content_type == 0x2616 || i->content_type == 0x2617 || i->content_type == 0x2625)
 							slot++;
 					}
 				}
