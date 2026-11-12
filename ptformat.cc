@@ -518,6 +518,19 @@ PTFFormat::set_muted(const track_t& placement, bool muted) {
 	return true;
 }
 
+/* A 0x1050 entry of a playlist, for set_position(). */
+struct playlist_slot {
+	uint32_t start, end, entry;
+	bool fade;
+	int64_t from, to;
+};
+
+static bool
+first_less(const std::pair<uint64_t, std::string>& a, const std::pair<uint64_t, std::string>& b)
+{
+	return a.first < b.first;
+}
+
 static void
 write4le(unsigned char *p, uint32_t v)
 {
@@ -729,6 +742,116 @@ PTFFormat::rename_region(const region_t& region, const std::string& name) {
 	grow.push_back(def);
 	grow.push_back(list);
 	return splice(at, 4 + oldlen, data, grow, std::vector<std::pair<uint32_t, uint32_t> >());
+}
+
+bool
+PTFFormat::set_position(const track_t& placement, int64_t pos) {
+	uint32_t e = placement.entry;
+	if (!_ptfunxored || is_bigendian || pos < 0 || _ratefactor <= 0 || e < 7
+			|| (uint64_t)e + 17 > _len || _ptfunxored[e - 7] != ZMARK
+			|| u_endian_read2(&_ptfunxored[e], false) != 0x104f)
+		return false;
+
+	/* The playlist (0x1052) holding the entry: its 0x1050 children, each
+	 * with one 0x104f, stored back to back. */
+	const block_t *list = NULL;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && !list; ++b) {
+		if (b->content_type != 0x1054)
+			continue;
+		for (std::vector<block_t>::const_iterator l = b->child.begin(); l != b->child.end() && !list; ++l) {
+			if (l->content_type != 0x1052)
+				continue;
+			for (std::vector<block_t>::const_iterator c = l->child.begin(); c != l->child.end(); ++c) {
+				if (c->content_type == 0x1050 && c->child.size() == 1 && c->child[0].offset == e) {
+					list = &*l;
+					break;
+				}
+			}
+		}
+	}
+	if (!list)
+		return false;
+
+	std::vector<playlist_slot> slots;
+	for (std::vector<block_t>::const_iterator c = list->child.begin(); c != list->child.end(); ++c) {
+		if (c->content_type != 0x1050)
+			continue;
+		if (c->child.size() != 1 || c->child[0].content_type != 0x104f || c->child[0].block_size < 17
+				|| c->block_size < 47)
+			return false;
+		playlist_slot sl;
+		sl.start = c->offset - 7;
+		sl.end = c->offset + c->block_size;
+		if (!slots.empty() && sl.start != slots.back().end)
+			return false;
+		sl.entry = c->child[0].offset;
+		sl.fade = (_ptfunxored[c->offset + 46] == 0x01);
+		int64_t at = (int64_t)(u_endian_read8(&_ptfunxored[sl.entry + 9], false) * _ratefactor);
+		int64_t length = 0;
+		if (sl.fade) {
+			fade_t fd;
+			if (!parsefade(u_endian_read4(&_ptfunxored[sl.entry + 4], false), fd))
+				return false;
+			/* Whether the fade starts or ends at the stored position,
+			 * cover both. */
+			sl.from = at - fd.length;
+			sl.to = at + fd.length;
+		} else {
+			region_t r;
+			if (!find_region(u_endian_read4(&_ptfunxored[sl.entry + 4], false), r))
+				return false;
+			length = r.length;
+			sl.from = at;
+			sl.to = at + length;
+		}
+		slots.push_back(sl);
+	}
+
+	size_t self = slots.size();
+	for (size_t i = 0; i < slots.size(); i++) {
+		if (slots[i].entry == e)
+			self = i;
+	}
+	if (self == slots.size() || slots[self].fade)
+		return false;
+	int64_t length = slots[self].to - slots[self].from;
+	int64_t lo = std::min(slots[self].from, pos), hi = std::max(slots[self].to, pos + length);
+	for (size_t i = 0; i < slots.size(); i++) {
+		if (i == self)
+			continue;
+		/* No fade on, next to or between the old and new places, and
+		 * no overlap with another region of the playlist. */
+		if (slots[i].fade && slots[i].from <= hi && slots[i].to >= lo)
+			return false;
+		if (!slots[i].fade && slots[i].from < pos + length && slots[i].to > pos)
+			return false;
+	}
+
+	uint64_t raw = (uint64_t)((double)pos / _ratefactor + 0.5);
+	for (int k = 0; k < 8; k++)
+		_ptfunxored[e + 9 + k] = (raw >> (8 * k)) & 0xff;
+
+	/* Keep the audio entries in time order: put them back, sorted, in the
+	 * places audio entries take; fade entries stay where they are. */
+	std::vector<std::pair<uint64_t, std::string> > audio;
+	for (size_t i = 0; i < slots.size(); i++) {
+		if (slots[i].fade)
+			continue;
+		uint64_t t = u_endian_read8(&_ptfunxored[slots[i].entry + 9], false);
+		audio.push_back(std::make_pair(t, std::string((const char *)&_ptfunxored[slots[i].start],
+			slots[i].end - slots[i].start)));
+	}
+	std::stable_sort(audio.begin(), audio.end(), first_less);
+	std::string bytes;
+	size_t next = 0;
+	for (size_t i = 0; i < slots.size(); i++) {
+		if (slots[i].fade)
+			bytes.append((const char *)&_ptfunxored[slots[i].start], slots[i].end - slots[i].start);
+		else
+			bytes += audio[next++].second;
+	}
+	memcpy(&_ptfunxored[slots[0].start], bytes.data(), bytes.size());
+	return reparse();
 }
 
 bool

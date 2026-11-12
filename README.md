@@ -135,6 +135,17 @@ region set, in dB or `-inf`:
 When another region shares the gain point, or the region has none, a
 point is added for it. Not yet checked in Pro Tools.
 
+To write a copy of a PT10 to PT12 session with the regions of a track
+that start at one place moved to another:
+
+	./ptmove in.ptx out.ptx track from to
+
+from and to are timecode (hh:mm:ss:ff) or samples. All channels of a
+multichannel track move together. A move that would overlap another
+region, or touches or crosses a fade, is refused. Moving and moving
+back gives the original file in all 1,025 tries on 200 sessions. Not
+yet checked in Pro Tools.
+
 
 Hacking
 =======

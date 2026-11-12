@@ -339,6 +339,17 @@ public:
 	 * come from this session. */
 	bool set_muted(const track_t& placement, bool muted);
 
+	/* Move one placement of tracks() to pos, in samples at the target
+	 * rate, from 00:00:00:00: the 8-byte position of its 0x104f entry
+	 * (pt_api format notes, sections 4.2 and 6.1) changes and the audio
+	 * entries of the playlist are put back in time order. Each channel
+	 * of a multichannel track is a placement of its own. False, with
+	 * nothing changed, when the placement would overlap another region
+	 * of its playlist, when a fade touches it or lies between the old
+	 * and new places, or for a big-endian session. The session is then
+	 * parsed again. Changes nothing on disk until save(). */
+	bool set_position(const track_t& placement, int64_t pos);
+
 	/* Rename a region of regions() in the loaded session; every
 	 * placement of it shows the new name. The name is stored in the
 	 * region's 0x2628 block, so that block and the two holding it change
