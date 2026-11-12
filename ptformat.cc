@@ -22,6 +22,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <map>
+#include <set>
 #include <string>
 #include <string.h>
 #include <assert.h>
@@ -513,6 +515,178 @@ PTFFormat::set_muted(const track_t& placement, bool muted) {
 		return false;
 	_ptfunxored[e + 2] = muted ? 1 : 0;
 	return true;
+}
+
+static void
+write4le(unsigned char *p, uint32_t v)
+{
+	p[0] = v & 0xff;
+	p[1] = (v >> 8) & 0xff;
+	p[2] = (v >> 16) & 0xff;
+	p[3] = (v >> 24) & 0xff;
+}
+
+/* Header offsets (where the 0x5a is) of every block parsed. */
+void
+PTFFormat::collect_headers(const std::vector<block_t>& v, std::map<uint32_t, const block_t*>& out)
+{
+	for (std::vector<block_t>::const_iterator b = v.begin(); b != v.end(); ++b) {
+		if (b->offset >= 0x14 + 7)
+			out[b->offset - 7] = &*b;
+		collect_headers(b->child, out);
+	}
+}
+
+bool
+PTFFormat::reparse(void) {
+	unsigned char *buf = _ptfunxored;
+	uint64_t len = _len;
+	std::string path = _path;
+	int64_t targetrate = _targetrate;
+	_ptfunxored = NULL;
+	cleanup();
+	_ptfunxored = buf;
+	_len = len;
+	_path = path;
+	if (parse_version() || _version < 5 || _version > 12)
+		return false;
+	_targetrate = targetrate;
+	return parse() == 0;
+}
+
+bool
+PTFFormat::rename_region(const region_t& region, const std::string& name) {
+	if (!_ptfunxored || is_bigendian || _ptfunxored[0x12] != 0x05 || name.empty()
+			|| name.size() > 0xffff || name.find('\0') != std::string::npos)
+		return false;
+	for (std::vector<region_t>::const_iterator r = _regions.begin(); r != _regions.end(); ++r) {
+		if (r->name == name)
+			return false;
+	}
+
+	/* The region's 0x2629 under the top-level 0x262a, counted the way
+	 * parserest() numbers regions; its first child, the 0x2628, starts
+	 * right after the content type and holds the name length and the
+	 * name first. */
+	const block_t *list = NULL, *def = NULL, *info = NULL;
+	uint16_t n = 0;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && !def; ++b) {
+		if (b->content_type == 0x100b)
+			return false;
+		if (b->content_type != 0x262a)
+			continue;
+		for (std::vector<block_t>::const_iterator c = b->child.begin(); c != b->child.end(); ++c) {
+			if (c->content_type != 0x2629 || c->child.empty())
+				continue;
+			if (n++ == region.index) {
+				list = &*b;
+				def = &*c;
+				info = &c->child[0];
+				break;
+			}
+		}
+	}
+	if (!def || info->offset != def->offset + 9)
+		return false;
+	uint32_t at = info->offset + 2;
+	uint32_t oldlen = u_endian_read4(&_ptfunxored[at], false);
+	if (oldlen > info->block_size - 6 || oldlen != region.name.size()
+			|| memcmp(&_ptfunxored[at + 4], region.name.data(), oldlen) != 0)
+		return false;
+
+	/* The pointer at 0x14 (block 0x0001) must name the last block, a
+	 * 0x0002 that ends the file. */
+	uint32_t last = u_endian_read4(&_ptfunxored[0x14 + 7], false);
+	if (_ptfunxored[0x14] != ZMARK || u_endian_read2(&_ptfunxored[0x15], false) != 0x0001
+			|| (uint64_t)last + 7 > _len || last <= at || _ptfunxored[last] != ZMARK
+			|| u_endian_read2(&_ptfunxored[last + 1], false) != 0x0002
+			|| (uint64_t)last + 7 + u_endian_read4(&_ptfunxored[last + 3], false) != _len)
+		return false;
+
+	int64_t delta = (int64_t)name.size() - (int64_t)oldlen;
+	uint32_t from = at + 4 + oldlen;	/* first byte that moves */
+	std::map<uint32_t, const block_t*> headers;
+	collect_headers(blocks, headers);
+
+	/* Offsets in the 0x0002 block to move with the blocks they point at:
+	 * the target of each standard 15-byte record (pt_api format notes,
+	 * section 2.2), and each start of a parsed block that follows the
+	 * content type of one of that block's children (2 bytes), the form
+	 * the other pointers of the 0x0002 block take in the sessions seen.
+	 * The pt_api notes move any 4 bytes that hold the start of a block;
+	 * in the sessions seen that also moves values that only look like
+	 * one, inside lists of small offsets or runs of ff, so it is not
+	 * done here. Two such places that overlap make the edit ambiguous,
+	 * and it is refused. */
+	static const unsigned char rec[8] = { 0, 0, 0, 1, 4, 0, 1, 0 };
+	std::vector<uint32_t> patch;
+	std::vector<bool> inrec(_len - last, false);
+	for (uint64_t i = last + 7; i + 15 <= _len; ) {
+		if (memcmp(&_ptfunxored[i], rec, 8) == 0 && !_ptfunxored[i + 12]
+				&& !_ptfunxored[i + 13] && !_ptfunxored[i + 14]) {
+			uint32_t t = u_endian_read4(&_ptfunxored[i + 8], false);
+			if (!headers.count(t))
+				return false;
+			if (t >= from)
+				patch.push_back(i + 8);
+			for (int k = 0; k < 15; k++)
+				inrec[i - last + k] = true;
+			i += 15;
+		} else {
+			i++;
+		}
+	}
+	uint32_t prev = 0;
+	for (uint64_t i = last + 7; i + 4 <= _len; i++) {
+		if (inrec[i - last] || inrec[i - last + 3])
+			continue;
+		uint32_t t = u_endian_read4(&_ptfunxored[i], false);
+		if (t < from || i < last + 9)
+			continue;
+		std::map<uint32_t, const block_t*>::const_iterator h = headers.find(t);
+		if (h == headers.end())
+			continue;
+		uint16_t kind = u_endian_read2(&_ptfunxored[i - 2], false);
+		bool child = false;
+		for (std::vector<block_t>::const_iterator k = h->second->child.begin();
+				k != h->second->child.end() && !child; ++k)
+			child = (k->content_type == kind);
+		if (!child)
+			continue;
+		if (prev && i < prev + 4)
+			return false;
+		patch.push_back(i);
+		prev = i;
+	}
+
+	/* Build the new buffer. */
+	uint64_t newlen = _len + delta;
+	unsigned char *buf = (unsigned char *)malloc(newlen);
+	if (!buf)
+		return false;
+	memcpy(buf, _ptfunxored, at);
+	uint32_t nl = name.size();
+	write4le(&buf[at], nl);
+	memcpy(&buf[at + 4], name.data(), nl);
+	memcpy(&buf[at + 4 + nl], &_ptfunxored[from], _len - from);
+
+	/* The three blocks holding the name grow or shrink. */
+	const block_t *chain[3] = { info, def, list };
+	for (int k = 0; k < 3; k++) {
+		uint32_t size = chain[k]->block_size + delta;
+		write4le(&buf[chain[k]->offset - 7 + 3], size);
+	}
+	for (std::vector<uint32_t>::const_iterator p = patch.begin(); p != patch.end(); ++p) {
+		uint32_t t = u_endian_read4(&_ptfunxored[*p], false) + delta;
+		write4le(&buf[*p + delta], t);
+	}
+	uint32_t newlast = last + delta;
+	write4le(&buf[0x14 + 7], newlast);
+
+	free(_ptfunxored);
+	_ptfunxored = buf;
+	_len = newlen;
+	return reparse();
 }
 
 /* Return values:	0            success

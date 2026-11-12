@@ -118,6 +118,15 @@ session back; without changes the copy is identical to the original
 (checked on 205 sessions). Not yet checked by opening the copy in
 Pro Tools.
 
+To write a copy of a PT10 to PT12 session with a region renamed:
+
+	./ptrename in.ptx out.ptx region new-name
+
+The new name may be longer or shorter: the blocks that follow move and
+the offsets pointing at them are moved too. Renaming and renaming back
+gives the original file again in all 1,188 tries on 198 sessions. Not
+yet checked in Pro Tools either.
+
 
 Hacking
 =======

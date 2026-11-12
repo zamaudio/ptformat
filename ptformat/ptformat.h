@@ -25,6 +25,8 @@
 #include <string>
 #include <cstring>
 #include <algorithm>
+#include <map>
+#include <set>
 #include <vector>
 #include <stdint.h>
 
@@ -337,6 +339,20 @@ public:
 	 * come from this session. */
 	bool set_muted(const track_t& placement, bool muted);
 
+	/* Rename a region of regions() in the loaded session; every
+	 * placement of it shows the new name. The name is stored in the
+	 * region's 0x2628 block, so that block and the two holding it change
+	 * size, and every later block moves: the offsets that point at them
+	 * (block 0x0001 and the final 0x0002 block) are moved too, following
+	 * the pt_api format notes (section 2) with a stricter rule for the
+	 * pointers outside the standard records (see the code). The session is then
+	 * parsed again, so regions(), tracks() and the rest follow. Only for
+	 * little-endian PT10 to PT12 sessions. False, with nothing changed,
+	 * when the region is not found, another region already has the name,
+	 * the name is empty or holds a NUL, or the offsets cannot be moved
+	 * without doubt. Changes nothing on disk until save(). */
+	bool rename_region(const region_t& region, const std::string& name);
+
 	bool find_track(uint16_t index, track_t& tt) const {
 		std::vector<track_t>::const_iterator begin = _tracks.begin();
 		std::vector<track_t>::const_iterator finish = _tracks.end();
@@ -554,6 +570,8 @@ private:
 	void parse_region_info(uint32_t j, block_t& blk, region_t& r);
 	void parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint64_t& length);
 	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) const;
+	bool reparse(void);
+	static void collect_headers(const std::vector<block_t>& v, std::map<uint32_t, const block_t*>& out);
 	void setrates(void);
 	void cleanup(void);
 	void free_block(struct block_t& b);
