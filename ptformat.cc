@@ -1472,13 +1472,32 @@ PTFFormat::parserest(void) {
 					r.index = rindex;
 					parse_region_info(j, *d, r);
 
-					/* 22 bytes before the end of the first child, a PT10+
-					 * region holds the index of its clip gain point, or
-					 * 0xffffffff when it has none. */
-					if (c->content_type == 0x2629 && d->block_size >= 22) {
-						uint32_t gi = u_endian_read4(&_ptfunxored[d->offset + d->block_size - 22], is_bigendian);
-						if (gi < _gains.size())
-							r.gain = _gains[gi];
+					/* The first child of a PT10+ region ends with: a 0x2a
+					 * marker and the 8-byte id of the track the region was
+					 * recorded on (only for audio recorded in the session),
+					 * one byte, the index of the region's clip gain point
+					 * (0xffffffff when it has none) and two bytes. Newer
+					 * sessions append a copy of the region's UUID, which
+					 * moves all of that 16 bytes away from the end. */
+					if (c->content_type == 0x2629) {
+						uint32_t tail = d->offset + d->block_size;
+						if (d->block_size >= 16 && tail + 39 <= _len && _ptfunxored[tail + 22] == 0xff &&
+								memcmp(&_ptfunxored[tail - 16], &_ptfunxored[tail + 23], 16) == 0)
+							tail -= 16;
+						if (tail - d->offset >= 19) {
+							uint32_t gi = u_endian_read4(&_ptfunxored[tail - 6], is_bigendian);
+							if (gi < _gains.size())
+								r.gain = _gains[gi];
+							std::string id;
+							if (read_id(_ptfunxored, tail - 19, tail - 7, is_bigendian, id)) {
+								for (vector<strip_t>::const_iterator t = _strips.begin(); t != _strips.end(); ++t) {
+									if (t->id == id) {
+										r.recorded_on = t->name;
+										break;
+									}
+								}
+							}
+						}
 					}
 
 					/* Regions of ADM BWF files store 0xffffffff as their file

@@ -99,6 +99,9 @@ public:
 		/* Clip gain in dB; 0 when the region has none. Read from the
 		 * single gain point the sessions seen store per region. */
 		float       gain;
+		/* Name of the track the region was recorded on; empty for
+		 * imported audio or when the session does not tell. */
+		std::string recorded_on;
 		std::vector<midi_ev_t> midi;
 
 		bool operator ==(const region_t& other) const {

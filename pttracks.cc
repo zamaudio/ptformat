@@ -58,6 +58,7 @@ struct placement {
 	int64_t length;
 	int64_t created;
 	float gain;
+	string recorded_on;
 
 	bool operator <(const placement& o) const {
 		if (start != o.start)
@@ -171,6 +172,7 @@ int main (int argc, char **argv) {
 		p.length = t->reg.length;
 		p.created = t->reg.wave.created;
 		p.gain = t->reg.gain;
+		p.recorded_on = t->reg.recorded_on;
 		s.insert(p);
 	}
 
@@ -183,7 +185,7 @@ int main (int argc, char **argv) {
 	}
 
 	if (as_csv)
-		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created,gain_db,start_tc,end_tc\n");
+		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created,gain_db,start_tc,end_tc,recorded_on\n");
 
 	for (vector<string>::const_iterator name = order.begin(); name != order.end(); ++name) {
 		const set<placement>& s = tracks[*name];
@@ -210,13 +212,14 @@ int main (int argc, char **argv) {
 		for (set<placement>::const_iterator p = s.begin(); p != s.end(); ++p) {
 			int64_t end = p->start + p->length;
 			if (as_csv) {
-				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s,%g,%s,%s\n",
+				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s,%g,%s,%s,%s\n",
 					csv(*name).c_str(), csv(p->region).c_str(), csv(p->file).c_str(),
 					p->start, clock(p->start, rate).c_str(),
 					end, clock(end, rate).c_str(), p->length, p->offset,
 					date(p->created, "%Y-%m-%dT%H:%M:%SZ").c_str(), p->gain,
 					timecode(p->start, rate, fpsnum, fpsden).c_str(),
-					timecode(end, rate, fpsnum, fpsden).c_str());
+					timecode(end, rate, fpsnum, fpsden).c_str(),
+					csv(p->recorded_on).c_str());
 			} else {
 				/* Timecode when the frame rate is known, clock time if not. */
 				string from = timecode(p->start, rate, fpsnum, fpsden);

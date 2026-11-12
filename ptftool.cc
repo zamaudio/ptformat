@@ -126,6 +126,8 @@ int main (int argc, char **argv) {
 					printf(" uid(%s)", a->uid.c_str());
 				if (a->gain != 0)
 					printf(" gain(%g dB)", a->gain);
+				if (!a->recorded_on.empty())
+					printf(" rec(%s)", a->recorded_on.c_str());
 			}
 			printf("\n");
 		}
