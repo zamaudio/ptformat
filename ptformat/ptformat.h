@@ -183,6 +183,12 @@ public:
 		uint16_t    order;
 		std::string id;
 		std::string playlist;
+		/* The name of the input path or bus the track's mixer strip
+		 * stores; empty when no input is assigned or the track has no
+		 * strip. In the sessions seen it matches an input path or bus
+		 * of the I/O setup with the same id, except for paths missing
+		 * from the session's I/O setup. Not checked in Pro Tools. */
+		std::string input;
 		strip_t () : type (0), format (0), order (0) {}
 	};
 
@@ -615,6 +621,7 @@ private:
 	void parsemarkers(void);
 	void parseplugins(void);
 	void parsegroups(void);
+	void read_input(const block_t& strip, std::string& input);
 	void parsevolumes(void);
 	void parsegains(void);
 	void parsevideo(void);

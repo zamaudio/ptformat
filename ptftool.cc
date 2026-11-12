@@ -230,7 +230,10 @@ int main (int argc, char **argv) {
 			for (vector<PTFFormat::strip_t>::const_iterator
 					st = ptf.strips().begin();
 					st != ptf.strips().end(); ++st) {
-				printf("`%s` (%d) (%d) %d, %s\n", st->name.c_str(), st->type, st->format, st->order, st->playlist.c_str());
+				printf("`%s` (%d) (%d) %d, %s", st->name.c_str(), st->type, st->format, st->order, st->playlist.c_str());
+				if (!st->input.empty())
+					printf(", in: %s", st->input.c_str());
+				printf("\n");
 			}
 
 			printf("\nGroup: tracks\n");

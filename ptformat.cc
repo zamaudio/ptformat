@@ -2102,6 +2102,41 @@ PTFFormat::parsegroups(void) {
 	}
 }
 
+/* A strip's input: the 0x261b's own bytes after its last 0x260d slot
+ * (after 2 zero bytes in older saves) hold 01, a byte, a 2-byte count n,
+ * n 4-byte numbers, the 9 bytes 00 00 00 00 08 00 00 00 00 and then the
+ * input name; the input path's 0x2a marker and id follow the name when
+ * the path is in the I/O setup. An empty name means no input. */
+void
+PTFFormat::read_input(const block_t& strip, std::string& input)
+{
+	static const unsigned char gap[9] = { 0, 0, 0, 0, 8, 0, 0, 0, 0 };
+	size_t last = strip.child.size();
+	for (size_t k = 0; k < strip.child.size(); k++) {
+		if (strip.child[k].content_type == 0x260d)
+			last = k;
+	}
+	if (last == strip.child.size())
+		return;
+	const block_t& slot = strip.child[last];
+	uint32_t pos = slot.offset + slot.block_size;
+	uint32_t end = (last + 1 < strip.child.size()) ? strip.child[last + 1].offset - 7 : strip.offset + strip.block_size;
+	if (pos > end)
+		return;
+	if (end - pos >= 4 && _ptfunxored[pos] == 0 && _ptfunxored[pos + 1] == 0 && _ptfunxored[pos + 2] == 1)
+		pos += 2;
+	if (end - pos < 4 || _ptfunxored[pos] != 1)
+		return;
+	uint32_t n = u_endian_read2(&_ptfunxored[pos + 2], is_bigendian);
+	if (n > 64 || 4 + 4 * n + 9 > end - pos)
+		return;
+	pos += 4 + 4 * n;
+	if (memcmp(&_ptfunxored[pos], gap, 9) != 0)
+		return;
+	pos += 9;
+	readstring(pos, end, input);
+}
+
 /* The plugin catalog is the 0x1018 block: one 0x1017 per plugin with its
  * name at +3, the 12 bytes of its three AAX codes right after it, and its
  * bundle id 7 bytes later. Inserts are in the mixer (0x2624): each strip
@@ -2234,6 +2269,7 @@ PTFFormat::parseplugins(void) {
 					continue;
 				uint16_t sidx = strip_index++;
 				std::string strip;
+				strip_t *track = NULL;
 				for (vector<PTFFormat::block_t>::iterator y = x->child.begin();
 						y != x->child.end(); ++y) {
 					if (y->content_type != 0x102d)
@@ -2252,12 +2288,15 @@ PTFFormat::parseplugins(void) {
 								if (t->id == id) {
 									t->playlist = strip;
 									strip = t->name;
+									track = &*t;
 									break;
 								}
 							}
 						}
 					}
 				}
+				if (track)
+					read_input(*x, track->input);
 				/* Output and sends: one 0x260d per slot, in order; an
 				 * assigned slot has a 0x260e with its destination name
 				 * 38 bytes in. */
