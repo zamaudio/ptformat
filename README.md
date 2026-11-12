@@ -127,6 +127,14 @@ the offsets pointing at them are moved too. Renaming and renaming back
 gives the original file again in all 1,188 tries on 198 sessions. Not
 yet checked in Pro Tools either.
 
+To write a copy of a PT10 to PT12 session with the clip gain of a
+region set, in dB or `-inf`:
+
+	./ptgain in.ptx out.ptx region dB
+
+When another region shares the gain point, or the region has none, a
+point is added for it. Not yet checked in Pro Tools.
+
 
 Hacking
 =======

@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <map>
 #include <set>
 #include <string>
@@ -554,23 +555,13 @@ PTFFormat::reparse(void) {
 	return parse() == 0;
 }
 
+/* The 0x2629 of a region under the top-level 0x262a, counted the way
+ * parserest() numbers regions, its first child (the 0x2628, which must
+ * start right after the content type) and the list holding them. */
 bool
-PTFFormat::rename_region(const region_t& region, const std::string& name) {
-	if (!_ptfunxored || is_bigendian || _ptfunxored[0x12] != 0x05 || name.empty()
-			|| name.size() > 0xffff || name.find('\0') != std::string::npos)
-		return false;
-	for (std::vector<region_t>::const_iterator r = _regions.begin(); r != _regions.end(); ++r) {
-		if (r->name == name)
-			return false;
-	}
-
-	/* The region's 0x2629 under the top-level 0x262a, counted the way
-	 * parserest() numbers regions; its first child, the 0x2628, starts
-	 * right after the content type and holds the name length and the
-	 * name first. */
-	const block_t *list = NULL, *def = NULL, *info = NULL;
+PTFFormat::region_blocks(uint16_t index, const block_t*& list, const block_t*& def, const block_t*& info) const {
 	uint16_t n = 0;
-	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && !def; ++b) {
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b) {
 		if (b->content_type == 0x100b)
 			return false;
 		if (b->content_type != 0x262a)
@@ -578,46 +569,70 @@ PTFFormat::rename_region(const region_t& region, const std::string& name) {
 		for (std::vector<block_t>::const_iterator c = b->child.begin(); c != b->child.end(); ++c) {
 			if (c->content_type != 0x2629 || c->child.empty())
 				continue;
-			if (n++ == region.index) {
+			if (n++ == index) {
 				list = &*b;
 				def = &*c;
 				info = &c->child[0];
-				break;
+				return info->offset == def->offset + 9;
 			}
 		}
 	}
-	if (!def || info->offset != def->offset + 9)
+	return false;
+}
+
+/* Where a region's 0x2628 (info) keeps the index of its clip gain point
+ * (see parserest); 0 when the block is too short. */
+uint32_t
+PTFFormat::gain_field(const block_t& info) const {
+	uint32_t tail = info.offset + info.block_size;
+	if (info.block_size >= 16 && tail + 39 <= _len && _ptfunxored[tail + 22] == 0xff &&
+			memcmp(&_ptfunxored[tail - 16], &_ptfunxored[tail + 23], 16) == 0)
+		tail -= 16;
+	if (tail - info.offset < 19)
+		return 0;
+	return tail - 6;
+}
+
+/* Replace the oldlen bytes at at with data: the blocks in grow (those
+ * holding at) change size, every later block moves, and the offsets
+ * pointing at moved blocks are moved too: the pointer of block 0x0001
+ * to the final 0x0002 block, the target of each standard 15-byte record
+ * of that block (pt_api format notes, section 2.2), and each start of a
+ * parsed block stored after the content type of one of that block's
+ * children (2 bytes), the form the other pointers of the 0x0002 block
+ * take in the sessions seen. The pt_api notes move any 4 bytes that hold
+ * the start of a block; in the sessions seen that also moves values that
+ * only look like one, inside lists of small offsets or runs of ff, so it
+ * is not done here. Two such places that overlap make the edit
+ * ambiguous, and it is refused. Each pair in set writes a 4-byte value
+ * at an offset of the current buffer, outside the bytes replaced. Then
+ * the session is parsed again. False, with nothing changed, when the
+ * session does not have the expected layout. */
+bool
+PTFFormat::splice(uint32_t at, uint32_t oldlen, const std::string& data,
+		const std::vector<const block_t*>& grow,
+		const std::vector<std::pair<uint32_t, uint32_t> >& set) {
+	if (!_ptfunxored || is_bigendian || _ptfunxored[0x12] != 0x05 || (uint64_t)at + oldlen > _len)
 		return false;
-	uint32_t at = info->offset + 2;
-	uint32_t oldlen = u_endian_read4(&_ptfunxored[at], false);
-	if (oldlen > info->block_size - 6 || oldlen != region.name.size()
-			|| memcmp(&_ptfunxored[at + 4], region.name.data(), oldlen) != 0)
-		return false;
+	uint32_t from = at + oldlen;	/* first byte that moves */
+	for (std::vector<std::pair<uint32_t, uint32_t> >::const_iterator w = set.begin(); w != set.end(); ++w) {
+		if ((uint64_t)w->first + 4 > _len || (w->first + 4 > at && w->first < from))
+			return false;
+	}
 
 	/* The pointer at 0x14 (block 0x0001) must name the last block, a
 	 * 0x0002 that ends the file. */
 	uint32_t last = u_endian_read4(&_ptfunxored[0x14 + 7], false);
 	if (_ptfunxored[0x14] != ZMARK || u_endian_read2(&_ptfunxored[0x15], false) != 0x0001
-			|| (uint64_t)last + 7 > _len || last <= at || _ptfunxored[last] != ZMARK
+			|| (uint64_t)last + 7 > _len || last < from || _ptfunxored[last] != ZMARK
 			|| u_endian_read2(&_ptfunxored[last + 1], false) != 0x0002
 			|| (uint64_t)last + 7 + u_endian_read4(&_ptfunxored[last + 3], false) != _len)
 		return false;
 
-	int64_t delta = (int64_t)name.size() - (int64_t)oldlen;
-	uint32_t from = at + 4 + oldlen;	/* first byte that moves */
+	int64_t delta = (int64_t)data.size() - (int64_t)oldlen;
 	std::map<uint32_t, const block_t*> headers;
 	collect_headers(blocks, headers);
 
-	/* Offsets in the 0x0002 block to move with the blocks they point at:
-	 * the target of each standard 15-byte record (pt_api format notes,
-	 * section 2.2), and each start of a parsed block that follows the
-	 * content type of one of that block's children (2 bytes), the form
-	 * the other pointers of the 0x0002 block take in the sessions seen.
-	 * The pt_api notes move any 4 bytes that hold the start of a block;
-	 * in the sessions seen that also moves values that only look like
-	 * one, inside lists of small offsets or runs of ff, so it is not
-	 * done here. Two such places that overlap make the edit ambiguous,
-	 * and it is refused. */
 	static const unsigned char rec[8] = { 0, 0, 0, 1, 4, 0, 1, 0 };
 	std::vector<uint32_t> patch;
 	std::vector<bool> inrec(_len - last, false);
@@ -665,21 +680,19 @@ PTFFormat::rename_region(const region_t& region, const std::string& name) {
 	if (!buf)
 		return false;
 	memcpy(buf, _ptfunxored, at);
-	uint32_t nl = name.size();
-	write4le(&buf[at], nl);
-	memcpy(&buf[at + 4], name.data(), nl);
-	memcpy(&buf[at + 4 + nl], &_ptfunxored[from], _len - from);
+	memcpy(&buf[at], data.data(), data.size());
+	memcpy(&buf[at + data.size()], &_ptfunxored[from], _len - from);
 
-	/* The three blocks holding the name grow or shrink. */
-	const block_t *chain[3] = { info, def, list };
-	for (int k = 0; k < 3; k++) {
-		uint32_t size = chain[k]->block_size + delta;
-		write4le(&buf[chain[k]->offset - 7 + 3], size);
+	for (std::vector<const block_t*>::const_iterator g = grow.begin(); g != grow.end(); ++g) {
+		uint32_t size = (*g)->block_size + delta;
+		write4le(&buf[(*g)->offset - 7 + 3], size);
 	}
 	for (std::vector<uint32_t>::const_iterator p = patch.begin(); p != patch.end(); ++p) {
 		uint32_t t = u_endian_read4(&_ptfunxored[*p], false) + delta;
 		write4le(&buf[*p + delta], t);
 	}
+	for (std::vector<std::pair<uint32_t, uint32_t> >::const_iterator w = set.begin(); w != set.end(); ++w)
+		write4le(&buf[w->first < at ? w->first : w->first + delta], w->second);
 	uint32_t newlast = last + delta;
 	write4le(&buf[0x14 + 7], newlast);
 
@@ -687,6 +700,134 @@ PTFFormat::rename_region(const region_t& region, const std::string& name) {
 	_ptfunxored = buf;
 	_len = newlen;
 	return reparse();
+}
+
+bool
+PTFFormat::rename_region(const region_t& region, const std::string& name) {
+	if (!_ptfunxored || name.empty() || name.size() > 0xffff || name.find('\0') != std::string::npos)
+		return false;
+	for (std::vector<region_t>::const_iterator r = _regions.begin(); r != _regions.end(); ++r) {
+		if (r->name == name)
+			return false;
+	}
+	/* The 0x2628 holds the name length and the name first. */
+	const block_t *list, *def, *info;
+	if (!region_blocks(region.index, list, def, info))
+		return false;
+	uint32_t at = info->offset + 2;
+	uint32_t oldlen = u_endian_read4(&_ptfunxored[at], false);
+	if (oldlen > info->block_size - 6 || oldlen != region.name.size()
+			|| memcmp(&_ptfunxored[at + 4], region.name.data(), oldlen) != 0)
+		return false;
+
+	unsigned char len[4];
+	write4le(len, name.size());
+	std::string data((const char *)len, 4);
+	data += name;
+	std::vector<const block_t*> grow;
+	grow.push_back(info);
+	grow.push_back(def);
+	grow.push_back(list);
+	return splice(at, 4 + oldlen, data, grow, std::vector<std::pair<uint32_t, uint32_t> >());
+}
+
+bool
+PTFFormat::set_clip_gain(const region_t& region, float db) {
+	if (!_ptfunxored || db != db || db == HUGE_VALF)
+		return false;
+	uint32_t bits;
+	if (db == -HUGE_VALF) {
+		bits = 0xc3911af4;	/* -inf as Pro Tools stores it, per pt_api */
+	} else {
+		memcpy(&bits, &db, 4);
+	}
+
+	/* The single top-level 0x2637: a count and records of 8 + size bytes;
+	 * only the one-point record, whose first 18 bytes are fixed, is
+	 * handled. */
+	static const unsigned char point[18] = { 0x01, 0x46, 0x01, 0x00, 0x16, 0, 0, 0,
+		0, 0, 1, 0, 0, 0, 4, 0, 0, 0 };
+	const block_t *gains = NULL;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b) {
+		if (b->content_type != 0x2637)
+			continue;
+		if (gains)
+			return false;
+		gains = &*b;
+	}
+	if (!gains || gains->block_size < 6)
+		return false;
+	uint32_t end = gains->offset + gains->block_size;
+	uint32_t count = u_endian_read4(&_ptfunxored[gains->offset + 2], false);
+	std::vector<uint32_t> records;
+	uint32_t pos = gains->offset + 6;
+	for (uint32_t k = 0; k < count; k++) {
+		if (end - pos < 8)
+			return false;
+		uint32_t size = u_endian_read4(&_ptfunxored[pos + 4], false);
+		if (size > end - pos - 8)
+			return false;
+		records.push_back(pos);
+		pos += 8 + size;
+	}
+	if (pos != end)
+		return false;
+
+	/* Every region's point index, to know whether the target's point is
+	 * shared. Clip groups also refer to points: refuse sessions with
+	 * any. */
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b) {
+		if (b->content_type == 0x262c && !b->child.empty())
+			return false;
+	}
+	const block_t *list, *def, *info;
+	if (!region_blocks(region.index, list, def, info))
+		return false;
+	uint32_t field = gain_field(*info);
+	if (!field)
+		return false;
+	int32_t target = (int32_t)u_endian_read4(&_ptfunxored[field], false);
+	if (target < -1 || target >= (int32_t)records.size())
+		return false;
+	uint32_t users = 0;
+	for (uint16_t i = 0; target >= 0; i++) {
+		const block_t *l, *d, *f;
+		if (!region_blocks(i, l, d, f))
+			break;
+		uint32_t g = gain_field(*f);
+		if (g && (int32_t)u_endian_read4(&_ptfunxored[g], false) == target)
+			users++;
+	}
+
+	unsigned char value[4];
+	write4le(value, bits);
+	if (target >= 0) {
+		uint32_t r = records[target];
+		if (memcmp(&_ptfunxored[r], point, 18) != 0)
+			return false;
+		if (users == 1) {
+			/* Only this region uses the point: change it in place. */
+			memcpy(&_ptfunxored[r + 26], value, 4);
+			return reparse();
+		}
+	}
+
+	/* Add a point at the end of the list and point the region at it: a
+	 * copy of the shared point, or a new one with the rest zero as the
+	 * pt_api notes create it. */
+	std::string data;
+	if (target >= 0) {
+		data.assign((const char *)&_ptfunxored[records[target]], 26);
+	} else {
+		data.assign((const char *)point, 18);
+		data.append(8, '\0');
+	}
+	data.append((const char *)value, 4);
+	std::vector<const block_t*> grow(1, gains);
+	std::vector<std::pair<uint32_t, uint32_t> > set;
+	set.push_back(std::make_pair(gains->offset + 2, count + 1));
+	set.push_back(std::make_pair(field, count));
+	return splice(end, 0, data, grow, set);
 }
 
 /* Return values:	0            success

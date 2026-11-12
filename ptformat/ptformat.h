@@ -353,6 +353,17 @@ public:
 	 * without doubt. Changes nothing on disk until save(). */
 	bool rename_region(const region_t& region, const std::string& name);
 
+	/* Set the clip gain of a region of regions() in the loaded session,
+	 * in dB (-HUGE_VALF for -inf); every placement of it follows. When
+	 * no other region shares the region's gain point, its value changes
+	 * in place; otherwise, or when the region has none, a point is added
+	 * to the 0x2637 list for it, as the pt_api format notes describe
+	 * (section 9). The session is then parsed again. Only for single
+	 * value points, little-endian PT10 to PT12 sessions and sessions
+	 * without clip groups; false, with nothing changed, otherwise or for
+	 * a NaN or +inf value. Changes nothing on disk until save(). */
+	bool set_clip_gain(const region_t& region, float db);
+
 	bool find_track(uint16_t index, track_t& tt) const {
 		std::vector<track_t>::const_iterator begin = _tracks.begin();
 		std::vector<track_t>::const_iterator finish = _tracks.end();
@@ -571,6 +582,11 @@ private:
 	void parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint64_t& length);
 	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) const;
 	bool reparse(void);
+	bool region_blocks(uint16_t index, const block_t*& list, const block_t*& def, const block_t*& info) const;
+	uint32_t gain_field(const block_t& info) const;
+	bool splice(uint32_t at, uint32_t oldlen, const std::string& data,
+		const std::vector<const block_t*>& grow,
+		const std::vector<std::pair<uint32_t, uint32_t> >& set);
 	static void collect_headers(const std::vector<block_t>& v, std::map<uint32_t, const block_t*>& out);
 	void setrates(void);
 	void cleanup(void);

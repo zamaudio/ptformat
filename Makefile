@@ -18,6 +18,7 @@ all:
 	$(CXX) -o pttracks -g ${INCL} ${STRICT} pttracks.cc ptformat.cc
 	$(CXX) -o ptmute -g ${INCL} ${STRICT} ptmute.cc ptformat.cc
 	$(CXX) -o ptrename -g ${INCL} ${STRICT} ptrename.cc ptformat.cc
+	$(CXX) -o ptgain -g ${INCL} ${STRICT} ptgain.cc ptformat.cc
 
 all32:
 	$(CXX) -m32 -o ptftool -g ${INCL32} ${STRICT} ptftool.cc ptformat.cc
@@ -28,6 +29,7 @@ all32:
 	$(CXX) -m32 -o pttracks -g ${INCL32} ${STRICT} pttracks.cc ptformat.cc
 	$(CXX) -m32 -o ptmute -g ${INCL32} ${STRICT} ptmute.cc ptformat.cc
 	$(CXX) -m32 -o ptrename -g ${INCL32} ${STRICT} ptrename.cc ptformat.cc
+	$(CXX) -m32 -o ptgain -g ${INCL32} ${STRICT} ptgain.cc ptformat.cc
 
 clangall:
 	clang++ -o ptftool -g ${INCL} ${CLANGSTRICT} ptftool.cc ptformat.cc
@@ -38,6 +40,7 @@ clangall:
 	clang++ -o pttracks -g ${INCL} ${CLANGSTRICT} pttracks.cc ptformat.cc
 	clang++ -o ptmute -g ${INCL} ${CLANGSTRICT} ptmute.cc ptformat.cc
 	clang++ -o ptrename -g ${INCL} ${CLANGSTRICT} ptrename.cc ptformat.cc
+	clang++ -o ptgain -g ${INCL} ${CLANGSTRICT} ptgain.cc ptformat.cc
 
 clean:
-	rm ptftool ptunxor ptgenmissing ptcheckmedia ptdiff pttracks ptmute ptrename
+	rm ptftool ptunxor ptgenmissing ptcheckmedia ptdiff pttracks ptmute ptrename ptgain
