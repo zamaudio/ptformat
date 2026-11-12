@@ -209,6 +209,18 @@ The destination must have the same number of channels as the current
 one, and another track must already send to it. Not yet checked in Pro
 Tools.
 
+To write a copy of a PT10 to PT12 session with an I/O Setup path (input,
+output or bus) renamed:
+
+	./ptrenamepath in.ptx out.ptx in|out path new-name
+
+The name changes in the path's own entries, its channel records, the
+sends and outputs that go to it, the strips that record from it and the
+hardware name table; sub-paths keep their names. Renaming and renaming
+back gives the original file in 588 of 594 tries on 200 sessions (the 6
+others are refused because the session holds another input path with
+the name). Not yet checked in Pro Tools.
+
 
 Hacking
 =======

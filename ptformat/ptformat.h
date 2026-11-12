@@ -470,6 +470,23 @@ public:
 	 * until save(). Not checked in Pro Tools. */
 	bool rename_track(const std::string& id, const std::string& name);
 
+	/* Rename the I/O Setup path of iopaths() with this list and id (the
+	 * output or bus path of the 0x2603 list, or an input path of the
+	 * 0x1022 list); its sub-paths keep their names. The name is stored,
+	 * with its length first, in the path's own block (three times in an
+	 * input list entry), in the channel records under it (0x2600), in the
+	 * destination record (0x260e) of every send and output that goes to
+	 * the path and its copy under 0x4856, in the input record of the
+	 * strips that record from it, and, for a hardware output, in the
+	 * name table 0x2033. The path in the other list that holds the same
+	 * id is renamed too. False, with nothing changed, when no path has
+	 * the id, another path has the name, the name is empty or holds a NUL,
+	 * a place does not hold the name as expected, or the offsets cannot
+	 * be moved without doubt. iopaths(), routes() and strips() are
+	 * updated. Changes nothing on disk until save(). Not checked in Pro
+	 * Tools. */
+	bool rename_iopath(const std::string& id, const std::string& name);
+
 	/* Set the clip gain of a region of regions() in the loaded session,
 	 * in dB (-HUGE_VALF for -inf); every placement of it follows. When
 	 * no other region shares the region's gain point, its value changes
@@ -691,6 +708,7 @@ private:
 		std::vector<const block_t*> grow;
 	};
 	bool track_name_fields(const std::string& id, const std::string& name, std::vector<name_field>& out) const;
+	bool iopath_name_fields(const std::string& id, const std::string& old, std::vector<std::pair<uint32_t, uint32_t> >& out) const;
 	bool dest_payload(const block_t& z, std::string& payload, std::string& name) const;
 	bool chain_to(const block_t& b, uint32_t offset, std::vector<const block_t*>& chain) const;
 	void parsevolumes(void);

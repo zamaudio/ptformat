@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Rename an output path in a copy with a longer name, check it reads
+# back, then rename it back: the copy must be identical to the original
+# again.
+echo "PT12 rename an I/O path in a copy and back"
+FILE=../../bins/RegionTest.ptx
+DIR=$(mktemp -d)
+trap 'rm -rf "$DIR"' EXIT
+../../ptrenamepath "$FILE" "$DIR/a.ptx" out "Monitors" "Monitors with a longer name" > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptftool -v "$DIR/a.ptx" | grep -q '^`Monitors with a longer name` (out) ' || { echo "not renamed"; echo "[FAIL]"; exit 1; }
+../../ptftool -v "$DIR/a.ptx" | grep -q '^`Monitors` ' && { echo "old name left"; echo "[FAIL]"; exit 1; }
+../../ptrenamepath "$DIR/a.ptx" "$DIR/b.ptx" out "Monitors with a longer name" "Monitors" > /dev/null || { echo "[FAIL]"; exit 1; }
+cmp -s "$FILE" "$DIR/b.ptx" || { echo "renamed back copy differs"; echo "[FAIL]"; exit 1; }
+echo "[ OK ]"
+echo ""

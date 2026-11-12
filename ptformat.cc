@@ -1333,6 +1333,187 @@ PTFFormat::rename_track(const std::string& id, const std::string& name) {
 	return ok;
 }
 
+/* Whether bytes [pos, end) hold the marker 0x2a and the 8 id bytes,
+ * starting within span bytes of pos. */
+static bool
+holds_id_bytes(const unsigned char *buf, uint32_t pos, uint32_t end, uint32_t span, const unsigned char *id)
+{
+	/* The first marker only: a sub-path holds its parent's id after
+	 * its own. */
+	for (uint32_t i = pos; i < pos + span && i + 12 <= end; i++) {
+		if (readle(&buf[i], 4) == 0x2a)
+			return !memcmp(&buf[i + 4], id, 8);
+	}
+	return false;
+}
+
+/* Every place that holds the name old of the I/O path with id (see
+ * rename_iopath()): pairs of the offset of the 4-byte length before the
+ * name and the offset of the block that holds it. False when the id is
+ * not a path of the session. */
+bool
+PTFFormat::iopath_name_fields(const std::string& id, const std::string& old,
+		std::vector<std::pair<uint32_t, uint32_t> >& out) const
+{
+	out.clear();
+	if (id.size() != 16)
+		return false;
+	unsigned char idb[8];
+	for (int k = 0; k < 8; k++) {
+		unsigned v = 0;
+		for (int h = 0; h < 2; h++) {
+			char ch = id[2 * k + h];
+			v = v * 16 + (ch >= 'a' ? ch - 'a' + 10 : ch - '0');
+		}
+		idb[k] = v;
+	}
+	const unsigned char *d = _ptfunxored;
+	uint32_t n2033 = 0;
+	std::vector<std::pair<uint32_t, uint32_t> > hw;
+	std::vector<const block_t*> todo;
+	std::vector<const block_t*> owner;	/* the 0x2602 above each block */
+	std::vector<const block_t*> own2602;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b) {
+		todo.push_back(&*b);
+		own2602.push_back(NULL);
+	}
+	bool known = false;
+	while (!todo.empty()) {
+		const block_t *b = todo.back();
+		const block_t *above = own2602.back();
+		todo.pop_back();
+		own2602.pop_back();
+		uint16_t t = b->content_type;
+		const block_t *top = (t == 0x2602) ? b : above;
+		for (std::vector<block_t>::const_iterator c = b->child.begin(); c != b->child.end(); ++c) {
+			todo.push_back(&*c);
+			own2602.push_back(top);
+		}
+		if (t != 0x2602 && t != 0x1021 && t != 0x2600 && t != 0x260e && t != 0x261b && t != 0x2033)
+			continue;
+		/* Own bytes: those outside the children. */
+		uint32_t end = b->offset + b->block_size, ci = 0;
+		bool blockid = false;
+		if (t == 0x2602 || t == 0x1021) {
+			/* The path's own id follows its name. */
+			uint32_t len = b->block_size >= 8 ? (uint32_t)readle(&d[b->offset + 4], 4) : 0;
+			if (len <= b->block_size && holds_id_bytes(d, b->offset + 8 + len, end, 30, idb))
+				blockid = true;
+			if (blockid)
+				known = true;
+		}
+		if (t == 0x2600) {
+			/* Under the path's 0x2602 (its channel records). */
+			if (above && above->block_size >= 8) {
+				uint32_t len = (uint32_t)readle(&d[above->offset + 4], 4);
+				if (len <= above->block_size
+						&& holds_id_bytes(d, above->offset + 8 + len, above->offset + above->block_size, 30, idb))
+					blockid = true;
+			}
+		}
+		if (t == 0x260e && b->block_size >= 20 && d[b->offset + 10] == 0x2a && !memcmp(&d[b->offset + 14], idb, 8))
+			blockid = true;
+		for (uint32_t i = b->offset + 2; i + 4 + old.size() <= end; i++) {
+			if (ci < b->child.size() && i == b->child[ci].offset - 7) {
+				i += b->child[ci].block_size + 6;
+				ci++;
+				continue;
+			}
+			if ((uint64_t)readle(&d[i], 4) != old.size() || memcmp(&d[i + 4], old.data(), old.size()) != 0)
+				continue;
+			if (t == 0x261b) {
+				if (!holds_id_bytes(d, i + 4 + old.size(), end, 12, idb))
+					continue;
+			} else if (t == 0x2033) {
+				n2033++;
+				hw.push_back(std::make_pair(i, b->offset));
+				continue;
+			} else if (!blockid) {
+				continue;
+			}
+			out.push_back(std::make_pair((uint32_t)i, (uint32_t)b->offset));
+			i += 3 + old.size();
+		}
+	}
+	/* The hardware name table: only when the name is there once. */
+	if (n2033 == 1 && known)
+		out.push_back(hw[0]);
+	return known;
+}
+
+bool
+PTFFormat::rename_iopath(const std::string& id, const std::string& name) {
+	if (!_ptfunxored || is_bigendian || name.empty() || name.size() > 0xffff
+			|| name.find('\0') != std::string::npos)
+		return false;
+	std::string old;
+	std::set<uint16_t> lists;
+	for (std::vector<iopath_t>::const_iterator p = _iopaths.begin(); p != _iopaths.end(); ++p) {
+		if (p->id == id && p->parent.empty()) {
+			old = p->name;
+			lists.insert(p->list);
+		}
+	}
+	if (old.empty())
+		return false;
+	/* A name is unique within an I/O Setup page: refuse a clash with
+	 * another path of the page the path belongs to. The input list also
+	 * holds a twin of every output and bus path, whose names the input
+	 * page does not show, so only the output list counts for those. */
+	uint16_t page = lists.count(0x2603) ? 0x2603 : 0x1022;
+	std::set<std::string> outids;
+	for (std::vector<iopath_t>::const_iterator p = _iopaths.begin(); p != _iopaths.end(); ++p) {
+		if (p->list == 0x2603)
+			outids.insert(p->id);
+	}
+	for (std::vector<iopath_t>::const_iterator p = _iopaths.begin(); p != _iopaths.end(); ++p) {
+		if (p->name == name && p->id != id && p->list == page && (page == 0x2603 || !outids.count(p->id)))
+			return false;
+	}
+	std::vector<std::pair<uint32_t, uint32_t> > fields;
+	if (!iopath_name_fields(id, old, fields) || fields.size() < 2)
+		return false;
+	size_t total = fields.size();
+
+	std::string saved((const char *)_ptfunxored, _len);
+	std::string data;
+	appendle(data, name.size(), 4);
+	data += name;
+	bool ok = true;
+	/* From the end of the file to its start, so the offsets of the
+	 * places still to do do not move; each splice parses again. */
+	for (size_t done = 0; done < total && ok; done++) {
+		ok = iopath_name_fields(id, old, fields) && fields.size() == total - done;
+		if (!ok)
+			break;
+		size_t last = 0;
+		for (size_t k = 1; k < fields.size(); k++) {
+			if (fields[k].first > fields[last].first)
+				last = k;
+		}
+		std::vector<const block_t*> chain;
+		for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && chain.empty(); ++b) {
+			if (!chain_to(*b, fields[last].second, chain))
+				chain.clear();
+		}
+		ok = !chain.empty() && splice(fields[last].first, 4 + old.size(), data, chain,
+			std::vector<std::pair<uint32_t, uint32_t> >());
+	}
+	if (ok && (!iopath_name_fields(id, old, fields) || !fields.empty()))
+		ok = false;
+	if (!ok) {
+		unsigned char *buf = (unsigned char *)malloc(saved.size());
+		if (buf) {
+			memcpy(buf, saved.data(), saved.size());
+			free(_ptfunxored);
+			_ptfunxored = buf;
+			_len = saved.size();
+		}
+		reparse();
+	}
+	return ok;
+}
+
 /* A memory location (0x2077): its number at +2, the bytes 03 01 00 00 for
  * a marker, its name at +8 and its start and end (8 bytes each); then
  * per-track 0x2506 blocks and, 23 bytes after the last of them, its
