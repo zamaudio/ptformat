@@ -297,6 +297,7 @@ PTFFormat::cleanup(void) {
 	_videofiles.clear();
 	_fades.clear();
 	_iopaths.clear();
+	_tempos.clear();
 	_fpsnum = 0;
 	_fpsden = 0;
 	free_all_blocks();
@@ -664,6 +665,7 @@ PTFFormat::parse(void) {
 	parsegains();
 	parsevideo();
 	parseio();
+	parsetempo();
 	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
 	if (!parseaudio())
@@ -856,6 +858,40 @@ PTFFormat::parsevideo(void) {
 }
 
 static bool read_id(unsigned char *buf, uint32_t pos, uint32_t end, bool bigendian, std::string& id);
+
+/* Tempo map: the top-level 0x2028 block holds the tag "Tempo", an event
+ * count and one "Const" tag per event. 11 bytes into a "Const" comes a
+ * "TMS" tag; 30 bytes in, the event's position in ticks (8 bytes, offset
+ * by ZERO_TICKS); 40 bytes in, the tempo as a double; 48 bytes in, the
+ * ticks per quarter note. */
+void
+PTFFormat::parsetempo(void) {
+	_tempos.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2028 || b->block_size < 7)
+			continue;
+		uint32_t end = b->offset + b->block_size;
+		if (memcmp(&_ptfunxored[b->offset + 2], "Tempo", 5) != 0)
+			continue;
+		uint32_t k = b->offset + 7;
+		while (jumpto(&k, _ptfunxored, end, (const unsigned char *)"Const", 5)) {
+			if (end - k < 56 || memcmp(&_ptfunxored[k + 11], "TMS", 3) != 0) {
+				k += 5;
+				continue;
+			}
+			tempo_t t;
+			uint64_t ticks = u_endian_read8(&_ptfunxored[k + 30], false);
+			uint64_t bits = u_endian_read8(&_ptfunxored[k + 40], false);
+			memcpy(&t.bpm, &bits, sizeof t.bpm);
+			t.pos = (int64_t)ticks - (int64_t)ZERO_TICKS;
+			/* A damaged file can hold any bits here. */
+			if (t.bpm > 0 && t.bpm < 10000)
+				_tempos.push_back(t);
+			k += 56;
+		}
+	}
+}
 
 /* I/O setup: the 0x2603 block holds one 0x2602 per output or bus path
  * and the 0x1022 block one 0x1021 per input path. Both entries have the

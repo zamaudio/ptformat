@@ -208,6 +208,16 @@ public:
 		std::string path;
 	};
 
+	/* A tempo event: its position in ticks from the start of the
+	 * timeline (960000 per quarter note) and the tempo in beats per
+	 * minute. Every session seen holds a single event at 0, so reading
+	 * more than one is not verified. */
+	struct tempo_t {
+		int64_t pos;
+		double  bpm;
+		tempo_t () : pos (0), bpm (0) {}
+	};
+
 	/* A path of the session's I/O setup: its name, its number of
 	 * channels, and for a sub-path (for example "Bus 1.L") the name of
 	 * the path it belongs to. list is the block it comes from: 0x2603
@@ -400,6 +410,7 @@ public:
 	const std::vector<video_t>&  videofiles () const { return _videofiles ; }
 	const std::vector<fade_t>&   fades () const { return _fades ; }
 	const std::vector<iopath_t>& iopaths () const { return _iopaths ; }
+	const std::vector<tempo_t>&  tempos () const { return _tempos ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -420,6 +431,7 @@ private:
 	std::vector<video_t>  _videofiles;
 	std::vector<fade_t>   _fades;
 	std::vector<iopath_t> _iopaths;
+	std::vector<tempo_t>  _tempos;
 	std::vector<float>    _gains;
 
 	std::string _path;
@@ -467,6 +479,7 @@ private:
 	void parsegains(void);
 	void parsevideo(void);
 	void parseio(void);
+	void parsetempo(void);
 	bool parsefade(uint32_t index, fade_t& fade);
 	bool readstring(uint32_t& pos, uint32_t end, std::string& out);
 	bool parserest(void);

@@ -259,6 +259,13 @@ int main (int argc, char **argv) {
 				printf(", %+.1f dB%s, pan %d/%d\n", r->level, r->muted ? " muted" : "", r->pan, r->pan_right);
 			}
 
+			printf("\nTempo @ ticks: bpm\n");
+			for (vector<PTFFormat::tempo_t>::const_iterator
+					t = ptf.tempos().begin();
+					t != ptf.tempos().end(); ++t) {
+				printf("@ %" PRId64 ": %g\n", t->pos, t->bpm);
+			}
+
 			printf("\nI/O path (list) channels, parent:\n");
 			for (vector<PTFFormat::iopath_t>::const_iterator
 					io = ptf.iopaths().begin();
