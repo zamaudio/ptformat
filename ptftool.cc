@@ -78,6 +78,9 @@ int main (int argc, char **argv) {
 		printf("ProTools %d Session: Samplerate = %" PRId64 "Hz\nTarget samplerate = 48000\n\n", ptf.version(), ptf.sessionrate());
 		if (verbose) {
 			printf("Bit depth = %d%s\n", ptf.sessionbitdepth(), ptf.sessionfloat() ? " float" : "");
+			if (ptf.framerateden())
+				printf("Frame rate = %u/%u (%.3f fps)\n", ptf.frameratenum(), ptf.framerateden(),
+					(double)ptf.frameratenum() / ptf.framerateden());
 			if (!ptf.sessionpath().empty())
 				printf("Saved at = %s\n", join(ptf.sessionpath()).c_str());
 			if (!ptf.sourcepath().empty())
@@ -187,6 +190,19 @@ int main (int argc, char **argv) {
 					m != ptf.markers().end(); ++m) {
 				printf("`%s` m(%d) @ %" PRId64 ", %" PRId64 "\n",
 					m->name.c_str(), m->index, m->start, m->end);
+			}
+
+			printf("\nVideo file: fps, frames, size, created\n");
+			for (vector<PTFFormat::video_t>::const_iterator
+					vf = ptf.videofiles().begin();
+					vf != ptf.videofiles().end(); ++vf) {
+				char buf[32] = "-";
+				if (vf->created) {
+					time_t t = (time_t)vf->created;
+					strftime(buf, sizeof buf, "%Y-%m-%d %H:%M:%S UTC", gmtime(&t));
+				}
+				printf("`%s`: %.3f, %u, %ux%u, %s\n", vf->filename.c_str(), vf->fps,
+					vf->frames, vf->width, vf->height, buf);
 			}
 
 			printf("\nVolume: mount path\n");

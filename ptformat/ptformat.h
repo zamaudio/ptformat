@@ -187,6 +187,19 @@ public:
 		std::string path;
 	};
 
+	/* A video file the session uses: its name, frame rate, length in
+	 * frames, picture size and creation time (seconds since 1970 UTC, 0
+	 * when not a valid date). */
+	struct video_t {
+		std::string filename;
+		double      fps;
+		uint32_t    frames;
+		uint16_t    width;
+		uint16_t    height;
+		int64_t     created;
+		video_t () : fps (0), frames (0), width (0), height (0), created (0) {}
+	};
+
 	struct track_t {
 		std::string name;
 		uint16_t    index;
@@ -304,6 +317,12 @@ public:
 	 * floating point; 0 when unknown. */
 	int sessionbitdepth () const { return _sessionbitdepth ; }
 	bool sessionfloat () const { return _sessionfloat ; }
+	/* Frame rate of the session's video format, as a fraction (for
+	 * example 24000/1001); the denominator is 0 when the session holds
+	 * none. In the sessions seen it is the timecode rate: track positions
+	 * are samples counted from timecode 00:00:00:00. */
+	uint32_t frameratenum () const { return _fpsnum ; }
+	uint32_t framerateden () const { return _fpsden ; }
 	/* Where the session was saved, as path components: the volume, the
 	 * folders and the file name. Empty when not stored or not read. */
 	const std::vector<std::string>& sessionpath () const { return _sessionpath ; }
@@ -323,6 +342,7 @@ public:
 	const std::vector<volume_t>& volumes () const { return _volumes ; }
 	const std::vector<route_t>&  routes () const { return _routes ; }
 	const std::vector<strip_t>&  strips () const { return _strips ; }
+	const std::vector<video_t>&  videofiles () const { return _videofiles ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -340,6 +360,7 @@ private:
 	std::vector<volume_t> _volumes;
 	std::vector<route_t>  _routes;
 	std::vector<strip_t>  _strips;
+	std::vector<video_t>  _videofiles;
 	std::vector<float>    _gains;
 
 	std::string _path;
@@ -351,6 +372,8 @@ private:
 	int64_t        _sessionrate;
 	int            _sessionbitdepth;
 	bool           _sessionfloat;
+	uint32_t       _fpsnum;
+	uint32_t       _fpsden;
 	uint8_t        _version;
 	uint8_t*       _product;
 	int64_t        _targetrate;
@@ -383,6 +406,7 @@ private:
 	void parseplugins(void);
 	void parsevolumes(void);
 	void parsegains(void);
+	void parsevideo(void);
 	bool readstring(uint32_t& pos, uint32_t end, std::string& out);
 	bool parserest(void);
 	bool parseaudio(void);

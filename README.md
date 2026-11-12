@@ -15,7 +15,8 @@ Decrypt and parse a PT file:
 	make
 	./ptftool file.pt{s,5,f,x}
 
-`./ptftool -v file.pt{s,5,f,x}` also prints the bit depth, where the
+`./ptftool -v file.pt{s,5,f,x}` also prints the bit depth, the frame
+rate, the video files, where the
 session was saved, the creation date of each audio file, the channel
 and UUID of each region, the memory locations, the volumes and plugins
 the session uses, every track with its type (audio, aux, master or
@@ -91,7 +92,8 @@ Regions per track
 =================
 
 To list the regions placed on each audio track in time order, with
-start and end positions, or only the tracks named:
+start and end positions (as timecode when the session holds a frame
+rate), or only the tracks named:
 
 	make
 	./pttracks [--csv] file.pt{s,5,f,x} [track name ...]

@@ -105,7 +105,8 @@ int main (int argc, char **argv) {
 	placement_map pa, pb;
 	if (!load(a, argv[1], ra, pa) || !load(b, argv[2], rb, pb))
 		return 2;
-	int64_t rate = b.sessionrate() ? b.sessionrate() : 48000;
+	/* The library scales positions to the rate given to load(). */
+	int64_t rate = 48000;
 
 	/* Regions only in one save, and regions kept with the same id. */
 	vector<PTFFormat::region_t> removed, added;

@@ -81,6 +81,8 @@ PTFFormat::PTFFormat()
 	, _sessionrate(0)
 	, _sessionbitdepth(0)
 	, _sessionfloat(false)
+	, _fpsnum(0)
+	, _fpsden(0)
 	, _version(0)
 	, _product(NULL)
 	, _targetrate (0)
@@ -292,6 +294,9 @@ PTFFormat::cleanup(void) {
 	_gains.clear();
 	_routes.clear();
 	_strips.clear();
+	_videofiles.clear();
+	_fpsnum = 0;
+	_fpsden = 0;
 	free_all_blocks();
 }
 
@@ -655,6 +660,7 @@ PTFFormat::parse(void) {
 	parseplugins();
 	parsevolumes();
 	parsegains();
+	parsevideo();
 	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
 	if (!parseaudio())
@@ -773,6 +779,77 @@ PTFFormat::readstring(uint32_t& pos, uint32_t end, std::string& out) {
 	out = std::string((const char *)&_ptfunxored[pos + 4], len);
 	pos += 4 + len;
 	return true;
+}
+
+/* Video: the 0x270a block in 0x2032 holds the session's video format,
+ * with the picture width and height at +35 and +39 and the frame rate as
+ * a fraction at +43 and +47 (4 bytes each). The 0x1006 block lists the
+ * video files the way 0x1004 lists the audio: a 0x103a names block (a
+ * count at +7, then each name followed by a 4-character type, which is
+ * zero for folders) and one 0x1005 per file whose last 52 bytes hold the
+ * frame rate (a double), the length in frames, 12 zero bytes, the height
+ * and width (2 bytes each), the creation time (a Windows FILETIME) and a
+ * 16-byte id. */
+void
+PTFFormat::parsevideo(void) {
+	_videofiles.clear();
+	_fpsnum = 0;
+	_fpsden = 0;
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type == 0x2032) {
+			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+					c != b->child.end(); ++c) {
+				if (c->content_type == 0x270a && c->block_size >= 51) {
+					_fpsnum = u_endian_read4(&_ptfunxored[c->offset + 43], is_bigendian);
+					_fpsden = u_endian_read4(&_ptfunxored[c->offset + 47], is_bigendian);
+				}
+			}
+		}
+		if (b->content_type != 0x1006)
+			continue;
+		std::vector<std::string> names;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != 0x103a || c->block_size < 11 || !names.empty())
+				continue;
+			uint32_t end = c->offset + c->block_size;
+			uint32_t n = u_endian_read4(&_ptfunxored[c->offset + 7], is_bigendian);
+			uint32_t pos = c->offset + 11;
+			for (uint32_t k = 0; k < n; k++) {
+				std::string name;
+				if (!readstring(pos, end, name) || end - pos < 9)
+					break;
+				/* A zero type is a folder. */
+				if (u_endian_read4(&_ptfunxored[pos], is_bigendian) != 0)
+					names.push_back(name);
+				pos += 9;
+			}
+		}
+		size_t i = 0;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != 0x1005 || c->block_size < 54)
+				continue;
+			uint32_t end = c->offset + c->block_size;
+			video_t vf;
+			if (i < names.size())
+				vf.filename = names[i];
+			i++;
+			uint64_t bits = u_endian_read8(&_ptfunxored[end - 52], false);
+			memcpy(&vf.fps, &bits, sizeof vf.fps);
+			vf.frames = u_endian_read4(&_ptfunxored[end - 44], false);
+			vf.height = u_endian_read2(&_ptfunxored[end - 28], false);
+			vf.width = u_endian_read2(&_ptfunxored[end - 26], false);
+			int64_t t = (int64_t)(u_endian_read8(&_ptfunxored[end - 24], false) / 10000000ULL) - 11644473600LL;
+			if (t >= 631152000LL && t < 4102444800LL)
+				vf.created = t;
+			/* A damaged file can hold any bits here. */
+			if (!(vf.fps > 0 && vf.fps < 1000))
+				vf.fps = 0;
+			_videofiles.push_back(vf);
+		}
+	}
 }
 
 /* Clip gain points: the 0x2637 block holds a 4-byte count and that many

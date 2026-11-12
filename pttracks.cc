@@ -24,8 +24,11 @@
  *
  * Usage: pttracks [--csv] file.pt{s,5,f,x} [track name ...]
  *
- * With track names, only those tracks are listed. Positions are in
- * samples and in h:mm:ss.sss from the start of the timeline. Each track
+ * With track names, only those tracks are listed. Positions are shown
+ * as timecode (hh:mm:ss:ff, counted from 00:00:00:00 at the session's
+ * frame rate) when the session holds a frame rate, and as h:mm:ss.sss
+ * from the start of the timeline when it does not; --csv gives samples,
+ * clock time and timecode. Each track
  * shows the time covered by at least one of its regions, so channels of
  * a multichannel track that overlap count once. Each region shows when
  * its file was created (UTC), when the session holds that date. --csv
@@ -71,6 +74,25 @@ clock(int64_t samples, int64_t rate)
 	int h = (int)(s / 3600);
 	int m = (int)((s - h * 3600) / 60);
 	snprintf(buf, sizeof buf, "%d:%02d:%06.3f", h, m, s - h * 3600 - m * 60);
+	return buf;
+}
+
+/* Timecode hh:mm:ss:ff of a position counted from 00:00:00:00, at a
+ * frame rate of num/den; "" when the rate is unknown. Frames are counted
+ * non-drop at the rounded rate (24 for 24000/1001, 30 for 30000/1001). */
+static string
+timecode(int64_t samples, int64_t rate, uint32_t num, uint32_t den)
+{
+	if (!num || !den || samples < 0)
+		return "";
+	int64_t frames = samples * num / (rate * den);
+	int64_t base = (num + den / 2) / den;
+	if (base <= 0)
+		return "";
+	char buf[32];
+	int64_t s = frames / base;
+	snprintf(buf, sizeof buf, "%02d:%02d:%02d:%02d", (int)(s / 3600), (int)(s / 60 % 60),
+		(int)(s % 60), (int)(frames % base));
 	return buf;
 }
 
@@ -120,7 +142,9 @@ int main (int argc, char **argv) {
 		fprintf(stderr, "Cannot read session %s (error %d)\n", path, ok);
 		return 2;
 	}
-	int64_t rate = ptf.sessionrate() ? ptf.sessionrate() : 48000;
+	/* The library scales positions to the rate given to load(). */
+	int64_t rate = 48000;
+	uint32_t fpsnum = ptf.frameratenum(), fpsden = ptf.framerateden();
 
 	set<string> wanted;
 	for (; arg < argc; arg++)
@@ -159,7 +183,7 @@ int main (int argc, char **argv) {
 	}
 
 	if (as_csv)
-		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created,gain_db\n");
+		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created,gain_db,start_tc,end_tc\n");
 
 	for (vector<string>::const_iterator name = order.begin(); name != order.end(); ++name) {
 		const set<placement>& s = tracks[*name];
@@ -186,14 +210,23 @@ int main (int argc, char **argv) {
 		for (set<placement>::const_iterator p = s.begin(); p != s.end(); ++p) {
 			int64_t end = p->start + p->length;
 			if (as_csv) {
-				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s,%g\n",
+				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s,%g,%s,%s\n",
 					csv(*name).c_str(), csv(p->region).c_str(), csv(p->file).c_str(),
 					p->start, clock(p->start, rate).c_str(),
 					end, clock(end, rate).c_str(), p->length, p->offset,
-					date(p->created, "%Y-%m-%dT%H:%M:%SZ").c_str(), p->gain);
+					date(p->created, "%Y-%m-%dT%H:%M:%SZ").c_str(), p->gain,
+					timecode(p->start, rate, fpsnum, fpsden).c_str(),
+					timecode(end, rate, fpsnum, fpsden).c_str());
 			} else {
+				/* Timecode when the frame rate is known, clock time if not. */
+				string from = timecode(p->start, rate, fpsnum, fpsden);
+				string to = timecode(end, rate, fpsnum, fpsden);
+				if (from.empty() || to.empty()) {
+					from = clock(p->start, rate);
+					to = clock(end, rate);
+				}
 				printf("  %s - %s  %-30s %s%s%s",
-					clock(p->start, rate).c_str(), clock(end, rate).c_str(),
+					from.c_str(), to.c_str(),
 					p->region.c_str(), p->file.c_str(),
 					p->created ? "  created " : "",
 					date(p->created, "%Y-%m-%d %H:%M UTC").c_str());
