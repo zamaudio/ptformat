@@ -2289,7 +2289,9 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, struct block_t *p
 	 * let a block run past its parent and the file. */
 	if (b.offset > max || b.block_size > max - b.offset)
 		return false;
-	if (b.block_type & 0xff00)
+	/* An empty block holds nothing; a ZMARK byte inside data that is
+	 * not a block (an input record, for one) can look like one. */
+	if ((b.block_type & 0xff00) || b.block_size == 0)
 		return false;
 
 	block->zmark = b.zmark;
@@ -2303,7 +2305,10 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, struct block_t *p
 	 * ZMARK (e.g. 602 = 0x025a) the scan would take it for a block header
 	 * and swallow the WAV names, so start scanning after the count. */
 	i = (block->content_type == 0x1004) ? 13 : 1;
-	for (; (i < block->block_size) && (pos + i + childjump < max); i += childjump ? childjump : 1) {
+	/* Scan to the end of the block. Bounding the scan by the size of
+	 * the child found last, as this loop once did, dropped the last
+	 * child of many blocks (the master fader's strip among them). */
+	for (; (i < block->block_size) && (pos + i < max); i += childjump ? childjump : 1) {
 		int p = pos + i;
 		struct block_t bchild;
 		childjump = 0;
