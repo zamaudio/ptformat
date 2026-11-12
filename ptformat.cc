@@ -678,13 +678,27 @@ PTFFormat::parseaudio(void) {
 
 			nwavs = u_endian_read4(&_ptfunxored[b->offset+2], is_bigendian);
 
+			/* The count above can be lower than the number of files: a
+			 * session with ADM BWF files has a second WAV names block whose
+			 * files are not counted. Every file has a metadata entry, so
+			 * bound the names by those entries as well. */
+			uint32_t nentries = 0;
+			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+					c != b->child.end(); ++c) {
+				if (c->content_type == 0x1003)
+					nentries++;
+			}
+			uint32_t maxwavs = (nentries > nwavs) ? nentries : nwavs;
+
+			/* Number files across all names blocks so indices stay unique. */
+			n = 0;
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x103a) {
 					//nstrings = u_endian_read4(&_ptfunxored[c->offset+1], is_bigendian);
 					pos = c->offset + 11;
 					// Found wav list
-					for (i = n = 0; (pos < c->offset + c->block_size) && (n < nwavs); i++) {
+					for (i = 0; (pos < c->offset + c->block_size) && (n < maxwavs); i++) {
 						wavname = parsestring(pos);
 						pos += wavname.size() + 4;
 						wavtype = std::string((const char*)&_ptfunxored[pos], 4);
@@ -755,6 +769,8 @@ PTFFormat::parseaudio(void) {
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
 						if (d->content_type == 0x1001) {
+							if (wav == _audiofiles.end())
+								break;
 							(*wav).length = u_endian_read8(&_ptfunxored[d->offset+8], is_bigendian);
 							wav++;
 						}
