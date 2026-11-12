@@ -3404,8 +3404,12 @@ PTFFormat::parseplugins(void) {
 							i != y->child.end(); ++i) {
 						/* A slot is a 0x2616 (plugin), a 0x2625 (empty)
 						 * or a 0x2617 holding a 0x2616; what tells a
-						 * 0x2617 apart is not known. Each strip in the
-						 * sessions seen has 10 slots counting all three. */
+						 * 0x2617 apart is not known. Each list in the
+						 * sessions seen has 11 slots counting all three,
+						 * one more than the 10 inserts (A-J) Pro Tools
+						 * shows; plugins sit from the first slot on and
+						 * the 11th is never used, so slot 0 is taken as
+						 * insert A. */
 						const block_t *plug = NULL;
 						if (i->content_type == 0x2616)
 							plug = &*i;
