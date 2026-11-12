@@ -48,6 +48,14 @@ public:
 	*/
 	int unxor(std::string const& path);
 
+	/* Write the loaded session, with the changes made by the set_*
+	 * calls, to path: encrypted again the way it was read, through a
+	 * temporary file next to path that is then renamed. Without changes
+	 * the file written is identical to the one loaded. Refuses (-1) to
+	 * write over the file loaded; also -1 on a write error. 0 on
+	 * success. */
+	int save(std::string const& path) const;
+
 	struct wav_t {
 		std::string filename;
 		uint16_t    index;
@@ -303,11 +311,14 @@ public:
 		video_t () : fps (0), frames (0), width (0), height (0), created (0) {}
 	};
 
+	/* entry is where the placement is stored in the decrypted session
+	 * (the offset of its 0x104f block), for set_muted(); 0 when unknown. */
 	struct track_t {
 		std::string name;
 		uint16_t    index;
 		uint8_t     playlist;
 		region_t    reg;
+		uint32_t    entry;
 
 		bool operator <(const track_t& other) const {
 			return (this->index < other.index);
@@ -316,8 +327,15 @@ public:
 		bool operator ==(const track_t& other) const {
 			return (this->index == other.index);
 		}
-		track_t (uint16_t idx = 0) : index (idx), playlist (0) {}
+		track_t (uint16_t idx = 0) : index (idx), playlist (0), entry (0) {}
 	};
+
+	/* Mute or unmute one placement of tracks() in the loaded session:
+	 * sets the first byte of its 0x104f entry, the static mute per the
+	 * pt_api format notes (section 4.2), and updates tracks(). Changes
+	 * nothing on disk until save(). False when the placement does not
+	 * come from this session. */
+	bool set_muted(const track_t& placement, bool muted);
 
 	bool find_track(uint16_t index, track_t& tt) const {
 		std::vector<track_t>::const_iterator begin = _tracks.begin();
@@ -535,7 +553,7 @@ private:
 	bool parse_version();
 	void parse_region_info(uint32_t j, block_t& blk, region_t& r);
 	void parse_three_point(uint32_t j, uint64_t& start, uint64_t& offset, uint64_t& length);
-	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative);
+	uint8_t gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) const;
 	void setrates(void);
 	void cleanup(void);
 	void free_block(struct block_t& b);

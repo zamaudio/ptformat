@@ -453,6 +453,68 @@ PTFFormat::unxor(std::string const& path) {
 	return 0;
 }
 
+int
+PTFFormat::save(std::string const& path) const {
+	if (!_ptfunxored || _len < 0x14 || path == _path)
+		return -1;
+	uint8_t xor_type = _ptfunxored[0x12];
+	uint8_t xor_delta;
+	switch (xor_type) {
+	case 0x01:
+		xor_delta = gen_xor_delta(_ptfunxored[0x13], 53, false);
+		break;
+	case 0x05:
+		xor_delta = gen_xor_delta(_ptfunxored[0x13], 11, true);
+		break;
+	default:
+		return -1;
+	}
+	std::string tmp = path + ".tmp";
+	FILE *fp = ptf_open(tmp.c_str(), "wb");
+	if (!fp)
+		return -1;
+	/* The first 20 bytes are not encrypted. */
+	bool ok = fwrite(_ptfunxored, 1, 0x14, fp) == 0x14;
+	unsigned char buf[4096];
+	for (uint64_t i = 0x14; ok && i < _len; ) {
+		size_t n = 0;
+		for (; n < sizeof buf && i < _len; n++, i++) {
+			uint8_t xor_index = (xor_type == 0x01) ? i & 0xff : (i >> 12) & 0xff;
+			buf[n] = _ptfunxored[i] ^ (uint8_t)((xor_index * xor_delta) & 0xff);
+		}
+		ok = fwrite(buf, 1, n, fp) == n;
+	}
+	if (fclose(fp) != 0)
+		ok = false;
+	if (!ok || rename(tmp.c_str(), path.c_str()) != 0) {
+		remove(tmp.c_str());
+		return -1;
+	}
+	return 0;
+}
+
+bool
+PTFFormat::set_muted(const track_t& placement, bool muted) {
+	uint32_t e = placement.entry;
+	/* The entry must be a 0x104f block of this session: its header
+	 * (0x5a, type, size) sits 7 bytes before the content type. */
+	if (!_ptfunxored || e < 7 || (uint64_t)e + 3 > _len
+			|| _ptfunxored[e - 7] != ZMARK
+			|| u_endian_read2(&_ptfunxored[e], is_bigendian) != 0x104f)
+		return false;
+	bool found = false;
+	for (std::vector<track_t>::iterator t = _tracks.begin(); t != _tracks.end(); ++t) {
+		if (t->entry == e) {
+			t->reg.muted = muted;
+			found = true;
+		}
+	}
+	if (!found)
+		return false;
+	_ptfunxored[e + 2] = muted ? 1 : 0;
+	return true;
+}
+
 /* Return values:	0            success
 			-1           error decrypting pt session
 			-2           error detecting pt session
@@ -522,7 +584,7 @@ PTFFormat::parse_version() {
 }
 
 uint8_t
-PTFFormat::gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) {
+PTFFormat::gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) const {
 	uint16_t i;
 	for (i = 0; i < 256; i++) {
 		if (((i * mul) & 0xff) == xor_value) {
@@ -1918,6 +1980,7 @@ PTFFormat::parserest(void) {
 									 * this placement (per the pt_api format
 									 * notes, section 4.2). */
 									ti.reg.muted = (_ptfunxored[e->offset + 2] != 0);
+									ti.entry = e->offset;
 									if (ti.reg.index != 65535) {
 										_tracks.push_back(ti);
 									}

@@ -103,6 +103,22 @@ date its file was created (UTC), when the session holds it, and its clip
 gain when it is not 0 dB. `--csv` prints one row per region.
 
 
+Muting regions in a copy of a session
+=====================================
+
+To write a copy of a session with every placement of a region on a
+track muted (or unmuted with `--unmute`):
+
+	make
+	./ptmute [--unmute] in.pt{s,5,f,x} out.pt{s,5,f,x} track region
+
+Only the mute byte of each placement changes. The session read is never
+written, and out must not exist. `PTFFormat::save()` writes a loaded
+session back; without changes the copy is identical to the original
+(checked on 205 sessions). Not yet checked by opening the copy in
+Pro Tools.
+
+
 Hacking
 =======
 
