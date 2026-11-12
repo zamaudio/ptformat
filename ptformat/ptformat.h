@@ -140,7 +140,7 @@ public:
 	 * deduced from the track names). id is the 8-byte id that links
 	 * the track to its mixer strip, as 16 hex digits. playlist is the name
 	 * its mixer strip stores: the track name for aux tracks, the playlist
-	 * name for audio tracks (for example "DIAL 1.dup2"); empty when the
+	 * name for audio tracks (for example "Audio 1.dup1"); empty when the
 	 * strip stores none or the track has no strip (video tracks). */
 	struct strip_t {
 		std::string name;
@@ -181,7 +181,7 @@ public:
 	};
 
 	/* A volume the session uses: its name and where it was mounted (for
-	 * example "03_DOBLAJE" and "/Volumes/03_DOBLAJE/"). */
+	 * example "Media" and "/Volumes/Media/"). */
 	struct volume_t {
 		std::string name;
 		std::string path;
