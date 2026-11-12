@@ -190,9 +190,8 @@ public:
 	 *
 	 * level is the slot's level in dB (stored in tenths): the track
 	 * fader for slot 0, the send level for the others. muted is a flag
-	 * stored with it; in a dubbing session it is set on the output of
-	 * the original dialogue tracks, so it looks like mute, but what it
-	 * means on a send is not known. pan and pan_right run from -100
+	 * stored with it; it equals the fixed value of the slot's mute lane
+	 * (see automation_t), on outputs and on sends. pan and pan_right run from -100
 	 * (left) to 100 (right); a stereo strip holds -100 and 100, a mono
 	 * strip 0 in both. These four are deduced from the values, not
 	 * checked in Pro Tools. */
@@ -218,9 +217,12 @@ public:
 
 	/* An automation lane of a mixer slot (see route_t for strip and
 	 * slot). lane is its position among the lanes of the slot. Lane 0 of
-	 * slot 0 is the track's volume, with values in dB; the meaning of
-	 * the other lanes is not known. Each point is a position in samples
-	 * at the target rate and a value (the stored integer divided by 10).
+	 * slot 0 is the track's volume, with values in dB. Lane 1 is the
+	 * mute of the slot, 0 or 1: with a single point it equals
+	 * route_t::muted in every slot of the sessions seen. The meaning of
+	 * lanes 2 and 3 is not known. Each point is a position in samples
+	 * at the target rate and a value (the stored integer divided by 10,
+	 * or as stored for lane 1).
 	 * A lane with a single point at 0 holds a fixed value. pan is 0 for
 	 * those lanes; 1 (left, or the only one of a mono strip) or 2 (right)
 	 * marks the pan position of the slot instead, with values from -100

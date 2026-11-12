@@ -1312,7 +1312,9 @@ PTFFormat::parseplugins(void) {
 						_routes.push_back(rt);
 					}
 					/* Automation lanes: the 0x260a blocks directly under
-					 * the slot (see read_lane). */
+					 * the slot (see read_lane). Lane 0 is the level in
+					 * tenths of dB and lane 1 the mute, 0 or 1, the same
+					 * value the flag of the 0x1029 holds. */
 					uint16_t lane = 0;
 					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
 							z != y->child.end(); ++z) {
@@ -1320,7 +1322,7 @@ PTFFormat::parseplugins(void) {
 							continue;
 						automation_t au;
 						au.lane = lane++;
-						if (!read_lane(_ptfunxored, z->offset, z->block_size, is_bigendian, _ratefactor, 10.0f, au.points))
+						if (!read_lane(_ptfunxored, z->offset, z->block_size, is_bigendian, _ratefactor, au.lane == 1 ? 1.0f : 10.0f, au.points))
 							continue;
 						au.strip = strip;
 						au.strip_index = sidx;
