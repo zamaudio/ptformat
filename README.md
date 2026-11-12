@@ -95,8 +95,8 @@ start and end positions, or only the tracks named:
 	./pttracks [--csv] file.pt{s,5,f,x} [track name ...]
 
 Each track shows the time covered by its regions, and each region the
-date its file was created (UTC), when the session holds it. `--csv`
-prints one row per region.
+date its file was created (UTC), when the session holds it, and its clip
+gain when it is not 0 dB. `--csv` prints one row per region.
 
 
 Hacking

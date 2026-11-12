@@ -289,6 +289,7 @@ PTFFormat::cleanup(void) {
 	_plugins.clear();
 	_inserts.clear();
 	_volumes.clear();
+	_gains.clear();
 	free_all_blocks();
 }
 
@@ -651,6 +652,7 @@ PTFFormat::parse(void) {
 	parsemarkers();
 	parseplugins();
 	parsevolumes();
+	parsegains();
 	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
 	if (!parseaudio())
@@ -769,6 +771,34 @@ PTFFormat::readstring(uint32_t& pos, uint32_t end, std::string& out) {
 	out = std::string((const char *)&_ptfunxored[pos + 4], len);
 	pos += 4 + len;
 	return true;
+}
+
+/* Clip gain points: the 0x2637 block holds a 4-byte count and that many
+ * records, each an 8-byte header (a tag and the payload length) and a
+ * payload that ends with a position in the audio file (8 bytes) and the
+ * gain in dB (a 4-byte float). A region block refers to its point by
+ * index (see parserest). Keeps the gain of each point, in order. */
+void
+PTFFormat::parsegains(void) {
+	_gains.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2637 || b->block_size < 6)
+			continue;
+		uint32_t end = b->offset + b->block_size;
+		uint32_t n = u_endian_read4(&_ptfunxored[b->offset + 2], is_bigendian);
+		uint32_t pos = b->offset + 6;
+		for (uint32_t k = 0; k < n && end - pos >= 8; k++) {
+			uint32_t len = u_endian_read4(&_ptfunxored[pos + 4], is_bigendian);
+			if (len < 12 || len > end - pos - 8)
+				break;
+			uint32_t bits = u_endian_read4(&_ptfunxored[pos + 8 + len - 4], is_bigendian);
+			float gain;
+			memcpy(&gain, &bits, sizeof gain);
+			_gains.push_back(gain);
+			pos += 8 + len;
+		}
+	}
 }
 
 /* Volumes the session uses: the 0x0f3d block holds one 0x0f3c per volume
@@ -1225,6 +1255,15 @@ PTFFormat::parserest(void) {
 					r.name = regionname;
 					r.index = rindex;
 					parse_region_info(j, *d, r);
+
+					/* 22 bytes before the end of the first child, a PT10+
+					 * region holds the index of its clip gain point, or
+					 * 0xffffffff when it has none. */
+					if (c->content_type == 0x2629 && d->block_size >= 22) {
+						uint32_t gi = u_endian_read4(&_ptfunxored[d->offset + d->block_size - 22], is_bigendian);
+						if (gi < _gains.size())
+							r.gain = _gains[gi];
+					}
 
 					/* Regions of ADM BWF files store 0xffffffff as their file
 					 * index. Recent PT12 sessions end every region block with

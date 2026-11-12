@@ -96,6 +96,9 @@ public:
 		 * digits; empty when the session does not store one (PT12
 		 * sessions do, PT5 and PT8 do not, PT10 and PT11 untested). */
 		std::string uid;
+		/* Clip gain in dB; 0 when the region has none. Read from the
+		 * single gain point the sessions seen store per region. */
+		float       gain;
 		std::vector<midi_ev_t> midi;
 
 		bool operator ==(const region_t& other) const {
@@ -109,7 +112,7 @@ public:
 			std::transform (b.begin(), b.end(), b.begin(), ::tolower);
 			return a < b;
 		}
-		region_t (uint16_t idx = 0) : index (idx), startpos (0), sampleoffset (0), length (0), channel (0) {}
+		region_t (uint16_t idx = 0) : index (idx), startpos (0), sampleoffset (0), length (0), channel (0), gain (0) {}
 	};
 
 	/* A memory location: its number, name and position in samples at the
@@ -299,6 +302,7 @@ private:
 	std::vector<plugin_t> _plugins;
 	std::vector<insert_t> _inserts;
 	std::vector<volume_t> _volumes;
+	std::vector<float>    _gains;
 
 	std::string _path;
 	std::vector<std::string> _sessionpath;
@@ -340,6 +344,7 @@ private:
 	void parsemarkers(void);
 	void parseplugins(void);
 	void parsevolumes(void);
+	void parsegains(void);
 	bool readstring(uint32_t& pos, uint32_t end, std::string& out);
 	bool parserest(void);
 	bool parseaudio(void);

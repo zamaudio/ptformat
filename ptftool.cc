@@ -121,6 +121,8 @@ int main (int argc, char **argv) {
 				printf(" c(%u)", a->channel);
 				if (!a->uid.empty())
 					printf(" uid(%s)", a->uid.c_str());
+				if (a->gain != 0)
+					printf(" gain(%g dB)", a->gain);
 			}
 			printf("\n");
 		}

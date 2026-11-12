@@ -54,6 +54,7 @@ struct placement {
 	int64_t offset;
 	int64_t length;
 	int64_t created;
+	float gain;
 
 	bool operator <(const placement& o) const {
 		if (start != o.start)
@@ -145,6 +146,7 @@ int main (int argc, char **argv) {
 		p.offset = t->reg.sampleoffset;
 		p.length = t->reg.length;
 		p.created = t->reg.wave.created;
+		p.gain = t->reg.gain;
 		s.insert(p);
 	}
 
@@ -157,7 +159,7 @@ int main (int argc, char **argv) {
 	}
 
 	if (as_csv)
-		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created\n");
+		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created,gain_db\n");
 
 	for (vector<string>::const_iterator name = order.begin(); name != order.end(); ++name) {
 		const set<placement>& s = tracks[*name];
@@ -184,17 +186,20 @@ int main (int argc, char **argv) {
 		for (set<placement>::const_iterator p = s.begin(); p != s.end(); ++p) {
 			int64_t end = p->start + p->length;
 			if (as_csv) {
-				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s\n",
+				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s,%g\n",
 					csv(*name).c_str(), csv(p->region).c_str(), csv(p->file).c_str(),
 					p->start, clock(p->start, rate).c_str(),
 					end, clock(end, rate).c_str(), p->length, p->offset,
-					date(p->created, "%Y-%m-%dT%H:%M:%SZ").c_str());
+					date(p->created, "%Y-%m-%dT%H:%M:%SZ").c_str(), p->gain);
 			} else {
-				printf("  %s - %s  %-30s %s%s%s\n",
+				printf("  %s - %s  %-30s %s%s%s",
 					clock(p->start, rate).c_str(), clock(end, rate).c_str(),
 					p->region.c_str(), p->file.c_str(),
 					p->created ? "  created " : "",
 					date(p->created, "%Y-%m-%d %H:%M UTC").c_str());
+				if (p->gain != 0)
+					printf("  gain %+g dB", p->gain);
+				printf("\n");
 			}
 		}
 		if (!as_csv)
