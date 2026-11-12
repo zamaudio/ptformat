@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Set the input of a track in a copy, check it reads back, set it to no
+# input and back: the copy must be identical to the original again. An
+# input with other channels than the track is refused.
+echo "PT12 set the input of a track in a copy and back"
+FILE=../../bins/RegionTest.ptx
+DIR=$(mktemp -d)
+trap 'rm -rf "$DIR"' EXIT
+../../ptinput "$FILE" "$DIR/a.ptx" "Audio 2" "Bus 3-4" > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptftool -v "$DIR/a.ptx" | grep -q '^`Audio 2` .*, in: Bus 3-4$' || { echo "input not set"; echo "[FAIL]"; exit 1; }
+../../ptinput "$FILE" "$DIR/b.ptx" "Audio 1" "" > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptftool -v "$DIR/b.ptx" | grep -q '^`Audio 1` .*, in: ' && { echo "input left"; echo "[FAIL]"; exit 1; }
+../../ptinput "$DIR/b.ptx" "$DIR/c.ptx" "Audio 1" "MacBook Pro Microphone 1" > /dev/null || { echo "[FAIL]"; exit 1; }
+cmp -s "$FILE" "$DIR/c.ptx" || { echo "input set back copy differs"; echo "[FAIL]"; exit 1; }
+../../ptinput "$FILE" "$DIR/d.ptx" "Audio 2" "Bus 3" > /dev/null 2>&1 && { echo "mono input on a stereo track"; echo "[FAIL]"; exit 1; }
+[ -e "$DIR/d.ptx" ] && { echo "refused edit wrote a file"; echo "[FAIL]"; exit 1; }
+echo "[ OK ]"
+echo ""

@@ -394,6 +394,20 @@ public:
 	 * on disk until save(). Not checked in Pro Tools. */
 	bool set_route_destination(const route_t& route, const std::string& destination);
 
+	/* Set the input of the track of strips() with this id to the input
+	 * path or bus named input (a main path of the 0x1022 list), or to no
+	 * input when input is empty. The track's mixer strip stores the
+	 * input's name, the path's id and a byte that tells a bus from a
+	 * hardware input, in its 0x261b; no other place of the session holds
+	 * them. The path must have as many channels as the track (1 for a
+	 * mono track, 2 for a stereo one; other formats are refused). False,
+	 * with nothing changed, when there is no such track or strip, the
+	 * input is already that one, no single path has the name, the
+	 * channels differ, the record is not as expected, or the offsets
+	 * cannot be moved without doubt. strips() is updated. Changes nothing
+	 * on disk until save(). Not checked in Pro Tools. */
+	bool set_input(const std::string& id, const std::string& input);
+
 	/* Move one placement of tracks() to pos, in samples at the target
 	 * rate, from 00:00:00:00: the 8-byte position of its 0x104f entry
 	 * (pt_api format notes, sections 4.2 and 6.1) changes and the audio
@@ -701,6 +715,7 @@ private:
 	void parsemarkers(void);
 	void parseplugins(void);
 	void parsegroups(void);
+	bool input_record(const block_t& strip, uint32_t& at, uint32_t& end) const;
 	void read_input(const block_t& strip, std::string& input);
 	bool set_slot(const route_t& route, uint16_t lane, int32_t value);
 	struct name_field {

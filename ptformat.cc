@@ -2794,9 +2794,11 @@ PTFFormat::parsegroups(void) {
  * (after 2 zero bytes in older saves) hold 01, a byte, a 2-byte count n,
  * n 4-byte numbers, the 9 bytes 00 00 00 00 08 00 00 00 00 and then the
  * input name; the input path's 0x2a marker and id follow the name when
- * the path is in the I/O setup. An empty name means no input. */
-void
-PTFFormat::read_input(const block_t& strip, std::string& input)
+ * the path is in the I/O setup. An empty name means no input. at is
+ * where the name (its length first) starts, end where the strip's own
+ * bytes there end. */
+bool
+PTFFormat::input_record(const block_t& strip, uint32_t& at, uint32_t& end) const
 {
 	static const unsigned char gap[9] = { 0, 0, 0, 0, 8, 0, 0, 0, 0 };
 	size_t last = strip.child.size();
@@ -2805,24 +2807,32 @@ PTFFormat::read_input(const block_t& strip, std::string& input)
 			last = k;
 	}
 	if (last == strip.child.size())
-		return;
+		return false;
 	const block_t& slot = strip.child[last];
 	uint32_t pos = slot.offset + slot.block_size;
-	uint32_t end = (last + 1 < strip.child.size()) ? strip.child[last + 1].offset - 7 : strip.offset + strip.block_size;
+	end = (last + 1 < strip.child.size()) ? strip.child[last + 1].offset - 7 : strip.offset + strip.block_size;
 	if (pos > end)
-		return;
+		return false;
 	if (end - pos >= 4 && _ptfunxored[pos] == 0 && _ptfunxored[pos + 1] == 0 && _ptfunxored[pos + 2] == 1)
 		pos += 2;
 	if (end - pos < 4 || _ptfunxored[pos] != 1)
-		return;
+		return false;
 	uint32_t n = u_endian_read2(&_ptfunxored[pos + 2], is_bigendian);
 	if (n > 64 || 4 + 4 * n + 9 > end - pos)
-		return;
+		return false;
 	pos += 4 + 4 * n;
 	if (memcmp(&_ptfunxored[pos], gap, 9) != 0)
-		return;
-	pos += 9;
-	readstring(pos, end, input);
+		return false;
+	at = pos + 9;
+	return true;
+}
+
+void
+PTFFormat::read_input(const block_t& strip, std::string& input)
+{
+	uint32_t pos, end;
+	if (input_record(strip, pos, end))
+		readstring(pos, end, input);
 }
 
 /* The plugin catalog is the 0x1018 block: one 0x1017 per plugin with its
@@ -2854,6 +2864,153 @@ read_id(unsigned char *buf, uint32_t pos, uint32_t end, bool bigendian, std::str
 		return true;
 	}
 	return false;
+}
+
+/* The input record of a strip (see input_record()), after the name: 4
+ * zero bytes, the 0x2a marker and the path's 8-byte id (zeros when no
+ * path), then 7 bytes. In all 5,399 records of the test sessions the
+ * second of those is 02 when the path is also in the 0x2603 list (a bus)
+ * and 00 otherwise, and the others are 0. */
+bool
+PTFFormat::set_input(const std::string& id, const std::string& input)
+{
+	if (!_ptfunxored || is_bigendian || input.size() > 0xffff || input.find('\0') != std::string::npos)
+		return false;
+	const strip_t *track = NULL;
+	for (std::vector<strip_t>::const_iterator t = _strips.begin(); t != _strips.end(); ++t) {
+		if (t->id == id)
+			track = &*t;
+	}
+	if (!track || track->input == input)
+		return false;
+
+	/* The input path: a main path of the input list with the name and
+	 * as many channels as the track (mono 1, stereo 2). */
+	std::string pathid;
+	bool bus = false;
+	if (!input.empty()) {
+		uint32_t want = track->format == 0 ? 1 : track->format == 1 ? 2 : 0;
+		for (std::vector<iopath_t>::const_iterator p = _iopaths.begin(); p != _iopaths.end(); ++p) {
+			if (p->list != 0x1022 || !p->parent.empty() || p->name != input)
+				continue;
+			if (!pathid.empty() && pathid != p->id)
+				return false;
+			if (!want || p->channels != want)
+				return false;
+			pathid = p->id;
+		}
+		if (pathid.size() != 16)
+			return false;
+		for (std::vector<iopath_t>::const_iterator p = _iopaths.begin(); p != _iopaths.end(); ++p) {
+			if (p->list == 0x2603 && p->id == pathid)
+				bus = true;
+		}
+	}
+
+	/* The strip: the one 0x261b whose 0x2619 holds the track's id. */
+	const block_t *strip = NULL;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b) {
+		if (b->content_type != 0x2624)
+			continue;
+		for (std::vector<block_t>::const_iterator s = b->child.begin(); s != b->child.end(); ++s)
+		for (std::vector<block_t>::const_iterator x = s->child.begin(); x != s->child.end(); ++x) {
+			if (x->content_type != 0x261b)
+				continue;
+			for (std::vector<block_t>::const_iterator y = x->child.begin(); y != x->child.end(); ++y) {
+				if (y->content_type != 0x102d)
+					continue;
+				for (std::vector<block_t>::const_iterator z = y->child.begin(); z != y->child.end(); ++z) {
+					if (z->content_type != 0x2619)
+						continue;
+					uint32_t zend = z->offset + z->block_size;
+					uint32_t pos = z->offset + 2;
+					std::string name, zid;
+					if (!readstring(pos, zend, name) || !read_id(_ptfunxored, pos, zend, is_bigendian, zid) || zid != id)
+						continue;
+					if (strip && strip != &*x)
+						return false;
+					strip = &*x;
+				}
+			}
+		}
+	}
+	if (!strip)
+		return false;
+
+	/* The record as it is: name, 4 zeros, marker and id or 12 zeros, and
+	 * the 7 bytes, of which only the second may be set. */
+	const unsigned char *d = _ptfunxored;
+	uint32_t at, end;
+	if (!input_record(*strip, at, end) || end - at < 4)
+		return false;
+	uint32_t len = (uint32_t)readle(&d[at], 4);
+	if (len != track->input.size() || (uint64_t)at + 4 + len + 23 > end
+			|| memcmp(&d[at + 4], track->input.data(), len) != 0)
+		return false;
+	uint32_t q = at + 4 + len;
+	uint32_t marker = (uint32_t)readle(&d[q + 4], 4);
+	if (readle(&d[q], 4) != 0 || (marker != 0x2a && marker != 0))
+		return false;
+	if (!marker) {
+		for (int k = 8; k < 16; k++)
+			if (d[q + k])
+				return false;
+	}
+	for (int k = 16; k < 23; k++) {
+		if (d[q + k] && k != 17)
+			return false;
+	}
+	if (d[q + 17] != 0 && d[q + 17] != 2)
+		return false;
+
+	std::string data;
+	appendle(data, input.size(), 4);
+	data += input;
+	appendle(data, 0, 4);
+	if (input.empty()) {
+		data.append(19, '\0');
+	} else {
+		appendle(data, 0x2a, 4);
+		for (int k = 0; k < 8; k++) {
+			unsigned v = 0;
+			for (int h = 0; h < 2; h++) {
+				char ch = pathid[2 * k + h];
+				v = v * 16 + (ch >= 'a' ? ch - 'a' + 10 : ch - '0');
+			}
+			data += (char)v;
+		}
+		data += '\0';
+		data += (char)(bus ? 2 : 0);
+		data.append(5, '\0');
+	}
+
+	std::vector<const block_t*> chain;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && chain.empty(); ++b) {
+		if (!chain_to(*b, strip->offset, chain))
+			chain.clear();
+	}
+	if (chain.empty())
+		return false;
+	std::string saved((const char *)_ptfunxored, _len);
+	bool ok = splice(at, 4 + len + 23, data, chain, std::vector<std::pair<uint32_t, uint32_t> >());
+	if (ok) {
+		ok = false;
+		for (std::vector<strip_t>::const_iterator t = _strips.begin(); t != _strips.end(); ++t) {
+			if (t->id == id)
+				ok = (t->input == input);
+		}
+	}
+	if (!ok) {
+		unsigned char *buf = (unsigned char *)malloc(saved.size());
+		if (buf) {
+			memcpy(buf, saved.data(), saved.size());
+			free(_ptfunxored);
+			_ptfunxored = buf;
+			_len = saved.size();
+		}
+		reparse();
+	}
+	return ok;
 }
 
 /* An automation lane (a 0x260a block): the id 01 46 01 00, its size

@@ -209,6 +209,16 @@ The destination must have the same number of channels as the current
 one, and another track must already send to it. Not yet checked in Pro
 Tools.
 
+To write a copy of a PT10 to PT12 session with the input of a track set
+to another input path or bus, or to no input (""):
+
+	./ptinput in.ptx out.ptx track input
+
+The input must have as many channels as the track (mono or stereo).
+Setting another input and back gives the original file in 852 of 904
+tries on 205 sessions (the 52 others had an input missing from the I/O
+setup, which cannot be set again). Not yet checked in Pro Tools.
+
 To write a copy of a PT10 to PT12 session with an I/O Setup path (input,
 output or bus) renamed:
 
