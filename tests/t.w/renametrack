@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Rename a track in a copy with a longer name, check it reads back, then
+# rename it back: the copy must be identical to the original again.
+echo "PT12 rename a track in a copy and back"
+FILE=../../bins/RegionTest.ptx
+DIR=$(mktemp -d)
+trap 'rm -rf "$DIR"' EXIT
+../../ptrenametrack "$FILE" "$DIR/a.ptx" "Audio 1" "Audio 1 with a longer name" > /dev/null || { echo "[FAIL]"; exit 1; }
+../../pttracks "$DIR/a.ptx" "Audio 1 with a longer name" | grep -q 'region_name_region-01' || { echo "not renamed"; echo "[FAIL]"; exit 1; }
+../../ptrenametrack "$DIR/a.ptx" "$DIR/b.ptx" "Audio 1 with a longer name" "Audio 1" > /dev/null || { echo "[FAIL]"; exit 1; }
+cmp -s "$FILE" "$DIR/b.ptx" || { echo "renamed back copy differs"; echo "[FAIL]"; exit 1; }
+echo "[ OK ]"
+echo ""

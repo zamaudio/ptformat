@@ -187,6 +187,16 @@ holds, so a session with no marker is refused. On the 143 test sessions
 with markers, the copy reads back with the new marker and everything
 else unchanged. Not yet checked in Pro Tools.
 
+To write a copy of a PT10 to PT12 session with a track renamed:
+
+	./ptrenametrack in.ptx out.ptx track new-name
+
+The name changes in every place the session stores it (the track
+lists, the audio track list and the mixer strip of aux and master
+tracks); the playlist of an audio track keeps its name. Renaming and
+renaming back gives the original file in all 790 tries on 200
+sessions. Not yet checked in Pro Tools.
+
 
 Hacking
 =======

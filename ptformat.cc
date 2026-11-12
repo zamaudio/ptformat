@@ -991,6 +991,200 @@ new_uuid(void)
 	return std::string((const char *)b, 16);
 }
 
+/* Whether a 0x2a marker and the 8-byte id (16 hex digits) start within
+ * 12 bytes from pos, before end. */
+static bool
+holds_id(const unsigned char *buf, uint32_t pos, uint32_t end, const std::string& id)
+{
+	static const char hexdigits[] = "0123456789abcdef";
+	for (uint32_t i = pos; i < pos + 12 && i + 12 <= end; i++) {
+		if (readle(&buf[i], 4) != 0x2a)
+			continue;
+		std::string got;
+		for (uint32_t k = 4; k < 12; k++) {
+			got += hexdigits[buf[i + k] >> 4];
+			got += hexdigits[buf[i + k] & 0x0f];
+		}
+		return got == id;
+	}
+	return false;
+}
+
+/* Every place that stores the name of the track with id (see
+ * rename_track()), with the blocks that hold it, innermost first. False
+ * when a list does not have the expected layout. */
+bool
+PTFFormat::track_name_fields(const std::string& id, const std::string& name, std::vector<name_field>& out) const
+{
+	out.clear();
+	const unsigned char *d = _ptfunxored;
+	/* A length-prefixed name at at, inside [.., end): true when it is
+	 * name. */
+	struct local {
+		static bool named(const unsigned char *d, uint32_t at, uint32_t end, const std::string& name) {
+			if (at > end || end - at < 4)
+				return false;
+			uint64_t len = readle(&d[at], 4);
+			return len == name.size() && len <= end - at - 4 && !memcmp(&d[at + 4], name.data(), len);
+		}
+	};
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b) {
+		uint32_t bend = b->offset + b->block_size;
+		if (b->content_type == 0x2519) {
+			/* The record list before the first 0x251a: a count at +18,
+			 * then per track its type (2 bytes), name, format (2),
+			 * 4 zero bytes, the 0x2a marker and id, and 3 bytes. */
+			uint32_t lend = b->child.empty() ? bend : b->child[0].offset - 7;
+			if (lend < b->offset + 22)
+				return false;
+			uint32_t n = readle(&d[b->offset + 18], 4), pos = b->offset + 22;
+			for (uint32_t i = 0; i < n; i++) {
+				if (pos + 6 > lend)
+					return false;
+				uint32_t len = readle(&d[pos + 2], 4);
+				if (len > lend - pos - 6 || lend - pos - 6 - len < 21
+						|| readle(&d[pos + 6 + len + 6], 4) != 0x2a)
+					return false;
+				/* A place of the track that no longer holds the name
+				 * (renamed already) is left out; rename_track() checks
+				 * the count. */
+				if (holds_id(d, pos + 6 + len + 6, lend, id) && local::named(d, pos + 2, lend, name)) {
+					name_field f;
+					f.at = pos + 2;
+					f.grow.push_back(&*b);
+					out.push_back(f);
+				}
+				pos += 6 + len + 21;
+			}
+			for (std::vector<block_t>::const_iterator c = b->child.begin(); c != b->child.end(); ++c) {
+				uint32_t cend = c->offset + c->block_size;
+				if (c->content_type != 0x251a || c->block_size < 8)
+					continue;
+				uint32_t len = readle(&d[c->offset + 4], 4);
+				if (len > c->block_size - 8 || !holds_id(d, c->offset + 8 + len, cend, id)
+						|| !local::named(d, c->offset + 4, cend, name))
+					continue;
+				name_field f;
+				f.at = c->offset + 4;
+				f.grow.push_back(&*c);
+				f.grow.push_back(&*b);
+				out.push_back(f);
+			}
+		}
+		if (b->content_type == 0x2107 || b->content_type == 0x1015) {
+			uint16_t kind = b->content_type == 0x2107 ? 0x210b : 0x1014;
+			uint32_t lenat = kind == 0x210b ? 6 : 2;
+			for (std::vector<block_t>::const_iterator c = b->child.begin(); c != b->child.end(); ++c) {
+				uint32_t cend = c->offset + c->block_size;
+				if (c->content_type != kind || c->block_size < lenat + 4)
+					continue;
+				uint32_t len = readle(&d[c->offset + lenat], 4);
+				if (len > c->block_size - lenat - 4)
+					continue;
+				uint32_t after = c->offset + lenat + 4 + len;
+				/* The id a 0x1014 holds is not the track's (it differs
+				 * in one byte in the sessions seen): match it by name,
+				 * as track names are unique. */
+				if (!local::named(d, c->offset + lenat, cend, name)
+						|| (kind == 0x210b && !holds_id(d, after, cend, id)))
+					continue;
+				name_field f;
+				f.at = c->offset + lenat;
+				f.grow.push_back(&*c);
+				f.grow.push_back(&*b);
+				out.push_back(f);
+			}
+		}
+		/* An audio track's strip holds its playlist name, which may
+		 * equal the track name: leave it, with the playlist. */
+		bool audio = false;
+		for (std::vector<strip_t>::const_iterator t = _strips.begin(); t != _strips.end(); ++t) {
+			if (t->id == id && t->type == 0)
+				audio = true;
+		}
+		if (b->content_type == 0x2624 && !audio) {
+			for (std::vector<block_t>::const_iterator s = b->child.begin(); s != b->child.end(); ++s)
+			for (std::vector<block_t>::const_iterator x = s->child.begin(); x != s->child.end(); ++x) {
+				if (x->content_type != 0x261b)
+					continue;
+				for (std::vector<block_t>::const_iterator y = x->child.begin(); y != x->child.end(); ++y) {
+					if (y->content_type != 0x102d)
+						continue;
+					for (std::vector<block_t>::const_iterator z = y->child.begin(); z != y->child.end(); ++z) {
+						uint32_t zend = z->offset + z->block_size;
+						if (z->content_type != 0x2619 || z->block_size < 6)
+							continue;
+						uint32_t len = readle(&d[z->offset + 2], 4);
+						if (len > z->block_size - 6 || !holds_id(d, z->offset + 6 + len, zend, id))
+							continue;
+						if (!local::named(d, z->offset + 2, zend, name))
+							continue;
+						name_field f;
+						f.at = z->offset + 2;
+						f.grow.push_back(&*z);
+						f.grow.push_back(&*y);
+						f.grow.push_back(&*x);
+						f.grow.push_back(&*s);
+						f.grow.push_back(&*b);
+						out.push_back(f);
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
+bool
+PTFFormat::rename_track(const std::string& id, const std::string& name) {
+	if (!_ptfunxored || is_bigendian || name.empty() || name.size() > 0xffff
+			|| name.find('\0') != std::string::npos)
+		return false;
+	std::string old;
+	bool found = false;
+	for (std::vector<strip_t>::const_iterator t = _strips.begin(); t != _strips.end(); ++t) {
+		if (t->name == name)
+			return false;
+		if (t->id == id) {
+			old = t->name;
+			found = true;
+		}
+	}
+	if (!found || old.empty())
+		return false;
+	std::vector<name_field> fields;
+	if (!track_name_fields(id, old, fields) || fields.size() < 4)
+		return false;
+	size_t total = fields.size();
+
+	/* Keep the session as it is, to restore it if a step fails. */
+	std::string saved((const char *)_ptfunxored, _len);
+	std::string data;
+	appendle(data, name.size(), 4);
+	data += name;
+	bool ok = true;
+	/* Each splice parses the session again: find the places anew and
+	 * rename the first one left with the old name. */
+	for (size_t done = 0; done < total && ok; done++) {
+		ok = track_name_fields(id, old, fields) && fields.size() == total - done
+			&& splice(fields[0].at, 4 + old.size(), data, fields[0].grow,
+				std::vector<std::pair<uint32_t, uint32_t> >());
+	}
+	if (ok && (!track_name_fields(id, old, fields) || !fields.empty()))
+		ok = false;
+	if (!ok) {
+		unsigned char *buf = (unsigned char *)malloc(saved.size());
+		if (buf) {
+			memcpy(buf, saved.data(), saved.size());
+			free(_ptfunxored);
+			_ptfunxored = buf;
+			_len = saved.size();
+		}
+		reparse();
+	}
+	return ok;
+}
+
 /* A memory location (0x2077): its number at +2, the bytes 03 01 00 00 for
  * a marker, its name at +8 and its start and end (8 bytes each); then
  * per-track 0x2506 blocks and, 23 bytes after the last of them, its

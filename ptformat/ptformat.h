@@ -436,6 +436,20 @@ public:
 	 * until save(). Not checked in Pro Tools. */
 	bool add_marker(const std::string& name, int64_t pos);
 
+	/* Rename the track of strips() whose id is id. The name is stored,
+	 * with its length first, in the record list at the start of the
+	 * 0x2519 track list, in both copies of its 0x251a, in its 0x210b of
+	 * the 0x2107 list, in its 0x1014 of the 0x1015 list for an audio
+	 * track, and in the 0x2619 of its mixer strip when the strip holds
+	 * the track name (aux and master strips; an audio track's strip
+	 * holds its playlist name, which is not changed). Each is found by
+	 * the track's id. False, with nothing changed, when no track has
+	 * the id, another track already has the name, the name is empty or
+	 * holds a NUL, a place does not hold the name as expected, or the
+	 * offsets cannot be moved without doubt. Changes nothing on disk
+	 * until save(). Not checked in Pro Tools. */
+	bool rename_track(const std::string& id, const std::string& name);
+
 	/* Set the clip gain of a region of regions() in the loaded session,
 	 * in dB (-HUGE_VALF for -inf); every placement of it follows. When
 	 * no other region shares the region's gain point, its value changes
@@ -652,6 +666,11 @@ private:
 	void parsegroups(void);
 	void read_input(const block_t& strip, std::string& input);
 	bool set_slot(const route_t& route, uint16_t lane, int32_t value);
+	struct name_field {
+		uint32_t at;	/* the 4-byte length before the name */
+		std::vector<const block_t*> grow;
+	};
+	bool track_name_fields(const std::string& id, const std::string& name, std::vector<name_field>& out) const;
 	void parsevolumes(void);
 	void parsegains(void);
 	void parsevideo(void);
