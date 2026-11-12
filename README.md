@@ -80,6 +80,19 @@ PT5 and PT8 sessions have none and are not supported. Exits with 1 when
 there are differences.
 
 
+Regions per track
+=================
+
+To list the regions placed on each audio track in time order, with
+start and end positions, or only the tracks named:
+
+	make
+	./pttracks [--csv] file.pt{s,5,f,x} [track name ...]
+
+Each track shows the time covered by its regions. `--csv` prints one row
+per region.
+
+
 Hacking
 =======
 
