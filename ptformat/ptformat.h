@@ -102,6 +102,9 @@ public:
 		/* Name of the track the region was recorded on; empty for
 		 * imported audio or when the session does not tell. */
 		std::string recorded_on;
+		/* Whether this placement of the region on a track is muted;
+		 * only set on the regions of tracks(). */
+		bool        muted;
 		std::vector<midi_ev_t> midi;
 
 		bool operator ==(const region_t& other) const {
@@ -115,7 +118,7 @@ public:
 			std::transform (b.begin(), b.end(), b.begin(), ::tolower);
 			return a < b;
 		}
-		region_t (uint16_t idx = 0) : index (idx), startpos (0), sampleoffset (0), length (0), channel (0), gain (0) {}
+		region_t (uint16_t idx = 0) : index (idx), startpos (0), sampleoffset (0), length (0), channel (0), gain (0), muted (false) {}
 	};
 
 	/* A memory location: its number, name and position in samples at the
@@ -406,12 +409,15 @@ public:
 	 * floating point; 0 when unknown. */
 	int sessionbitdepth () const { return _sessionbitdepth ; }
 	bool sessionfloat () const { return _sessionfloat ; }
-	/* Frame rate of the session's video format, as a fraction (for
-	 * example 24000/1001); the denominator is 0 when the session holds
-	 * none. In the sessions seen it is the timecode rate: track positions
-	 * are samples counted from timecode 00:00:00:00. */
+	/* The session's timecode rate as a fraction (for example
+	 * 24000/1001), and whether it counts drop frame. It comes from the
+	 * frame rate code of the 0x204d block, or, when that is absent or
+	 * unknown, from the frame rate of the video format (never drop
+	 * frame). The denominator is 0 when the session holds neither. Track
+	 * positions are samples counted from timecode 00:00:00:00. */
 	uint32_t frameratenum () const { return _fpsnum ; }
 	uint32_t framerateden () const { return _fpsden ; }
+	bool dropframe () const { return _dropframe ; }
 	/* Where the session was saved, as path components: the volume, the
 	 * folders and the file name. Empty when not stored or not read. */
 	const std::vector<std::string>& sessionpath () const { return _sessionpath ; }
@@ -471,6 +477,7 @@ private:
 	bool           _sessionfloat;
 	uint32_t       _fpsnum;
 	uint32_t       _fpsden;
+	bool           _dropframe;
 	uint8_t        _version;
 	uint8_t*       _product;
 	int64_t        _targetrate;

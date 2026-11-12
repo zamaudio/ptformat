@@ -79,8 +79,8 @@ int main (int argc, char **argv) {
 		if (verbose) {
 			printf("Bit depth = %d%s\n", ptf.sessionbitdepth(), ptf.sessionfloat() ? " float" : "");
 			if (ptf.framerateden())
-				printf("Frame rate = %u/%u (%.3f fps)\n", ptf.frameratenum(), ptf.framerateden(),
-					(double)ptf.frameratenum() / ptf.framerateden());
+				printf("Frame rate = %u/%u (%.3f fps%s)\n", ptf.frameratenum(), ptf.framerateden(),
+					(double)ptf.frameratenum() / ptf.framerateden(), ptf.dropframe() ? ", drop frame" : "");
 			if (!ptf.sessionpath().empty())
 				printf("Saved at = %s\n", join(ptf.sessionpath()).c_str());
 			if (!ptf.sourcepath().empty())

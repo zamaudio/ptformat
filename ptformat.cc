@@ -83,6 +83,7 @@ PTFFormat::PTFFormat()
 	, _sessionfloat(false)
 	, _fpsnum(0)
 	, _fpsden(0)
+	, _dropframe(false)
 	, _version(0)
 	, _product(NULL)
 	, _targetrate (0)
@@ -301,6 +302,7 @@ PTFFormat::cleanup(void) {
 	_automation.clear();
 	_fpsnum = 0;
 	_fpsden = 0;
+	_dropframe = false;
 	free_all_blocks();
 }
 
@@ -801,6 +803,7 @@ PTFFormat::parsevideo(void) {
 	_videofiles.clear();
 	_fpsnum = 0;
 	_fpsden = 0;
+	_dropframe = false;
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x2032) {
@@ -854,6 +857,38 @@ PTFFormat::parsevideo(void) {
 			if (!(vf.fps > 0 && vf.fps < 1000))
 				vf.fps = 0;
 			_videofiles.push_back(vf);
+		}
+	}
+
+	/* The 0x204d block holds the timecode rate as a code 42 bytes in
+	 * (per the pt_api format notes, section 1.4). It takes precedence
+	 * over the video format: it also tells drop frame. */
+	static const struct {
+		uint32_t code, num, den;
+		bool drop;
+	} rates[] = {
+		{ 0x01, 24, 1, false }, { 0x02, 25, 1, false },
+		{ 0x03, 30000, 1001, false }, { 0x05, 30000, 1001, true },
+		{ 0x07, 30, 1, false }, { 0x08, 30, 1, true },
+		{ 0x09, 24000, 1001, false }, { 0x0a, 50, 1, false },
+		{ 0x0b, 60000, 1001, false }, { 0x0c, 60000, 1001, true },
+		{ 0x0d, 60, 1, false }, { 0x0e, 60, 1, true },
+		{ 0x0f, 48000, 1001, false }, { 0x10, 48, 1, false },
+		{ 0x11, 100, 1, false }, { 0x12, 120000, 1001, false },
+		{ 0x13, 120000, 1001, true }, { 0x14, 120, 1, false },
+		{ 0x15, 120, 1, true }
+	};
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x204d || b->block_size < 46)
+			continue;
+		uint32_t code = u_endian_read4(&_ptfunxored[b->offset + 42], is_bigendian);
+		for (size_t i = 0; i < sizeof rates / sizeof rates[0]; i++) {
+			if (rates[i].code == code) {
+				_fpsnum = rates[i].num;
+				_fpsden = rates[i].den;
+				_dropframe = rates[i].drop;
+			}
 		}
 	}
 }
@@ -1834,6 +1869,10 @@ PTFFormat::parserest(void) {
 										continue;
 									}
 									ti.reg.startpos = start * _ratefactor;
+									/* The entry's first byte is the mute of
+									 * this placement (per the pt_api format
+									 * notes, section 4.2). */
+									ti.reg.muted = (_ptfunxored[e->offset + 2] != 0);
 									if (ti.reg.index != 65535) {
 										_tracks.push_back(ti);
 									}

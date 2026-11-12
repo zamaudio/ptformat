@@ -59,6 +59,7 @@ struct placement {
 	int64_t created;
 	float gain;
 	string recorded_on;
+	bool muted;
 
 	bool operator <(const placement& o) const {
 		if (start != o.start)
@@ -79,10 +80,12 @@ clock(int64_t samples, int64_t rate)
 }
 
 /* Timecode hh:mm:ss:ff of a position counted from 00:00:00:00, at a
- * frame rate of num/den; "" when the rate is unknown. Frames are counted
- * non-drop at the rounded rate (24 for 24000/1001, 30 for 30000/1001). */
+ * frame rate of num/den; "" when the rate is unknown. Frames are numbered
+ * at the rounded rate (24 for 24000/1001, 30 for 30000/1001). With drop
+ * frame, the frame numbers the count skips are added back (2 per minute
+ * at 30, except every tenth minute) and the frames follow a ';'. */
 static string
-timecode(int64_t samples, int64_t rate, uint32_t num, uint32_t den)
+timecode(int64_t samples, int64_t rate, uint32_t num, uint32_t den, bool drop)
 {
 	if (!num || !den || samples < 0)
 		return "";
@@ -90,10 +93,19 @@ timecode(int64_t samples, int64_t rate, uint32_t num, uint32_t den)
 	int64_t base = (num + den / 2) / den;
 	if (base <= 0)
 		return "";
+	if (drop) {
+		int64_t dropped = 2 * (base / 30);
+		int64_t per10min = 600 * base - 9 * dropped;
+		int64_t permin = 60 * base - dropped;
+		int64_t q = frames / per10min, r = frames % per10min;
+		frames += 9 * dropped * q;
+		if (r >= dropped && permin > 0)
+			frames += dropped * ((r - dropped) / permin);
+	}
 	char buf[32];
 	int64_t s = frames / base;
-	snprintf(buf, sizeof buf, "%02d:%02d:%02d:%02d", (int)(s / 3600), (int)(s / 60 % 60),
-		(int)(s % 60), (int)(frames % base));
+	snprintf(buf, sizeof buf, "%02d:%02d:%02d%c%02d", (int)(s / 3600), (int)(s / 60 % 60),
+		(int)(s % 60), drop ? ';' : ':', (int)(frames % base));
 	return buf;
 }
 
@@ -146,6 +158,7 @@ int main (int argc, char **argv) {
 	/* The library scales positions to the rate given to load(). */
 	int64_t rate = 48000;
 	uint32_t fpsnum = ptf.frameratenum(), fpsden = ptf.framerateden();
+	bool drop = ptf.dropframe();
 
 	set<string> wanted;
 	for (; arg < argc; arg++)
@@ -173,6 +186,7 @@ int main (int argc, char **argv) {
 		p.created = t->reg.wave.created;
 		p.gain = t->reg.gain;
 		p.recorded_on = t->reg.recorded_on;
+		p.muted = t->reg.muted;
 		s.insert(p);
 	}
 
@@ -185,7 +199,7 @@ int main (int argc, char **argv) {
 	}
 
 	if (as_csv)
-		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created,gain_db,start_tc,end_tc,recorded_on\n");
+		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created,gain_db,start_tc,end_tc,recorded_on,muted\n");
 
 	for (vector<string>::const_iterator name = order.begin(); name != order.end(); ++name) {
 		const set<placement>& s = tracks[*name];
@@ -212,18 +226,18 @@ int main (int argc, char **argv) {
 		for (set<placement>::const_iterator p = s.begin(); p != s.end(); ++p) {
 			int64_t end = p->start + p->length;
 			if (as_csv) {
-				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s,%g,%s,%s,%s\n",
+				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s,%g,%s,%s,%s,%d\n",
 					csv(*name).c_str(), csv(p->region).c_str(), csv(p->file).c_str(),
 					p->start, clock(p->start, rate).c_str(),
 					end, clock(end, rate).c_str(), p->length, p->offset,
 					date(p->created, "%Y-%m-%dT%H:%M:%SZ").c_str(), p->gain,
-					timecode(p->start, rate, fpsnum, fpsden).c_str(),
-					timecode(end, rate, fpsnum, fpsden).c_str(),
-					csv(p->recorded_on).c_str());
+					timecode(p->start, rate, fpsnum, fpsden, drop).c_str(),
+					timecode(end, rate, fpsnum, fpsden, drop).c_str(),
+					csv(p->recorded_on).c_str(), p->muted ? 1 : 0);
 			} else {
 				/* Timecode when the frame rate is known, clock time if not. */
-				string from = timecode(p->start, rate, fpsnum, fpsden);
-				string to = timecode(end, rate, fpsnum, fpsden);
+				string from = timecode(p->start, rate, fpsnum, fpsden, drop);
+				string to = timecode(end, rate, fpsnum, fpsden, drop);
 				if (from.empty() || to.empty()) {
 					from = clock(p->start, rate);
 					to = clock(end, rate);
@@ -235,6 +249,8 @@ int main (int argc, char **argv) {
 					date(p->created, "%Y-%m-%d %H:%M UTC").c_str());
 				if (p->gain != 0)
 					printf("  gain %+g dB", p->gain);
+				if (p->muted)
+					printf("  muted");
 				printf("\n");
 			}
 		}
