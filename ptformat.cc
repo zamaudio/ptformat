@@ -520,12 +520,6 @@ PTFFormat::set_muted(const track_t& placement, bool muted) {
 	return true;
 }
 
-static bool
-first_less(const std::pair<uint64_t, std::string>& a, const std::pair<uint64_t, std::string>& b)
-{
-	return a.first < b.first;
-}
-
 static void
 write4le(unsigned char *p, uint32_t v)
 {
@@ -533,6 +527,92 @@ write4le(unsigned char *p, uint32_t v)
 	p[1] = (v >> 8) & 0xff;
 	p[2] = (v >> 16) & 0xff;
 	p[3] = (v >> 24) & 0xff;
+}
+
+/* Find the slot block of a route; write value (tenths of dB for lane 0,
+ * 0 or 1 for lane 1) into its 0x1029 and into the single point of that
+ * lane, then update routes() and automation(). */
+bool
+PTFFormat::set_slot(const route_t& route, uint16_t lane, int32_t value)
+{
+	const block_t *slot = NULL;
+	std::vector<const block_t*> todo;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b)
+		todo.push_back(&*b);
+	while (!todo.empty() && !slot) {
+		const block_t *b = todo.back();
+		todo.pop_back();
+		if (b->offset == route.block && b->content_type == 0x260d) {
+			slot = b;
+			break;
+		}
+		for (std::vector<block_t>::const_iterator c = b->child.begin(); c != b->child.end(); ++c)
+			todo.push_back(&*c);
+	}
+	if (!route.block || !slot)
+		return false;
+	const block_t *settings = NULL, *points = NULL;
+	uint16_t n = 0;
+	for (std::vector<block_t>::const_iterator z = slot->child.begin(); z != slot->child.end(); ++z) {
+		if (z->content_type == 0x1029 && z->block_size >= 47 && !settings)
+			settings = &*z;
+		if (z->content_type == 0x260a && n++ == lane)
+			points = &*z;
+	}
+	if (!settings)
+		return false;
+	uint32_t pl = 0;
+	if (points) {
+		/* The lane layout of read_lane(): one point only. */
+		pl = points->offset + 2;
+		if (points->block_size != 32 || u_endian_read4(&_ptfunxored[pl], is_bigendian) != 0x00014601
+				|| u_endian_read4(&_ptfunxored[pl + 10], is_bigendian) != 1)
+			return false;
+	}
+	if (lane == 0)
+		write4le(&_ptfunxored[settings->offset + 3], (uint32_t)value);
+	else
+		_ptfunxored[settings->offset + 7] = value ? 1 : 0;
+	if (points) {
+		_ptfunxored[pl + 26] = value & 0xff;
+		_ptfunxored[pl + 27] = (value >> 8) & 0xff;
+	}
+	for (std::vector<route_t>::iterator r = _routes.begin(); r != _routes.end(); ++r) {
+		if (r->block != route.block)
+			continue;
+		if (lane == 0)
+			r->level = value / 10.0f;
+		else
+			r->muted = value != 0;
+	}
+	for (std::vector<automation_t>::iterator a = _automation.begin(); a != _automation.end(); ++a) {
+		if (a->strip_index == route.strip_index && a->slot == route.slot && a->lane == lane
+				&& !a->pan && a->points.size() == 1)
+			a->points[0].value = lane == 0 ? value / 10.0f : value;
+	}
+	return true;
+}
+
+bool
+PTFFormat::set_level(const route_t& route, float db)
+{
+	if (!(db >= -80.0f && db <= 12.0f) || is_bigendian)
+		return false;
+	return set_slot(route, 0, (int32_t)floor(db * 10.0f + 0.5f));
+}
+
+bool
+PTFFormat::set_route_muted(const route_t& route, bool muted)
+{
+	if (is_bigendian)
+		return false;
+	return set_slot(route, 1, muted ? 1 : 0);
+}
+
+static bool
+first_less(const std::pair<uint64_t, std::string>& a, const std::pair<uint64_t, std::string>& b)
+{
+	return a.first < b.first;
 }
 
 /* Header offsets (where the 0x5a is) of every block parsed. */
@@ -2330,6 +2410,7 @@ PTFFormat::parseplugins(void) {
 						rt.strip_index = sidx;
 						rt.strip_type = s->content_type;
 						rt.slot = rslot;
+						rt.block = y->offset;
 						_routes.push_back(rt);
 					}
 					/* Automation lanes: the 0x260a blocks directly under

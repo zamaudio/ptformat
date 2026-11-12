@@ -22,6 +22,7 @@ all:
 	$(CXX) -o ptmove -g ${INCL} ${STRICT} ptmove.cc ptformat.cc
 	$(CXX) -o ptsplit -g ${INCL} ${STRICT} ptsplit.cc ptformat.cc
 	$(CXX) -o ptfade -g ${INCL} ${STRICT} ptfade.cc ptformat.cc
+	$(CXX) -o ptlevel -g ${INCL} ${STRICT} ptlevel.cc ptformat.cc
 
 all32:
 	$(CXX) -m32 -o ptftool -g ${INCL32} ${STRICT} ptftool.cc ptformat.cc
@@ -36,6 +37,7 @@ all32:
 	$(CXX) -m32 -o ptmove -g ${INCL32} ${STRICT} ptmove.cc ptformat.cc
 	$(CXX) -m32 -o ptsplit -g ${INCL32} ${STRICT} ptsplit.cc ptformat.cc
 	$(CXX) -m32 -o ptfade -g ${INCL32} ${STRICT} ptfade.cc ptformat.cc
+	$(CXX) -m32 -o ptlevel -g ${INCL32} ${STRICT} ptlevel.cc ptformat.cc
 
 clangall:
 	clang++ -o ptftool -g ${INCL} ${CLANGSTRICT} ptftool.cc ptformat.cc
@@ -50,6 +52,7 @@ clangall:
 	clang++ -o ptmove -g ${INCL} ${CLANGSTRICT} ptmove.cc ptformat.cc
 	clang++ -o ptsplit -g ${INCL} ${CLANGSTRICT} ptsplit.cc ptformat.cc
 	clang++ -o ptfade -g ${INCL} ${CLANGSTRICT} ptfade.cc ptformat.cc
+	clang++ -o ptlevel -g ${INCL} ${CLANGSTRICT} ptlevel.cc ptformat.cc
 
 clean:
-	rm ptftool ptunxor ptgenmissing ptcheckmedia ptdiff pttracks ptmute ptrename ptgain ptmove ptsplit ptfade
+	rm ptftool ptunxor ptgenmissing ptcheckmedia ptdiff pttracks ptmute ptrename ptgain ptmove ptsplit ptfade ptlevel

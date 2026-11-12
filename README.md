@@ -167,6 +167,16 @@ The fade is stored as Pro Tools stores fades in the sessions checked;
 the session must already hold a fade to copy the record header from.
 Not yet checked in Pro Tools.
 
+To write a copy of a PT10 to PT12 session with the level or the mute
+of a track's output (its fader) or of one of its sends changed:
+
+	./ptlevel in.ptx out.ptx track out|A-J dB
+	./ptlevel --mute|--unmute in.ptx out.ptx track out|A-J
+
+dB runs from -80 to +12. A slot whose level or mute holds automation is
+refused. Changing and changing back gives the original file in all
+2,178 tries on 200 sessions. Not yet checked in Pro Tools.
+
 
 Hacking
 =======

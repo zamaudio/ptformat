@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Change the fader level and the output mute of a track in a copy, check
+# they read back, then change them back: the copy must be identical to
+# the original again.
+echo "PT12 change a track's level and output mute in a copy and back"
+FILE=../../bins/TestPTX.ptx
+DIR=$(mktemp -d)
+trap 'rm -rf "$DIR"' EXIT
+../../ptlevel "$FILE" "$DIR/a.ptx" stereoTone out -6.5 > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptlevel --mute "$DIR/a.ptx" "$DIR/b.ptx" stereoTone out > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptftool -v "$DIR/b.ptx" | grep -q '^`stereoTone` s(1) out: Main 51.Stereo, -6.5 dB muted,' || { echo "not changed"; echo "[FAIL]"; exit 1; }
+../../ptlevel --unmute "$DIR/b.ptx" "$DIR/c.ptx" stereoTone out > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptlevel "$DIR/c.ptx" "$DIR/d.ptx" stereoTone out 0 > /dev/null || { echo "[FAIL]"; exit 1; }
+cmp -s "$FILE" "$DIR/d.ptx" || { echo "copy changed back differs"; echo "[FAIL]"; exit 1; }
+echo "[ OK ]"
+echo ""

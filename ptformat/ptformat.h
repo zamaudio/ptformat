@@ -220,7 +220,11 @@ public:
 	 * (see automation_t), on outputs and on sends. pan and pan_right run from -100
 	 * (left) to 100 (right); a stereo strip holds -100 and 100, a mono
 	 * strip 0 in both. These four are deduced from the values, not
-	 * checked in Pro Tools. */
+	 * checked in Pro Tools.
+	 *
+	 * block is where the slot is in the session (the offset of its
+	 * 0x260d block), for set_level() and set_route_muted(); 0 when
+	 * unknown. Routes of the same slot share it. */
 	struct route_t {
 		std::string strip;
 		uint16_t    strip_index;
@@ -231,7 +235,8 @@ public:
 		bool        muted;
 		int32_t     pan;
 		int32_t     pan_right;
-		route_t () : strip_index (0), strip_type (0), slot (0), level (0), muted (false), pan (0), pan_right (0) {}
+		uint32_t    block;
+		route_t () : strip_index (0), strip_type (0), slot (0), level (0), muted (false), pan (0), pan_right (0), block (0) {}
 	};
 
 	/* A volume the session uses: its name and where it was mounted (for
@@ -356,6 +361,18 @@ public:
 	 * nothing on disk until save(). False when the placement does not
 	 * come from this session. */
 	bool set_muted(const track_t& placement, bool muted);
+
+	/* Set the level, in dB from -80 to +12 (stored in tenths), or the
+	 * mute of the mixer slot of a route of routes(): the track fader or
+	 * output mute for slot 0, a send for the others. Both the value in
+	 * the slot's 0x1029 and the single point of its level or mute lane
+	 * change, as they hold the same value in every session seen; routes()
+	 * and automation() are updated. False when the route does not come
+	 * from this session, the level is out of range, or the lane holds
+	 * automation (more than one point). Changes nothing on disk until
+	 * save(). Not checked in Pro Tools. */
+	bool set_level(const route_t& route, float db);
+	bool set_route_muted(const route_t& route, bool muted);
 
 	/* Move one placement of tracks() to pos, in samples at the target
 	 * rate, from 00:00:00:00: the 8-byte position of its 0x104f entry
@@ -622,6 +639,7 @@ private:
 	void parseplugins(void);
 	void parsegroups(void);
 	void read_input(const block_t& strip, std::string& input);
+	bool set_slot(const route_t& route, uint16_t lane, int32_t value);
 	void parsevolumes(void);
 	void parsegains(void);
 	void parsevideo(void);
