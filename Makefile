@@ -13,16 +13,19 @@ all:
 	$(CXX) -o ptftool -g ${INCL} ${STRICT} ptftool.cc ptformat.cc
 	$(CXX) -o ptunxor -g ${INCL} ${STRICT} ptunxor.cc ptformat.cc
 	$(CXX) -o ptgenmissing -g ${INCL} ${STRICT} ptgenmissing.cc ptformat.cc
+	$(CXX) -o ptcheckmedia -g ${INCL} ${STRICT} ptcheckmedia.cc ptformat.cc
 
 all32:
 	$(CXX) -m32 -o ptftool -g ${INCL32} ${STRICT} ptftool.cc ptformat.cc
 	$(CXX) -m32 -o ptunxor -g ${INCL32} ${STRICT} ptunxor.cc ptformat.cc
 	$(CXX) -m32 -o ptgenmissing -g ${INCL32} ${STRICT} ptgenmissing.cc ptformat.cc
+	$(CXX) -m32 -o ptcheckmedia -g ${INCL32} ${STRICT} ptcheckmedia.cc ptformat.cc
 
 clangall:
 	clang++ -o ptftool -g ${INCL} ${CLANGSTRICT} ptftool.cc ptformat.cc
 	clang++ -o ptunxor -g ${INCL} ${CLANGSTRICT} ptunxor.cc ptformat.cc
 	clang++ -o ptgenmissing -g ${INCL} ${CLANGSTRICT} ptgenmissing.cc ptformat.cc
-	
+	clang++ -o ptcheckmedia -g ${INCL} ${CLANGSTRICT} ptcheckmedia.cc ptformat.cc
+
 clean:
-	rm ptftool ptunxor ptgenmissing
+	rm ptftool ptunxor ptgenmissing ptcheckmedia

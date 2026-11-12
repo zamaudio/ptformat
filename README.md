@@ -53,6 +53,19 @@ To make a sox script for regenerating all audio in a PT session as dummy wavs:
 	./ptgenmissing file.pt{s,5,f,x}
 
 
+Missing and unused media
+========================
+
+To list the audio files a session references that are not on disk, and
+the audio files on disk that the session does not reference:
+
+	make
+	./ptcheckmedia file.pt{s,5,f,x} [audio dir ...]
+
+With no audio dir, `Audio Files` next to the session is searched. Exits
+with 1 when files are missing.
+
+
 Hacking
 =======
 
