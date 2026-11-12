@@ -187,6 +187,13 @@ int main (int argc, char **argv) {
 					m->name.c_str(), m->index, m->start, m->end);
 			}
 
+			printf("\nVolume: mount path\n");
+			for (vector<PTFFormat::volume_t>::const_iterator
+					vol = ptf.volumes().begin();
+					vol != ptf.volumes().end(); ++vol) {
+				printf("`%s`: %s\n", vol->name.c_str(), vol->path.c_str());
+			}
+
 			printf("\nPlugin (codes) bundle:\n");
 			for (vector<PTFFormat::plugin_t>::const_iterator
 					p = ptf.plugins().begin();

@@ -288,6 +288,7 @@ PTFFormat::cleanup(void) {
 	_markers.clear();
 	_plugins.clear();
 	_inserts.clear();
+	_volumes.clear();
 	free_all_blocks();
 }
 
@@ -649,6 +650,7 @@ PTFFormat::parse(void) {
 	setrates();
 	parsemarkers();
 	parseplugins();
+	parsevolumes();
 	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
 	if (!parseaudio())
@@ -767,6 +769,32 @@ PTFFormat::readstring(uint32_t& pos, uint32_t end, std::string& out) {
 	out = std::string((const char *)&_ptfunxored[pos + 4], len);
 	pos += 4 + len;
 	return true;
+}
+
+/* Volumes the session uses: the 0x0f3d block holds one 0x0f3c per volume
+ * with its name at +2, a 4-byte id and the path it was mounted at. */
+void
+PTFFormat::parsevolumes(void) {
+	_volumes.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x0f3d)
+			continue;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != 0x0f3c)
+				continue;
+			uint32_t end = c->offset + c->block_size;
+			uint32_t pos = c->offset + 2;
+			volume_t vol;
+			if (!readstring(pos, end, vol.name))
+				continue;
+			pos += 4;
+			if (!readstring(pos, end, vol.path))
+				vol.path.clear();
+			_volumes.push_back(vol);
+		}
+	}
 }
 
 /* Memory locations: the 0x2030 block holds one 0x2077 block per

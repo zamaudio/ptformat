@@ -143,6 +143,13 @@ public:
 		insert_t () : strip_type (0), slot (0) {}
 	};
 
+	/* A volume the session uses: its name and where it was mounted (for
+	 * example "03_DOBLAJE" and "/Volumes/03_DOBLAJE/"). */
+	struct volume_t {
+		std::string name;
+		std::string path;
+	};
+
 	struct track_t {
 		std::string name;
 		uint16_t    index;
@@ -276,6 +283,7 @@ public:
 	const std::vector<marker_t>& markers () const { return _markers ; }
 	const std::vector<plugin_t>& plugins () const { return _plugins ; }
 	const std::vector<insert_t>& inserts () const { return _inserts ; }
+	const std::vector<volume_t>& volumes () const { return _volumes ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -290,6 +298,7 @@ private:
 	std::vector<marker_t> _markers;
 	std::vector<plugin_t> _plugins;
 	std::vector<insert_t> _inserts;
+	std::vector<volume_t> _volumes;
 
 	std::string _path;
 	std::vector<std::string> _sessionpath;
@@ -330,6 +339,7 @@ private:
 	void parsepaths(void);
 	void parsemarkers(void);
 	void parseplugins(void);
+	void parsevolumes(void);
 	bool readstring(uint32_t& pos, uint32_t end, std::string& out);
 	bool parserest(void);
 	bool parseaudio(void);

@@ -17,8 +17,8 @@ Decrypt and parse a PT file:
 
 `./ptftool -v file.pt{s,5,f,x}` also prints the bit depth, where the
 session was saved, the creation date of each audio file, the channel
-and UUID of each region, the memory locations, the plugins the session
-uses and the plugin in each insert slot.
+and UUID of each region, the memory locations, the volumes and plugins
+the session uses and the plugin in each insert slot.
 
 API
 ===

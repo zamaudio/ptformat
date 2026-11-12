@@ -155,6 +155,10 @@ int main (int argc, char **argv) {
 		printf("Saved at: %s\n", saved.c_str());
 	if (!source.empty() && source != saved)
 		printf("Source session: %s\n", source.c_str());
+	/* The volumes it used: where missing media may be. */
+	for (vector<PTFFormat::volume_t>::const_iterator vol = ptf.volumes().begin();
+			vol != ptf.volumes().end(); ++vol)
+		printf("Volume: %s (%s)\n", vol->name.c_str(), vol->path.c_str());
 	for (vector<string>::const_iterator d = dirs.begin(); d != dirs.end(); ++d)
 		printf("Searched: %s\n", d->c_str());
 	printf("Referenced: %zu, missing: %zu, unused on disk: %zu\n",
