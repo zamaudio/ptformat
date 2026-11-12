@@ -39,7 +39,6 @@
 #define ZMARK			'\x5a'
 #define ZERO_TICKS		0xe8d4a51000ULL
 #define MAX_CONTENT_TYPE	0x3000
-#define MAX_CHANNELS_PER_TRACK	8
 
 #if 0
 #define DEBUG
@@ -525,6 +524,10 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, struct block_t *p
 	uint32_t i;
 	uint32_t max = _len;
 
+	/* The block header is 9 bytes. */
+	if (pos > _len || _len - pos < 9)
+		return false;
+
 	if (_ptfunxored[pos] != ZMARK)
 		return false;
 
@@ -661,8 +664,13 @@ PTFFormat::parseheader(void) {
 
 std::string
 PTFFormat::parsestring (uint32_t pos) {
+	/* A damaged file can hold any length; never read past the buffer. */
+	if (pos > _len || _len - pos < 4)
+		return std::string();
 	uint32_t length = u_endian_read4(&_ptfunxored[pos], is_bigendian);
 	pos += 4;
+	if (length > _len - pos)
+		return std::string();
 	return std::string((const char *)&_ptfunxored[pos], length);
 }
 
@@ -917,7 +925,6 @@ PTFFormat::parserest(void) {
 	uint64_t start;
 	uint16_t rindex, rawindex, tindex, mindex;
 	uint32_t nch;
-	uint16_t ch_map[MAX_CHANNELS_PER_TRACK];
 	bool found = false;
 	bool region_is_fade = false;
 	std::string regionname, trackname, midiregionname;
@@ -931,6 +938,9 @@ PTFFormat::parserest(void) {
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x1008 || c->content_type == 0x2629) {
+					/* The region info is in the first child block. */
+					if (c->child.empty())
+						continue;
 					vector<PTFFormat::block_t>::iterator d = c->child.begin();
 					region_t r;
 
@@ -982,19 +992,21 @@ PTFFormat::parserest(void) {
 					j += trackname.size() + 5;
 					nch = u_endian_read4(&_ptfunxored[j], is_bigendian);
 					j += 4;
-					for (i = 0; i < nch; i++) {
-						ch_map[i] = u_endian_read2(&_ptfunxored[j], is_bigendian);
+					/* Stop at the end of the block: a damaged count must not
+					 * read past it. */
+					for (i = 0; i < nch && j + 2 <= c->offset + c->block_size; i++) {
+						uint16_t ch = u_endian_read2(&_ptfunxored[j], is_bigendian);
 
 						track_t ti;
-						if (!find_track(ch_map[i], ti)) {
+						if (!find_track(ch, ti)) {
 							// Add a dummy region for now
 							region_t r (65535);
-							track_t t (ch_map[i]);
+							track_t t (ch);
 							t.name = trackname;
 							t.reg = r;
 							_tracks.push_back(t);
 						}
-						//verbose_printf("%s : %d(%d)\n", reg, nch, ch_map[0]);
+						//verbose_printf("%s : %d(%d)\n", reg, nch, ch);
 						j += 2;
 					}
 				}
@@ -1155,7 +1167,7 @@ PTFFormat::parserest(void) {
 	}
 
 	/* Renumber track entries to be zero based */
-	int first = _tracks[0].index;
+	int first = _tracks.empty() ? 0 : _tracks[0].index;
 	if (first > 0) {
 		for (std::vector<track_t>::iterator tr = _tracks.begin();
 				tr != _tracks.end(); tr++) {
@@ -1208,11 +1220,15 @@ PTFFormat::parsemidi(void) {
 					break;
 				}
 				k += 11;
+				/* The count and zero ticks take 9 bytes. */
+				if (k > _len || _len - k < 9)
+					break;
 				n_midi_events = u_endian_read4(&_ptfunxored[k], is_bigendian);
 
 				k += 4;
 				zero_ticks = u_endian_read5(&_ptfunxored[k], is_bigendian);
-				for (i = 0; i < n_midi_events && k < _len; i++, k += 35) {
+				/* Each event read takes 18 bytes from k. */
+				for (i = 0; i < n_midi_events && k < _len && _len - k >= 18; i++, k += 35) {
 					midi_pos = u_endian_read5(&_ptfunxored[k], is_bigendian);
 					midi_pos -= zero_ticks;
 					midi_note = _ptfunxored[k+8];
@@ -1246,6 +1262,8 @@ PTFFormat::parsemidi(void) {
 							parse_three_point(j, region_pos, zero_ticks, midi_len);
 							j = d->offset + d->block_size;
 							rindex = u_endian_read4(&_ptfunxored[j], is_bigendian);
+							if (rindex >= midichunks.size())
+								continue;
 							struct mchunk mc = *(midichunks.begin()+rindex);
 
 							region_t r (regionnumber++);
