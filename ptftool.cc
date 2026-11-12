@@ -262,6 +262,25 @@ int main (int argc, char **argv) {
 					i != ptf.inserts().end(); ++i) {
 				printf("`%s` s(%d) %c: %s\n", i->strip.c_str(), i->strip_index, 'A' + i->slot,
 					i->plugin.name.empty() ? "?" : i->plugin.name.c_str());
+				/* A stepped parameter shows its value number; a
+				 * continuous one the stored value over 2^32 and,
+				 * in brackets, as stored. */
+				for (vector<PTFFormat::param_t>::const_iterator p = i->params.begin(); p != i->params.end(); ++p) {
+					printf("\t#%u `%s` (%s)", p->index, p->name.c_str(), p->id.c_str());
+					if (p->steps)
+						printf(" %u steps:", p->steps);
+					else
+						printf(":");
+					for (vector<PTFFormat::parampoint_t>::const_iterator q = p->points.begin(); q != p->points.end(); ++q) {
+						if (p->points.size() > 1)
+							printf(" @%" PRId64, q->pos);
+						if (p->steps)
+							printf(" %u", q->raw);
+						else
+							printf(" %.4f (0x%08x)", q->raw / 4294967296.0, q->raw);
+					}
+					printf("\n");
+				}
 			}
 
 			/* Slot 0 looks like the main output, 1 to 10 like sends A-J. */

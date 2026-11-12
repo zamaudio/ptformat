@@ -205,12 +205,40 @@ public:
 	 * strip's block type: 0x261c for audio tracks and 0x261e for aux
 	 * tracks in the sessions seen. plugin is empty when the inserted
 	 * plugin is not in the catalog. */
+	/* A parameter of an inserted plugin, from the plugin's parameter
+	 * list in its insert slot: its name as shown (for example "Gain"),
+	 * the plugin's own id for it ("gain"), its number in the list (from
+	 * 1), and steps: 0 for a continuous parameter, else its number of
+	 * values (2 for an on/off switch). Each point is a position in
+	 * samples at the target rate and the stored value: the value number
+	 * (from 0) of a stepped parameter; for a continuous one, an unsigned
+	 * 32-bit number that is probably the plugin's normalised value (0 to
+	 * 1) times 2^32, which the sessions seen fit but no Pro Tools test
+	 * confirms. Turning it into the value the plugin shows (dB, Hz)
+	 * needs the plugin's own scale, which the session does not hold.
+	 * A single point at 0 is a fixed value; more are automation. */
+	struct parampoint_t {
+		int64_t  pos;
+		uint32_t raw;
+		parampoint_t () : pos (0), raw (0) {}
+	};
+
+	struct param_t {
+		std::string name;
+		std::string id;
+		uint32_t    index;
+		uint8_t     steps;
+		std::vector<parampoint_t> points;
+		param_t () : index (0), steps (0) {}
+	};
+
 	struct insert_t {
 		std::string strip;
 		uint16_t    strip_index;
 		uint16_t    strip_type;
 		uint16_t    slot;
 		plugin_t    plugin;
+		std::vector<param_t> params;
 		insert_t () : strip_index (0), strip_type (0), slot (0) {}
 	};
 
@@ -738,6 +766,7 @@ private:
 	void parsepaths(void);
 	void parsemarkers(void);
 	void parseplugins(void);
+	void read_params(const block_t& b, std::vector<param_t>& params);
 	void parsegroups(void);
 	bool input_record(const block_t& strip, uint32_t& at, uint32_t& end) const;
 	void read_input(const block_t& strip, std::string& input);

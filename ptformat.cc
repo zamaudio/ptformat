@@ -3150,6 +3150,59 @@ read_lane(unsigned char *buf, uint32_t offset, uint32_t block_size, bool bigendi
 	return true;
 }
 
+/* The parameters of an inserted plugin: each is a 0x260f somewhere under
+ * the insert's 0x2616, holding a 0x260b lane laid out like a 0x260a
+ * (see read_lane) except that the 4 bytes after the count give the size
+ * of each point's value (4 in the sessions seen, against 2 for mixer
+ * lanes). After the lane come the parameter's name (a string), its
+ * number (4 bytes), 4 flag bytes whose last one is its number of steps
+ * (0 when continuous), 4 more bytes and its id (a string).
+ *
+ * The block tree misses the last 0x260f of a list, and sometimes the
+ * whole list, so the insert's bytes are scanned for lane headers
+ * instead: a ZMARK, a block type below 0x100, a size and 0x260b, then
+ * the lane id. */
+void
+PTFFormat::read_params(const block_t& b, std::vector<param_t>& params) {
+	uint32_t end = b.offset + b.block_size;
+	for (uint32_t h = b.offset + 2; h + 7 + 26 <= end; h++) {
+		if (_ptfunxored[h] != ZMARK || (u_endian_read2(&_ptfunxored[h + 1], is_bigendian) & 0xff00) ||
+				u_endian_read2(&_ptfunxored[h + 7], is_bigendian) != 0x260b)
+			continue;
+		uint32_t offset = h + 7;
+		uint32_t size = u_endian_read4(&_ptfunxored[h + 3], is_bigendian);
+		if (size < 26 || size > end - offset)
+			continue;
+		uint32_t pl = offset + 2, len = size - 2;
+		if (u_endian_read4(&_ptfunxored[pl], is_bigendian) != 0x00014601 ||
+				u_endian_read4(&_ptfunxored[pl + 4], is_bigendian) != len - 10)
+			continue;
+		uint32_t n = u_endian_read4(&_ptfunxored[pl + 10], is_bigendian);
+		uint32_t w = u_endian_read4(&_ptfunxored[pl + 14], is_bigendian);
+		if (w < 1 || w > 4 || n > (len - 24) / (4 + w) || len != 24 + (4 + w) * n)
+			continue;
+		param_t p;
+		for (uint32_t i = 0; i < n; i++) {
+			uint32_t at = pl + 22 + (4 + w) * i;
+			parampoint_t pt;
+			pt.pos = (int64_t)(u_endian_read4(&_ptfunxored[at], is_bigendian) * _ratefactor);
+			for (uint32_t k = 0; k < w; k++)
+				pt.raw |= (uint32_t)_ptfunxored[at + 4 + (is_bigendian ? w - 1 - k : k)] << (8 * k);
+			p.points.push_back(pt);
+		}
+		uint32_t pos = offset + size;
+		if (!readstring(pos, end, p.name) || p.name.empty() || pos + 12 > end)
+			continue;
+		p.index = u_endian_read4(&_ptfunxored[pos], is_bigendian);
+		p.steps = _ptfunxored[pos + 7];
+		pos += 12;
+		if (!readstring(pos, end, p.id))
+			continue;
+		params.push_back(p);
+		h = pos - 1;
+	}
+}
+
 void
 PTFFormat::parseplugins(void) {
 	_plugins.clear();
@@ -3367,6 +3420,7 @@ PTFFormat::parseplugins(void) {
 									}
 								}
 							}
+							read_params(*i, ins.params);
 							_inserts.push_back(ins);
 						}
 						if (i->content_type == 0x2616 || i->content_type == 0x2625)
