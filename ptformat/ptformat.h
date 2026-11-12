@@ -88,6 +88,10 @@ public:
 		wav_t       wave;
 		/* Channel of wave this region plays; read from PT10 on, 0 before. */
 		uint32_t    channel;
+		/* UUID that stays the same across saves of a session, as 32 hex
+		 * digits; empty when the session does not store one (PT12
+		 * sessions do, PT5 and PT8 do not, PT10 and PT11 untested). */
+		std::string uid;
 		std::vector<midi_ev_t> midi;
 
 		bool operator ==(const region_t& other) const {

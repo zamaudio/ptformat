@@ -883,6 +883,17 @@ PTFFormat::parse_region_info(uint32_t j, block_t& blk, region_t& r) {
 	r.channel = (_version >= 10)
 		? u_endian_read2(&_ptfunxored[blk.offset + blk.block_size + 4], is_bigendian)
 		: 0;
+	/* PT12 sessions follow the two floats with 8 zero bytes, 0xff and a
+	 * 16-byte UUID per region that persists across saves. */
+	uint32_t u = blk.offset + blk.block_size + 22;
+	r.uid.clear();
+	if (_version >= 10 && u + 17 <= _len && _ptfunxored[u] == 0xff) {
+		static const char hexdigits[] = "0123456789abcdef";
+		for (uint32_t k = 1; k <= 16; k++) {
+			r.uid += hexdigits[_ptfunxored[u + k] >> 4];
+			r.uid += hexdigits[_ptfunxored[u + k] & 0x0f];
+		}
+	}
 	wav_t f (findex);
 	f.posabsolute = start * _ratefactor;
 	f.length = length * _ratefactor;

@@ -66,6 +66,20 @@ With no audio dir, `Audio Files` next to the session is searched. Exits
 with 1 when files are missing.
 
 
+Comparing two saves of a session
+================================
+
+To list the regions added, removed, renamed and trimmed between two saves
+of a session, and the track placements added, removed and moved:
+
+	make
+	./ptdiff old.pt{s,5,f,x} new.pt{s,5,f,x}
+
+Regions are matched by the UUID PT12 sessions store for each region;
+PT5 and PT8 sessions have none and are not supported. Exits with 1 when
+there are differences.
+
+
 Hacking
 =======
 
