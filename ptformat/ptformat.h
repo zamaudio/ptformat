@@ -319,10 +319,20 @@ public:
 	 * or as stored for lane 1).
 	 * A lane with a single point at 0 holds a fixed value. pan is 0 for
 	 * those lanes; 1 (left, or the only one of a mono strip) or 2 (right)
-	 * marks the pan position of the slot instead, with values from -100
-	 * (left) to 100 (right) and lane 0. The layout comes from the format
+	 * marks a lane of the slot's panner instead (one panner per side),
+	 * and lane is then its position among the panner's lanes. A panner
+	 * holds no lanes, 1, 2 or 14 in the sessions seen. Lane 0 is the
+	 * left/right position, from -100 (left) to 100 (right). In a panner
+	 * of 14 lanes, lane 1 is the rear left/right position (equal to
+	 * lane 0 unless front and rear are unlinked) and lane 8 the height,
+	 * 0 to 100, which matches the ADM files of an Atmos session; lanes 2
+	 * to 7 hold 100, lane 9 holds 0 or 1, lane 10 holds 1 and lanes 11
+	 * to 13 hold 0 in every session seen, so what they are is not known
+	 * (front/rear position, divergences and centre % are among them).
+	 * In a panner of 2 lanes both hold the same value in every session
+	 * seen. The layout comes from the format
 	 * notes of the pt_api project, and every lane of the sessions seen
-	 * matches it. */
+	 * matches it. Pan lanes after the first are not in those notes. */
 	struct autopoint_t {
 		int64_t pos;
 		float   value;

@@ -651,8 +651,9 @@ PTFFormat::set_pan(const route_t& route, pan_param param, int32_t value)
 			places.push_back(105 + 28 * side);
 		}
 	} else {
-		/* Only a single surround or object panner (a mono strip). */
-		if (lanes.size() != 1 || lanes[0].size() != 14)
+		/* Only a single surround or object panner (a mono strip): the
+		 * slot's second panner then holds no lanes. */
+		if (lanes[0].size() != 14 || (lanes.size() > 1 && !lanes[1].empty()))
 			return false;
 		uint32_t at = (param == PAN_HEIGHT) ? 157 : 165;
 		points.push_back(lanes[0][param == PAN_HEIGHT ? 8 : 9]);
@@ -694,12 +695,13 @@ PTFFormat::set_pan(const route_t& route, pan_param param, int32_t value)
 		else if (param == PAN_LEFT_RIGHT_2)
 			r->pan_right = value;
 	}
-	if (position) {
-		for (std::vector<automation_t>::iterator a = _automation.begin(); a != _automation.end(); ++a) {
-			if (a->strip_index == route.strip_index && a->slot == route.slot && a->pan == side + 1
-					&& a->points.size() == 1)
-				a->points[0].value = value;
-		}
+	/* The lanes written: 0 and 1 for a position, 8 or 9 otherwise. */
+	uint16_t first = position ? 0 : (param == PAN_HEIGHT ? 8 : 9);
+	uint16_t last = position ? 1 : first;
+	for (std::vector<automation_t>::iterator a = _automation.begin(); a != _automation.end(); ++a) {
+		if (a->strip_index == route.strip_index && a->slot == route.slot && a->pan == side + 1
+				&& a->lane >= first && a->lane <= last && a->points.size() == 1)
+			a->points[0].value = value;
 	}
 	return true;
 }
@@ -3438,10 +3440,11 @@ PTFFormat::parseplugins(void) {
 						au.slot = rslot;
 						_automation.push_back(au);
 					}
-					/* Pan: up to two 0x260c under the slot (left or mono,
-					 * then right), each with its own 0x260a lanes. The
-					 * first lane is the pan position, -100 to 100, the
-					 * same value the 0x1029 holds. */
+					/* Pan: two 0x260c under the slot (left or mono, then
+					 * right), each with its own 0x260a lanes: none, 1, 2
+					 * or 14 in the sessions seen. The first lane is the
+					 * pan position, -100 to 100, the same value the
+					 * 0x1029 holds; see automation_t for the others. */
 					uint8_t side = 0;
 					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
 							z != y->child.end(); ++z) {
@@ -3449,6 +3452,7 @@ PTFFormat::parseplugins(void) {
 							continue;
 						if (side < 2)
 							side++;
+						uint16_t planes = 0;
 						for (vector<PTFFormat::block_t>::iterator w = z->child.begin();
 								w != z->child.end(); ++w) {
 							if (w->content_type != 0x260a)
@@ -3459,10 +3463,11 @@ PTFFormat::parseplugins(void) {
 								au.strip_index = sidx;
 								au.strip_type = s->content_type;
 								au.slot = rslot;
+								au.lane = planes;
 								au.pan = side;
 								_automation.push_back(au);
 							}
-							break;
+							planes++;
 						}
 					}
 					rslot++;

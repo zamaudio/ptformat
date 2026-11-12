@@ -309,7 +309,9 @@ int main (int argc, char **argv) {
 					au != ptf.automation().end(); ++au) {
 				if (au->points.size() < 2)
 					continue;
-				if (au->pan)
+				if (au->pan && au->lane)
+					printf("`%s` s(%d) slot %d pan %c lane %d:", au->strip.c_str(), au->strip_index, au->slot, au->pan == 1 ? 'L' : 'R', au->lane);
+				else if (au->pan)
 					printf("`%s` s(%d) slot %d pan %c:", au->strip.c_str(), au->strip_index, au->slot, au->pan == 1 ? 'L' : 'R');
 				else
 					printf("`%s` s(%d) slot %d lane %d:", au->strip.c_str(), au->strip_index, au->slot, au->lane);
