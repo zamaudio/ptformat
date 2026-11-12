@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Rename a region with a longer name in a copy: only the name may change
+# in the output, and renaming it back must give the original file.
+echo "PT12 rename a region in a copy and back"
+FILE=../../bins/RegionTest.ptx
+DIR=$(mktemp -d)
+trap 'rm -rf "$DIR"' EXIT
+../../ptrename "$FILE" "$DIR/a.ptx" region_name_region-03 "a much longer region name" > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptftool "$FILE" | sed 's/`region_name_region-03`/`a much longer region name`/' > "$DIR/expect"
+../../ptftool "$DIR/a.ptx" > "$DIR/got"
+cmp -s "$DIR/expect" "$DIR/got" || { diff "$DIR/expect" "$DIR/got"; echo "[FAIL]"; exit 1; }
+../../ptrename "$DIR/a.ptx" "$DIR/b.ptx" "a much longer region name" region_name_region-03 > /dev/null || { echo "[FAIL]"; exit 1; }
+cmp -s "$FILE" "$DIR/b.ptx" || { echo "renamed-back copy differs"; echo "[FAIL]"; exit 1; }
+echo "[ OK ]"
+echo ""

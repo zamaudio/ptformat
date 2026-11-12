@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Move a placement in a copy, check its new position, then move it back:
+# the copy must be identical to the original again.
+echo "PT12 move a placement in a copy and back"
+FILE=../../bins/TestMXF.ptx
+DIR=$(mktemp -d)
+trap 'rm -rf "$DIR"' EXIT
+../../ptmove "$FILE" "$DIR/a.ptx" sine 226560 300000 > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptftool "$DIR/a.ptx" | grep -q '^`sine` t(0) r(0) @ 300000$' || { echo "not moved"; echo "[FAIL]"; exit 1; }
+../../ptmove "$DIR/a.ptx" "$DIR/b.ptx" sine 300000 226560 > /dev/null || { echo "[FAIL]"; exit 1; }
+cmp -s "$FILE" "$DIR/b.ptx" || { echo "moved-back copy differs"; echo "[FAIL]"; exit 1; }
+echo "[ OK ]"
+echo ""

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Mute a placement in a copy, check it reads back muted, then unmute it:
+# the copy must be identical to the original again.
+echo "PT12 mute and unmute a placement in a copy"
+FILE=../../bins/RegionTest.ptx
+DIR=$(mktemp -d)
+trap 'rm -rf "$DIR"' EXIT
+../../ptmute "$FILE" "$DIR/a.ptx" "Audio 1" region_name_region-01 > /dev/null || { echo "[FAIL]"; exit 1; }
+../../pttracks "$DIR/a.ptx" "Audio 1" | grep -q 'region_name_region-01 .* muted$' || { echo "not muted"; echo "[FAIL]"; exit 1; }
+../../ptmute --unmute "$DIR/a.ptx" "$DIR/b.ptx" "Audio 1" region_name_region-01 > /dev/null || { echo "[FAIL]"; exit 1; }
+cmp -s "$FILE" "$DIR/b.ptx" || { echo "unmuted copy differs"; echo "[FAIL]"; exit 1; }
+echo "[ OK ]"
+echo ""
