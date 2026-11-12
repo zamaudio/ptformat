@@ -225,6 +225,10 @@ public:
 
 	uint8_t version () const { return _version; }
 	int64_t sessionrate () const { return _sessionrate ; }
+	/* Bits per sample of the session (16, 24 or 32), and whether it is
+	 * floating point; 0 when unknown. */
+	int sessionbitdepth () const { return _sessionbitdepth ; }
+	bool sessionfloat () const { return _sessionfloat ; }
 	const std::string& path () { return _path; }
 
 	const std::vector<wav_t>&    audiofiles () const { return _audiofiles ; }
@@ -249,6 +253,8 @@ private:
 	unsigned char* _ptfunxored;
 	uint64_t       _len;
 	int64_t        _sessionrate;
+	int            _sessionbitdepth;
+	bool           _sessionfloat;
 	uint8_t        _version;
 	uint8_t*       _product;
 	int64_t        _targetrate;

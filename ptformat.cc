@@ -79,6 +79,8 @@ PTFFormat::PTFFormat()
 	: _ptfunxored(0)
 	, _len(0)
 	, _sessionrate(0)
+	, _sessionbitdepth(0)
+	, _sessionfloat(false)
 	, _version(0)
 	, _product(NULL)
 	, _targetrate (0)
@@ -269,6 +271,8 @@ void
 PTFFormat::cleanup(void) {
 	_len = 0;
 	_sessionrate = 0;
+	_sessionbitdepth = 0;
+	_sessionfloat = false;
 	_version = 0;
 	free(_ptfunxored);
 	_ptfunxored = NULL;
@@ -656,6 +660,22 @@ PTFFormat::parseheader(void) {
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x1028) {
 			_sessionrate = u_endian_read4(&_ptfunxored[b->offset+4], is_bigendian);
+			/* Bit depth: the byte before the rate holds 16 or 24 (24 also
+			 * for 32-bit float sessions). Recent sessions end the block
+			 * with 02 02 <float flag> <?> <bits>, a byte nearer or
+			 * farther from the end depending on the version. */
+			_sessionbitdepth = _ptfunxored[b->offset+3];
+			_sessionfloat = false;
+			uint32_t end = b->offset + b->block_size;
+			uint32_t from = (b->block_size > 16) ? end - 16 : b->offset;
+			for (uint32_t i = from; i + 5 <= end; i++) {
+				const unsigned char *t = &_ptfunxored[i];
+				if (t[0] == 2 && t[1] == 2 && t[2] <= 1 && t[3] <= 1 &&
+						(t[4] == 16 || t[4] == 24 || t[4] == 32)) {
+					_sessionfloat = (t[2] == 1);
+					_sessionbitdepth = t[4];
+				}
+			}
 			found = true;
 		}
 	}
