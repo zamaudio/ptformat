@@ -520,9 +520,9 @@ PTFFormat::gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) {
 
 void
 PTFFormat::setrates(void) {
-	_ratefactor = 1.f;
+	_ratefactor = 1.0;
 	if (_sessionrate != 0) {
-		_ratefactor = (float)_targetrate / _sessionrate;
+		_ratefactor = (double)_targetrate / _sessionrate;
 	}
 }
 
@@ -789,9 +789,8 @@ PTFFormat::parsemarkers(void) {
 			m.index = u_endian_read2(&_ptfunxored[c->offset + 2], is_bigendian);
 			if (!readstring(pos, end, m.name) || end - pos < 16)
 				continue;
-			/* In double: a float loses samples past 2^24. */
-			m.start = (int64_t)((double)u_endian_read8(&_ptfunxored[pos], is_bigendian) * _ratefactor);
-			m.end = (int64_t)((double)u_endian_read8(&_ptfunxored[pos + 8], is_bigendian) * _ratefactor);
+			m.start = (int64_t)(u_endian_read8(&_ptfunxored[pos], is_bigendian) * _ratefactor);
+			m.end = (int64_t)(u_endian_read8(&_ptfunxored[pos + 8], is_bigendian) * _ratefactor);
 			_markers.push_back(m);
 		}
 	}
