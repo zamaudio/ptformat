@@ -37,6 +37,8 @@
 #include <dirent.h>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -117,16 +119,17 @@ int main (int argc, char **argv) {
 		}
 	}
 
-	set<string> referenced;
+	/* File name -> creation time (0 when the session holds none). */
+	map<string, int64_t> referenced;
 	for (vector<PTFFormat::wav_t>::const_iterator a = ptf.audiofiles().begin();
 			a != ptf.audiofiles().end(); ++a) {
-		referenced.insert(a->filename);
+		referenced[a->filename] = a->created;
 	}
 
 	vector<string> missing;
-	for (set<string>::const_iterator r = referenced.begin(); r != referenced.end(); ++r) {
-		if (on_disk.find(*r) == on_disk.end())
-			missing.push_back(*r);
+	for (map<string, int64_t>::const_iterator r = referenced.begin(); r != referenced.end(); ++r) {
+		if (on_disk.find(r->first) == on_disk.end())
+			missing.push_back(r->first);
 	}
 
 	vector<string> unused;
@@ -141,9 +144,19 @@ int main (int argc, char **argv) {
 	printf("Referenced: %zu, missing: %zu, unused on disk: %zu\n",
 		referenced.size(), missing.size(), unused.size());
 
+	/* With the file's creation date, which helps to find it elsewhere. */
 	printf("\nMissing (referenced, not on disk):\n");
-	for (vector<string>::const_iterator m = missing.begin(); m != missing.end(); ++m)
-		printf("%s\n", m->c_str());
+	for (vector<string>::const_iterator m = missing.begin(); m != missing.end(); ++m) {
+		int64_t created = referenced[*m];
+		if (created) {
+			char buf[32];
+			time_t t = (time_t)created;
+			strftime(buf, sizeof buf, "%Y-%m-%d %H:%M UTC", gmtime(&t));
+			printf("%s  (created %s)\n", m->c_str(), buf);
+		} else {
+			printf("%s\n", m->c_str());
+		}
+	}
 
 	printf("\nUnused (on disk, not referenced):\n");
 	for (vector<string>::const_iterator u = unused.begin(); u != unused.end(); ++u)

@@ -27,8 +27,9 @@
  * With track names, only those tracks are listed. Positions are in
  * samples and in h:mm:ss.sss from the start of the timeline. Each track
  * shows the time covered by at least one of its regions, so channels of
- * a multichannel track that overlap count once. --csv prints one row
- * per region with a header line.
+ * a multichannel track that overlap count once. Each region shows when
+ * its file was created (UTC), when the session holds that date. --csv
+ * prints one row per region with a header line.
  *
  * Exit status: 0 success, 2 usage or read error or a track name not
  * found.
@@ -36,9 +37,9 @@
 
 #include "ptformat/ptformat.h"
 #include <inttypes.h>
-#include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <map>
 #include <set>
 #include <string>
@@ -52,6 +53,7 @@ struct placement {
 	string file;
 	int64_t offset;
 	int64_t length;
+	int64_t created;
 
 	bool operator <(const placement& o) const {
 		if (start != o.start)
@@ -68,6 +70,18 @@ clock(int64_t samples, int64_t rate)
 	int h = (int)(s / 3600);
 	int m = (int)((s - h * 3600) / 60);
 	snprintf(buf, sizeof buf, "%d:%02d:%06.3f", h, m, s - h * 3600 - m * 60);
+	return buf;
+}
+
+/* A creation time in UTC, or an empty string when unknown (0). */
+static string
+date(int64_t t, const char *format)
+{
+	if (!t)
+		return "";
+	char buf[32];
+	time_t tt = (time_t)t;
+	strftime(buf, sizeof buf, format, gmtime(&tt));
 	return buf;
 }
 
@@ -130,6 +144,7 @@ int main (int argc, char **argv) {
 		p.file = t->reg.wave.filename;
 		p.offset = t->reg.sampleoffset;
 		p.length = t->reg.length;
+		p.created = t->reg.wave.created;
 		s.insert(p);
 	}
 
@@ -142,7 +157,7 @@ int main (int argc, char **argv) {
 	}
 
 	if (as_csv)
-		printf("track,region,file,start,start_time,end,end_time,length,file_offset\n");
+		printf("track,region,file,start,start_time,end,end_time,length,file_offset,file_created\n");
 
 	for (vector<string>::const_iterator name = order.begin(); name != order.end(); ++name) {
 		const set<placement>& s = tracks[*name];
@@ -169,14 +184,17 @@ int main (int argc, char **argv) {
 		for (set<placement>::const_iterator p = s.begin(); p != s.end(); ++p) {
 			int64_t end = p->start + p->length;
 			if (as_csv) {
-				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 "\n",
+				printf("%s,%s,%s,%" PRId64 ",%s,%" PRId64 ",%s,%" PRId64 ",%" PRId64 ",%s\n",
 					csv(*name).c_str(), csv(p->region).c_str(), csv(p->file).c_str(),
 					p->start, clock(p->start, rate).c_str(),
-					end, clock(end, rate).c_str(), p->length, p->offset);
+					end, clock(end, rate).c_str(), p->length, p->offset,
+					date(p->created, "%Y-%m-%dT%H:%M:%SZ").c_str());
 			} else {
-				printf("  %s - %s  %-30s %s\n",
+				printf("  %s - %s  %-30s %s%s%s\n",
 					clock(p->start, rate).c_str(), clock(end, rate).c_str(),
-					p->region.c_str(), p->file.c_str());
+					p->region.c_str(), p->file.c_str(),
+					p->created ? "  created " : "",
+					date(p->created, "%Y-%m-%d %H:%M UTC").c_str());
 			}
 		}
 		if (!as_csv)

@@ -778,12 +778,27 @@ PTFFormat::parseaudio(void) {
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x1003) {
+					/* The 0x2106 metadata of a file holds its creation time
+					 * as a Windows FILETIME (100 ns units since 1601) 31
+					 * bytes into the block. */
+					int64_t created = 0;
+					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
+							d != c->child.end(); ++d) {
+						if (d->content_type == 0x2106 && d->block_size >= 39) {
+							uint64_t ft = u_endian_read8(&_ptfunxored[d->offset+31], false);
+							int64_t t = (int64_t)(ft / 10000000ULL) - 11644473600LL;
+							/* Keep 1990..2100 only; other values are not dates. */
+							if (t >= 631152000LL && t < 4102444800LL)
+								created = t;
+						}
+					}
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
 						if (d->content_type == 0x1001) {
 							if (wav == _audiofiles.end())
 								break;
 							(*wav).length = u_endian_read8(&_ptfunxored[d->offset+8], is_bigendian);
+							(*wav).created = created;
 							wav++;
 						}
 					}
@@ -909,6 +924,7 @@ PTFFormat::parse_region_info(uint32_t j, block_t& blk, region_t& r) {
 	wav_t found;
 	if (find_wav(findex, found)) {
 		f.filename = found.filename;
+		f.created = found.created;
 	}
 
 	std::vector<midi_ev_t> m;
@@ -968,6 +984,7 @@ PTFFormat::parserest(void) {
 						if (tindex < 0xffff && find_wav(tindex, found)) {
 							r.wave.index = found.index;
 							r.wave.filename = found.filename;
+							r.wave.created = found.created;
 						}
 					}
 

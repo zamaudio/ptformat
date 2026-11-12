@@ -54,6 +54,10 @@ public:
 
 		int64_t     posabsolute;
 		int64_t     length;
+		/* When the file was created, in seconds since 1970-01-01 UTC;
+		 * 0 when the session does not hold a valid date for it (files
+		 * imported rather than recorded often have none). */
+		int64_t     created;
 
 		bool operator <(const struct wav_t& other) const {
 			std::string a (this->filename);
@@ -68,7 +72,7 @@ public:
 				this->index == other.index);
 		}
 
-		wav_t (uint16_t idx = 0) : index (idx), posabsolute (0), length (0) {}
+		wav_t (uint16_t idx = 0) : index (idx), posabsolute (0), length (0), created (0) {}
 	};
 
 	struct midi_ev_t {
