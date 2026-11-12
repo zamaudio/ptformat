@@ -41,9 +41,15 @@
  * automation points the volume is taken as a straight line in dB; how
  * Pro Tools draws it is not checked yet. Muted regions are silent.
  *
+ * Fade-ins, fade-outs and crossfades are applied: linear ones as a
+ * straight line in amplitude, equal power ones as a quarter sine. Across
+ * a crossfade each region plays on from its file past its edge and the
+ * two add up. The other fade curves and slopes Pro Tools offers are not
+ * read, so a fade with one of them is drawn as one of these two.
+ *
  * Not applied: plugins (clip gain comes before them and the volume after,
- * so this is exact only without plugins or with linear ones), fades,
- * clip gain lines with more than one point (the library reads one gain
+ * so this is exact only without plugins or with linear ones), clip gain
+ * lines with more than one point (the library reads one gain
  * per region), trim, VCA, mute, pan, sends and anything after the track
  * output.
  *
@@ -207,6 +213,38 @@ volume_at(const vector<PTFFormat::autopoint_t>& p, int64_t t)
 		return b.value;
 	return a.value + (b.value - a.value) * (double)(t - a.pos) / (double)(b.pos - a.pos);
 }
+
+/* A fade over [start, start + length). shape 1 is equal power (a
+ * quarter sine) and anything else a straight line in amplitude, after
+ * the pt_api format notes; neither is checked against Pro Tools. */
+struct fade {
+	int64_t start;
+	int64_t length;
+	uint8_t shape;
+	fade () : start (0), length (0), shape (0) {}
+
+	/* The gain at s: rising for a fade-in, falling for a fade-out;
+	 * 1 outside the fade. */
+	double gain(int64_t s, bool rising) const {
+		if (length <= 0 || s < start || s >= start + length)
+			return 1.0;
+		double x = (s - start + 0.5) / (double)length;
+		if (!rising)
+			x = 1.0 - x;
+		return shape == 1 ? sin(x * M_PI / 2) : x;
+	}
+};
+
+/* A placement with the fades that touch it, and the samples it covers:
+ * past its own edges where a crossfade reaches. */
+struct span {
+	PTFFormat::track_t t;
+	int64_t from;
+	int64_t to;
+	fade in;
+	fade out;
+	span () : from (0), to (0) {}
+};
 
 static bool
 put32(FILE *f, uint32_t v)
@@ -394,6 +432,39 @@ int main (int argc, char **argv) {
 		return 2;
 	}
 
+	/* The fades of each placement, matched by position: a fade-in
+	 * starts where a region starts, a fade-out ends where one ends,
+	 * and a crossfade's cut is where one ends and the next starts.
+	 * Fades are matched on every channel of the track, as Pro Tools
+	 * fades all channels together. Across a crossfade each region
+	 * plays on from its file past its own edge. */
+	vector<span> spans;
+	for (size_t i = 0; i < placed.size(); i++) {
+		span sp;
+		sp.t = placed[i];
+		int64_t rs = sp.t.reg.startpos, re = rs + sp.t.reg.length;
+		sp.from = rs;
+		sp.to = re;
+		for (vector<PTFFormat::fade_t>::const_iterator fd = ptf.fades().begin(); fd != ptf.fades().end(); ++fd) {
+			if (fd->track != track || fd->length <= 0)
+				continue;
+			int64_t fs = fd->start, fe = fd->start + fd->length, cut = fd->start + fd->split;
+			fade ramp;
+			ramp.start = fs;
+			ramp.length = fd->length;
+			ramp.shape = fd->shape;
+			if ((fd->type == 3 && fs == rs) || (fd->type == 1 && cut == rs)) {
+				sp.in = ramp;
+				sp.from = min(sp.from, fs);
+			}
+			if ((fd->type == 2 && fe == re) || (fd->type == 1 && cut == re)) {
+				sp.out = ramp;
+				sp.to = max(sp.to, fe);
+			}
+		}
+		spans.push_back(sp);
+	}
+
 	/* Index the audio files on disk by name. */
 	map<string, string> files;
 	for (size_t d = 0; d < dirs.size(); d++) {
@@ -427,14 +498,16 @@ int main (int argc, char **argv) {
 	for (int64_t b = start; b < end; b += block) {
 		size_t n = (size_t)min((int64_t)block, end - b);
 		mix.assign(n * nch, 0.f);
-		/* Each channel: the regions placed on it, later starts on top. */
-		for (size_t i = 0; i < placed.size(); i++) {
-			const PTFFormat::track_t& t = placed[i];
-			int64_t rs = t.reg.startpos, re = rs + t.reg.length;
-			if (re <= b || rs >= b + (int64_t)n || t.reg.muted)
+		/* Each channel: the regions placed on it, with their fades;
+		 * across a crossfade the two regions add up. */
+		for (size_t i = 0; i < spans.size(); i++) {
+			const span& sp = spans[i];
+			const PTFFormat::track_t& t = sp.t;
+			int64_t rs = t.reg.startpos;
+			if (sp.to <= b || sp.from >= b + (int64_t)n || t.reg.muted)
 				continue;
 			uint16_t c = (uint16_t)(find(chans.begin(), chans.end(), t.index) - chans.begin());
-			int64_t from = max(rs, b), to = min(re, b + (int64_t)n);
+			int64_t from = max(sp.from, b), to = min(sp.to, b + (int64_t)n);
 			const string& name = t.reg.wave.filename;
 			if (!open.count(name)) {
 				wavfile w;
@@ -450,14 +523,22 @@ int main (int argc, char **argv) {
 			wavfile& w = open[name];
 			if (!w.f || t.reg.channel >= w.channels)
 				continue;
-			if (!read_channel(w, (uint16_t)t.reg.channel, (uint64_t)(t.reg.sampleoffset + (from - rs)), (size_t)(to - from), src)) {
+			/* A crossfade can reach before the start of the file: that
+			 * part is silent. */
+			int64_t at = t.reg.sampleoffset + (from - rs);
+			int64_t skip = at < 0 ? -at : 0;
+			if (skip >= to - from)
+				continue;
+			if (!read_channel(w, (uint16_t)t.reg.channel, (uint64_t)(at + skip), (size_t)(to - from - skip), src)) {
 				fprintf(stderr, "Cannot read audio file %s\n", name.c_str());
 				status = 1;
 				continue;
 			}
 			double clip = t.reg.gain;
-			for (int64_t s = from; s < to; s++)
-				mix[(size_t)(s - b) * nch + c] = (float)(src[(size_t)(s - from)] * pow(10.0, (clip + volume_at(volume, s)) / 20.0));
+			for (int64_t s = from + skip; s < to; s++)
+				mix[(size_t)(s - b) * nch + c] += (float)(src[(size_t)(s - from - skip)] *
+					sp.in.gain(s, true) * sp.out.gain(s, false) *
+					pow(10.0, (clip + volume_at(volume, s)) / 20.0));
 		}
 		for (size_t k = 0; k < mix.size(); k++) {
 			uint32_t u;

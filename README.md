@@ -258,10 +258,11 @@ first region to the end of the last one, or from --from to --to
 volume (the volume automation, or the fader without it) are added in dB;
 between two automation points the volume is taken as a straight line in
 dB, which is not yet checked against Pro Tools. Muted regions are
-silent. Plugins, fades, clip gain lines of more than one point, trim,
-VCA, mute and pan are not applied. On a real mono track the result
-matches the source files with the clip gain applied to within float
-rounding.
+silent. Fade-ins, fade-outs and crossfades are applied, linear or equal
+power (a quarter sine); other fade curves are not read. Plugins, clip
+gain lines of more than one point, trim, VCA, mute and pan are not
+applied. On a real mono track the result matches the source files with
+the clip gain and the fades applied to within float rounding.
 
 
 Hacking
