@@ -1032,6 +1032,9 @@ PTFFormat::parseplugins(void) {
 			st.type = u_endian_read2(&_ptfunxored[c->offset + 2], is_bigendian);
 			if (!readstring(pos, end, st.name) || !read_id(_ptfunxored, pos, end, is_bigendian, st.id))
 				continue;
+			/* The channel format code follows the name. */
+			if (end - pos >= 2)
+				st.format = u_endian_read2(&_ptfunxored[pos], is_bigendian);
 			/* Skip the second copy of the list. */
 			bool seen = false;
 			for (vector<strip_t>::const_iterator o = _strips.begin(); o != _strips.end(); ++o) {

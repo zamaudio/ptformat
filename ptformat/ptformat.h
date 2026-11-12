@@ -144,13 +144,18 @@ public:
 	 * the track to its mixer strip, as 16 hex digits. playlist is the name
 	 * its mixer strip stores: the track name for aux tracks, the playlist
 	 * name for audio tracks (for example "Audio 1.dup1"); empty when the
-	 * strip stores none or the track has no strip (video tracks). */
+	 * strip stores none or the track has no strip (video tracks).
+	 *
+	 * format is the track's channel format code: 0 mono, 1 stereo, 6 for
+	 * 5.1 and 14 for 7.1 in the sessions seen, where it matches the
+	 * number of channels of the track; a video track holds 12. */
 	struct strip_t {
 		std::string name;
 		uint16_t    type;
+		uint16_t    format;
 		std::string id;
 		std::string playlist;
-		strip_t () : type (0) {}
+		strip_t () : type (0), format (0) {}
 	};
 
 	/* A plugin inserted in a mixer strip. slot counts from 0 (insert A).

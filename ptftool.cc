@@ -225,11 +225,11 @@ int main (int argc, char **argv) {
 			}
 
 			/* Every track: 0 audio, 1 MIDI, 2 aux, 5 master, 8 video. */
-			printf("\nStrip (type) playlist:\n");
+			printf("\nStrip (type) (format) playlist:\n");
 			for (vector<PTFFormat::strip_t>::const_iterator
 					st = ptf.strips().begin();
 					st != ptf.strips().end(); ++st) {
-				printf("`%s` (%d) %s\n", st->name.c_str(), st->type, st->playlist.c_str());
+				printf("`%s` (%d) (%d) %s\n", st->name.c_str(), st->type, st->format, st->playlist.c_str());
 			}
 
 			printf("\nPlugin (codes) bundle:\n");
