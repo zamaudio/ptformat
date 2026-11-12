@@ -134,13 +134,29 @@ public:
 		std::string bundle;
 	};
 
+	/* A track of any kind, from the session's full track list. type is 0
+	 * for audio tracks, 1 for MIDI tracks, 2 for aux tracks, 5 for a
+	 * master fader and 8 for a video track in the sessions seen (5 and 8
+	 * deduced from the track names). id is the 8-byte id that links
+	 * the track to its mixer strip, as 16 hex digits. playlist is the name
+	 * its mixer strip stores: the track name for aux tracks, the playlist
+	 * name for audio tracks (for example "DIAL 1.dup2"); empty when the
+	 * strip stores none or the track has no strip (video tracks). */
+	struct strip_t {
+		std::string name;
+		uint16_t    type;
+		std::string id;
+		std::string playlist;
+		strip_t () : type (0) {}
+	};
+
 	/* A plugin inserted in a mixer strip. slot counts from 0 (insert A).
 	 * strip_index is the strip's position in the mixer, from 0. strip is
-	 * the name the strip stores: the track name for aux tracks, the
-	 * playlist name for audio tracks (for example "DIAL 1.dup2"), and it
-	 * can be empty. strip_type is the strip's block type: 0x261c for
-	 * audio tracks and 0x261e for aux tracks in the sessions seen. plugin
-	 * is empty when the inserted plugin is not in the catalog. */
+	 * the track's name, or the name the strip stores (see strip_t) when
+	 * the track list does not hold the strip's id. strip_type is the
+	 * strip's block type: 0x261c for audio tracks and 0x261e for aux
+	 * tracks in the sessions seen. plugin is empty when the inserted
+	 * plugin is not in the catalog. */
 	struct insert_t {
 		std::string strip;
 		uint16_t    strip_index;
@@ -306,6 +322,7 @@ public:
 	const std::vector<insert_t>& inserts () const { return _inserts ; }
 	const std::vector<volume_t>& volumes () const { return _volumes ; }
 	const std::vector<route_t>&  routes () const { return _routes ; }
+	const std::vector<strip_t>&  strips () const { return _strips ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -322,6 +339,7 @@ private:
 	std::vector<insert_t> _inserts;
 	std::vector<volume_t> _volumes;
 	std::vector<route_t>  _routes;
+	std::vector<strip_t>  _strips;
 	std::vector<float>    _gains;
 
 	std::string _path;

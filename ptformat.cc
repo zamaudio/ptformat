@@ -291,6 +291,7 @@ PTFFormat::cleanup(void) {
 	_volumes.clear();
 	_gains.clear();
 	_routes.clear();
+	_strips.clear();
 	free_all_blocks();
 }
 
@@ -862,12 +863,60 @@ PTFFormat::parsemarkers(void) {
  * 0x102d/0x2619 and the insert slots in 0x2627, where each slot is a
  * 0x2616 (plugin) or a 0x2625 (empty). A 0x2616 holds the same three
  * codes with each one's bytes reversed. The same 0x261b holds the strip's
- * output and sends (see below). */
+ * output and sends (see below).
+ *
+ * The full track list is the 0x2519 block: one 0x251a per track with its
+ * type (2 bytes) at +2 and its name at +4, then, within 12 bytes, a 0x2a
+ * marker and an 8-byte id. The list holds every track twice. A strip's
+ * 0x2619 holds the same marker and id after its own name, which links
+ * the strip to its track. */
+static bool
+read_id(unsigned char *buf, uint32_t pos, uint32_t end, bool bigendian, std::string& id)
+{
+	static const char hexdigits[] = "0123456789abcdef";
+	for (uint32_t i = pos; i < pos + 12 && i + 12 <= end; i++) {
+		if (u_endian_read4(&buf[i], bigendian) != 0x2a)
+			continue;
+		id.clear();
+		for (uint32_t k = 4; k < 12; k++) {
+			id += hexdigits[buf[i + k] >> 4];
+			id += hexdigits[buf[i + k] & 0x0f];
+		}
+		return true;
+	}
+	return false;
+}
+
 void
 PTFFormat::parseplugins(void) {
 	_plugins.clear();
 	_inserts.clear();
 	_routes.clear();
+	_strips.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2519)
+			continue;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != 0x251a || c->block_size < 8)
+				continue;
+			uint32_t end = c->offset + c->block_size;
+			uint32_t pos = c->offset + 4;
+			strip_t st;
+			st.type = u_endian_read2(&_ptfunxored[c->offset + 2], is_bigendian);
+			if (!readstring(pos, end, st.name) || !read_id(_ptfunxored, pos, end, is_bigendian, st.id))
+				continue;
+			/* Skip the second copy of the list. */
+			bool seen = false;
+			for (vector<strip_t>::const_iterator o = _strips.begin(); o != _strips.end(); ++o) {
+				if (o->id == st.id)
+					seen = true;
+			}
+			if (!seen)
+				_strips.push_back(st);
+		}
+	}
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type != 0x1018)
@@ -909,8 +958,20 @@ PTFFormat::parseplugins(void) {
 					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
 							z != y->child.end(); ++z) {
 						if (z->content_type == 0x2619) {
+							uint32_t zend = z->offset + z->block_size;
 							uint32_t pos = z->offset + 2;
-							readstring(pos, z->offset + z->block_size, strip);
+							std::string id;
+							if (!readstring(pos, zend, strip) || !read_id(_ptfunxored, pos, zend, is_bigendian, id))
+								continue;
+							/* The strip stores its playlist name; take the
+							 * track name from the track list. */
+							for (vector<strip_t>::iterator t = _strips.begin(); t != _strips.end(); ++t) {
+								if (t->id == id) {
+									t->playlist = strip;
+									strip = t->name;
+									break;
+								}
+							}
 						}
 					}
 				}
