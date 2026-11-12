@@ -295,6 +295,7 @@ PTFFormat::cleanup(void) {
 	_routes.clear();
 	_strips.clear();
 	_videofiles.clear();
+	_fades.clear();
 	_fpsnum = 0;
 	_fpsden = 0;
 	free_all_blocks();
@@ -850,6 +851,53 @@ PTFFormat::parsevideo(void) {
 			_videofiles.push_back(vf);
 		}
 	}
+}
+
+/* Fades: the 0x2630 block holds one 0x262f per fade. A track map entry
+ * flagged as a fade (see parserest) carries the fade's index in that list
+ * and its start position. In a 0x262f, 7 bytes in, a byte gives the sizes
+ * in bytes of two values (high and low nibble); after 2 more bytes come
+ * the two values and then the fade type and a second byte. For a fade-in
+ * the first value is the length and the second is absent; for a fade-out
+ * both hold the length; for a crossfade the second is the length and the
+ * first the part before the cut. Fills length, split, type and shape. */
+bool
+PTFFormat::parsefade(uint32_t index, fade_t& fade) {
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2630)
+			continue;
+		uint32_t n = 0;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != 0x262f)
+				continue;
+			if (n++ != index)
+				continue;
+			uint32_t end = c->offset + c->block_size;
+			uint32_t pos = c->offset + 7;
+			if (c->block_size < 12)
+				return false;
+			uint32_t n1 = _ptfunxored[pos] >> 4, n2 = _ptfunxored[pos] & 0x0f;
+			pos += 3;
+			if (n1 > 8 || n2 > 8 || pos + n1 + n2 + 2 > end)
+				return false;
+			uint64_t v1 = 0, v2 = 0;
+			for (uint32_t i = 0; i < n1; i++)
+				v1 |= (uint64_t)_ptfunxored[pos + i] << (8 * i);
+			pos += n1;
+			for (uint32_t i = 0; i < n2; i++)
+				v2 |= (uint64_t)_ptfunxored[pos + i] << (8 * i);
+			pos += n2;
+			fade.type = _ptfunxored[pos];
+			fade.shape = _ptfunxored[pos + 1];
+			uint64_t length = (v2 > v1) ? v2 : v1;
+			fade.length = (int64_t)(length * _ratefactor);
+			fade.split = (int64_t)(v1 * _ratefactor);
+			return true;
+		}
+	}
+	return false;
 }
 
 /* Clip gain points: the 0x2637 block holds a 4-byte count and that many
@@ -1576,7 +1624,21 @@ PTFFormat::parserest(void) {
 						if (d->content_type == 0x1050) {
 							region_is_fade = (_ptfunxored[d->offset + 46] == 0x01);
 							if (region_is_fade) {
-								verbose_printf("dropped fade region\n");
+								/* A fade entry has the same layout as a region
+								 * entry, with the fade's index in the fade list
+								 * in place of the region index. */
+								for (vector<PTFFormat::block_t>::iterator e = d->child.begin();
+										e != d->child.end(); ++e) {
+									if (e->content_type != 0x104f || e->block_size < 17)
+										continue;
+									fade_t fd;
+									if (!parsefade(u_endian_read4(&_ptfunxored[e->offset + 4], is_bigendian), fd))
+										continue;
+									fd.track = trackname;
+									fd.trackindex = count;
+									fd.start = (int64_t)(u_endian_read8(&_ptfunxored[e->offset + 9], is_bigendian) * _ratefactor);
+									_fades.push_back(fd);
+								}
 								continue;
 							}
 							for (vector<PTFFormat::block_t>::iterator e = d->child.begin();

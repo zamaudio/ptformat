@@ -187,6 +187,25 @@ public:
 		std::string path;
 	};
 
+	/* A fade on an audio track. type is 3 for a fade-in (it starts where
+	 * a region starts), 2 for a fade-out (it starts where a region ends)
+	 * and 1 for a crossfade (where one region ends and the next starts).
+	 * start and length are in samples at the target rate. For a
+	 * crossfade, split is the part of length before the cut; otherwise it
+	 * equals length. shape is a second byte stored with the type, whose
+	 * meaning is not known. trackindex is the position of the track in
+	 * the region to track map, from 0. */
+	struct fade_t {
+		std::string track;
+		uint16_t    trackindex;
+		int64_t     start;
+		int64_t     length;
+		int64_t     split;
+		uint8_t     type;
+		uint8_t     shape;
+		fade_t () : trackindex (0), start (0), length (0), split (0), type (0), shape (0) {}
+	};
+
 	/* A video file the session uses: its name, frame rate, length in
 	 * frames, picture size and creation time (seconds since 1970 UTC, 0
 	 * when not a valid date). */
@@ -343,6 +362,7 @@ public:
 	const std::vector<route_t>&  routes () const { return _routes ; }
 	const std::vector<strip_t>&  strips () const { return _strips ; }
 	const std::vector<video_t>&  videofiles () const { return _videofiles ; }
+	const std::vector<fade_t>&   fades () const { return _fades ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -361,6 +381,7 @@ private:
 	std::vector<route_t>  _routes;
 	std::vector<strip_t>  _strips;
 	std::vector<video_t>  _videofiles;
+	std::vector<fade_t>   _fades;
 	std::vector<float>    _gains;
 
 	std::string _path;
@@ -407,6 +428,7 @@ private:
 	void parsevolumes(void);
 	void parsegains(void);
 	void parsevideo(void);
+	bool parsefade(uint32_t index, fade_t& fade);
 	bool readstring(uint32_t& pos, uint32_t end, std::string& out);
 	bool parserest(void);
 	bool parseaudio(void);

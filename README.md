@@ -16,7 +16,7 @@ Decrypt and parse a PT file:
 	./ptftool file.pt{s,5,f,x}
 
 `./ptftool -v file.pt{s,5,f,x}` also prints the bit depth, the frame
-rate, the video files, where the
+rate, the fades, the video files, where the
 session was saved, the creation date of each audio file, the channel
 and UUID of each region, the memory locations, the volumes and plugins
 the session uses, every track with its type (audio, aux, master or

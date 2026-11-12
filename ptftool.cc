@@ -192,6 +192,16 @@ int main (int argc, char **argv) {
 					m->name.c_str(), m->index, m->start, m->end);
 			}
 
+			/* Type 1 crossfade, 2 fade-out, 3 fade-in. */
+			printf("\nFade (track) type @ start, length:\n");
+			for (vector<PTFFormat::fade_t>::const_iterator
+					fd = ptf.fades().begin();
+					fd != ptf.fades().end(); ++fd) {
+				printf("`%s` %s @ %" PRId64 ", %" PRId64 "\n", fd->track.c_str(),
+					fd->type == 1 ? "cross" : fd->type == 2 ? "out" : fd->type == 3 ? "in" : "?",
+					fd->start, fd->length);
+			}
+
 			printf("\nVideo file: fps, frames, size, created\n");
 			for (vector<PTFFormat::video_t>::const_iterator
 					vf = ptf.videofiles().begin();
