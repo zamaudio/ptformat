@@ -857,11 +857,11 @@ PTFFormat::parse_region_info(uint32_t j, block_t& blk, region_t& r) {
 	parse_three_point(j, start, sampleoffset, length);
 
 	findex = u_endian_read4(&_ptfunxored[blk.offset + blk.block_size], is_bigendian);
-	/* From PT10 on, the file index is followed by the channel of that file
-	 * the region plays (0 = L, 1 = R, ...). Older versions store other
-	 * data there. */
+	/* From PT10 on, the file index is followed by the 2-byte channel of
+	 * that file the region plays (0 = L, 1 = R, ...), then two floats.
+	 * Older versions store other data there. */
 	r.channel = (_version >= 10)
-		? u_endian_read4(&_ptfunxored[blk.offset + blk.block_size + 4], is_bigendian)
+		? u_endian_read2(&_ptfunxored[blk.offset + blk.block_size + 4], is_bigendian)
 		: 0;
 	wav_t f (findex);
 	f.posabsolute = start * _ratefactor;
