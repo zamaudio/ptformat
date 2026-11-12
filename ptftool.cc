@@ -262,8 +262,15 @@ int main (int argc, char **argv) {
 					i != ptf.inserts().end(); ++i) {
 				printf("`%s` s(%d) %c: %s\n", i->strip.c_str(), i->strip_index, 'A' + i->slot,
 					i->plugin.name.empty() ? "?" : i->plugin.name.c_str());
+				/* The plugin's settings chunks, with the values of
+				 * the ones in the AAX SDK's format. */
+				for (vector<PTFFormat::chunk_t>::const_iterator c = i->chunks.begin(); c != i->chunks.end(); ++c) {
+					printf("\tchunk `%s` (%s) %zu bytes\n", c->name.c_str(), c->id.c_str(), c->data.size());
+					for (vector<PTFFormat::setting_t>::const_iterator s = c->settings.begin(); s != c->settings.end(); ++s)
+						printf("\t\t%s = %.10g\n", s->name.c_str(), s->value);
+				}
 				/* A stepped parameter shows its value number; a
-				 * continuous one the stored value over 2^32 and,
+				 * continuous one its normalised value (0 to 1) and,
 				 * in brackets, as stored. */
 				for (vector<PTFFormat::param_t>::const_iterator p = i->params.begin(); p != i->params.end(); ++p) {
 					printf("\t#%u `%s` (%s)", p->index, p->name.c_str(), p->id.c_str());
@@ -277,7 +284,7 @@ int main (int argc, char **argv) {
 						if (p->steps)
 							printf(" %u", q->raw);
 						else
-							printf(" %.4f (0x%08x)", q->raw / 4294967296.0, q->raw);
+							printf(" %.4f (0x%08x)", q->normalised(), q->raw);
 					}
 					printf("\n");
 				}

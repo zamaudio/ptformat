@@ -3208,6 +3208,78 @@ PTFFormat::read_params(const block_t& b, std::vector<param_t>& params) {
 	}
 }
 
+/* The settings chunks of an inserted plugin: the 0x1038 somewhere under
+ * the insert's 0x2616 holds 4 bytes, the size of what follows (4 bytes)
+ * and then AAX chunks, big-endian whatever the session is: the chunk's
+ * size with this 56-byte header (4 bytes), a version (4), the plugin's
+ * three codes (12), the chunk id (4) and its name (32, zero padded),
+ * then the content.
+ *
+ * An "elck" chunk's content is 4 bytes and then one entry per value:
+ * its name as a C string that starts with the type and an underscore
+ * ("d_gain"), zero padded to a multiple of 4 bytes with its terminator,
+ * and the value: a double (d, 8 bytes), an integer (l, 4) or a float
+ * (f, 4). */
+void
+PTFFormat::read_chunks(const block_t& b, std::vector<chunk_t>& chunks) {
+	for (vector<PTFFormat::block_t>::const_iterator c = b.child.begin(); c != b.child.end(); ++c) {
+		if (c->content_type != 0x1038) {
+			read_chunks(*c, chunks);
+			continue;
+		}
+		if (c->block_size < 10)
+			continue;
+		uint32_t end = c->offset + c->block_size;
+		uint32_t pos = c->offset + 10;
+		uint32_t total = u_endian_read4(&_ptfunxored[c->offset + 6], is_bigendian);
+		if (total < end - pos)
+			end = pos + total;
+		while (end - pos >= 56) {
+			unsigned char *h = &_ptfunxored[pos];
+			uint32_t size = u_endian_read4(h, true);
+			if (size < 56 || size > end - pos)
+				break;
+			chunk_t ch;
+			ch.id = std::string((const char *)h + 20, 4);
+			ch.name = std::string((const char *)h + 24, strnlen((const char *)h + 24, 32));
+			ch.data = std::string((const char *)h + 56, size - 56);
+			if (ch.id == "elck") {
+				unsigned char *d = h + 56;
+				uint32_t n = size - 56, at = 4;
+				while (at < n) {
+					uint32_t len = 0;
+					while (at + len < n && d[at + len])
+						len++;
+					if (len < 3 || at + len >= n || d[at + 1] != '_')
+						break;
+					setting_t st;
+					st.type = (char)d[at];
+					st.name = std::string((const char *)d + at + 2, len - 2);
+					uint32_t v = at + ((len + 1 + 3) & ~3u);
+					uint32_t width = (st.type == 'd') ? 8 : (st.type == 'l' || st.type == 'f') ? 4 : 0;
+					if (!width || v > n || n - v < width)
+						break;
+					if (st.type == 'd') {
+						uint64_t bits = ((uint64_t)u_endian_read4(d + v, true) << 32) | u_endian_read4(d + v + 4, true);
+						memcpy(&st.value, &bits, 8);
+					} else if (st.type == 'l') {
+						st.value = (int32_t)u_endian_read4(d + v, true);
+					} else {
+						uint32_t bits = u_endian_read4(d + v, true);
+						float f;
+						memcpy(&f, &bits, 4);
+						st.value = f;
+					}
+					ch.settings.push_back(st);
+					at = v + width;
+				}
+			}
+			chunks.push_back(ch);
+			pos += size;
+		}
+	}
+}
+
 void
 PTFFormat::parseplugins(void) {
 	_plugins.clear();
@@ -3441,6 +3513,7 @@ PTFFormat::parseplugins(void) {
 								}
 							}
 							read_params(*plug, ins.params);
+							read_chunks(*plug, ins.chunks);
 							_inserts.push_back(ins);
 						}
 						if (i->content_type == 0x2616 || i->content_type == 0x2617 || i->content_type == 0x2625)

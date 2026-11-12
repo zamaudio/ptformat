@@ -211,16 +211,21 @@ public:
 	 * 1), and steps: 0 for a continuous parameter, else its number of
 	 * values (2 for an on/off switch). Each point is a position in
 	 * samples at the target rate and the stored value: the value number
-	 * (from 0) of a stepped parameter; for a continuous one, an unsigned
-	 * 32-bit number that is probably the plugin's normalised value (0 to
-	 * 1) times 2^32, which the sessions seen fit but no Pro Tools test
-	 * confirms. Turning it into the value the plugin shows (dB, Hz)
-	 * needs the plugin's own scale, which the session does not hold.
+	 * (from 0) of a stepped parameter; for a continuous one, a signed
+	 * 32-bit number from -2^30 to 2^30 that holds the plugin's
+	 * normalised value (0 to 1) minus one half, times 2^31: see
+	 * normalised(). In an EQ3 this gives the gain, frequency, Q and input
+	 * level its settings chunk stores (see chunk_t), over the ranges the
+	 * plugin documents; not checked in Pro Tools. Turning it into the
+	 * value the plugin shows (dB, Hz) needs the plugin's own scale,
+	 * which the session does not hold.
 	 * A single point at 0 is a fixed value; more are automation. */
 	struct parampoint_t {
 		int64_t  pos;
 		uint32_t raw;
 		parampoint_t () : pos (0), raw (0) {}
+		/* The value of a continuous parameter, from 0 to 1. */
+		double normalised () const { return 0.5 + (int32_t)raw / 2147483648.0; }
 	};
 
 	struct param_t {
@@ -232,6 +237,29 @@ public:
 		param_t () : index (0), steps (0) {}
 	};
 
+	/* The settings of an inserted plugin, as the plugin saved them: the
+	 * 0x1038 block of the insert holds one or more AAX chunks. id is the
+	 * chunk's 4-character id and name its name; data is the chunk's
+	 * content, in the plugin's own format. The chunk "elck" ("Complete
+	 * Controls State") is the format the AAX SDK gives plugins: a list
+	 * of named values, which settings holds with the value in the
+	 * plugin's own units (dB, Hz) and its type: 'd' double, 'l' 32-bit
+	 * integer, 'f' float. Other chunks ("All ", "XPst", "juce" in the
+	 * sessions seen) are left as data. */
+	struct setting_t {
+		std::string name;
+		char        type;
+		double      value;
+		setting_t () : type (0), value (0) {}
+	};
+
+	struct chunk_t {
+		std::string id;
+		std::string name;
+		std::string data;
+		std::vector<setting_t> settings;
+	};
+
 	struct insert_t {
 		std::string strip;
 		uint16_t    strip_index;
@@ -239,6 +267,7 @@ public:
 		uint16_t    slot;
 		plugin_t    plugin;
 		std::vector<param_t> params;
+		std::vector<chunk_t> chunks;
 		insert_t () : strip_index (0), strip_type (0), slot (0) {}
 	};
 
@@ -767,6 +796,7 @@ private:
 	void parsemarkers(void);
 	void parseplugins(void);
 	void read_params(const block_t& b, std::vector<param_t>& params);
+	void read_chunks(const block_t& b, std::vector<chunk_t>& chunks);
 	void parsegroups(void);
 	bool input_record(const block_t& strip, uint32_t& at, uint32_t& end) const;
 	void read_input(const block_t& strip, std::string& input);

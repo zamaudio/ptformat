@@ -20,8 +20,10 @@ rate, the fades, the video files, where the
 session was saved, the creation date of each audio file, the channel
 and UUID of each region, the memory locations, the volumes and plugins
 the session uses, every track with its type (audio, aux, master or
-video), the plugin in each insert slot with its parameters (name, id,
-number of steps and stored value), the output and sends of each
+video), the plugin in each insert slot with its settings chunks (and
+the values of those in the AAX SDK's own format, in the plugin's units)
+and its parameters (name, id, number of steps and normalised value), the
+output and sends of each
 mixer strip and the paths of the I/O setup.
 
 API
