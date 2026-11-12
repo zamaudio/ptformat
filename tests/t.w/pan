@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# Pan a mono track and the right channel of a stereo track in a copy,
+# check both read back, pan them back: the copy must be identical to the
+# original again. Height on a stereo panner is refused.
+echo "PT12 pan tracks in a copy and back"
+FILE=../../bins/RegionTest.ptx
+DIR=$(mktemp -d)
+trap 'rm -rf "$DIR"' EXIT
+../../ptpan "$FILE" "$DIR/a.ptx" "Audio 1" out pan 25 > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptpan "$DIR/a.ptx" "$DIR/b.ptx" "Audio 2" out pan-right -40 > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptftool -v "$DIR/b.ptx" | grep -q '^`Audio 1` s(1) out: Monitors, +0.0 dB, pan 25/0$' || { echo "mono pan not set"; echo "[FAIL]"; exit 1; }
+../../ptftool -v "$DIR/b.ptx" | grep -q '^`Audio 2` s(2) out: Monitors, +0.0 dB, pan -100/-40$' || { echo "right pan not set"; echo "[FAIL]"; exit 1; }
+../../ptpan "$DIR/b.ptx" "$DIR/c.ptx" "Audio 1" out pan 0 > /dev/null || { echo "[FAIL]"; exit 1; }
+../../ptpan "$DIR/c.ptx" "$DIR/d.ptx" "Audio 2" out pan-right 100 > /dev/null || { echo "[FAIL]"; exit 1; }
+cmp -s "$FILE" "$DIR/d.ptx" || { echo "panned back copy differs"; echo "[FAIL]"; exit 1; }
+../../ptpan "$FILE" "$DIR/e.ptx" "Audio 2" out height 50 > /dev/null 2>&1 && { echo "height on a stereo panner"; echo "[FAIL]"; exit 1; }
+[ -e "$DIR/e.ptx" ] && { echo "refused edit wrote a file"; echo "[FAIL]"; exit 1; }
+echo "[ OK ]"
+echo ""

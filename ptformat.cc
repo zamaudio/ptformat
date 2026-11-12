@@ -594,6 +594,117 @@ PTFFormat::set_slot(const route_t& route, uint16_t lane, int32_t value)
 }
 
 bool
+PTFFormat::set_pan(const route_t& route, pan_param param, int32_t value)
+{
+	if (!_ptfunxored || is_bigendian || !route.block)
+		return false;
+	bool position = (param == PAN_LEFT_RIGHT || param == PAN_LEFT_RIGHT_2);
+	if (position ? (value < -100 || value > 100) : (value < 0 || value > 100))
+		return false;
+	const block_t *slot = NULL;
+	std::vector<const block_t*> todo;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b)
+		todo.push_back(&*b);
+	while (!todo.empty() && !slot) {
+		const block_t *b = todo.back();
+		todo.pop_back();
+		if (b->offset == route.block && b->content_type == 0x260d) {
+			slot = b;
+			break;
+		}
+		for (std::vector<block_t>::const_iterator c = b->child.begin(); c != b->child.end(); ++c)
+			todo.push_back(&*c);
+	}
+	if (!slot)
+		return false;
+	const block_t *settings = NULL;
+	std::vector<const block_t*> panners;
+	for (std::vector<block_t>::const_iterator z = slot->child.begin(); z != slot->child.end(); ++z) {
+		if (z->content_type == 0x1029 && !settings)
+			settings = &*z;
+		if (z->content_type == 0x260c)
+			panners.push_back(&*z);
+	}
+	if (!settings || settings->block_size != 281 || panners.empty() || panners.size() > 2)
+		return false;
+
+	/* The lanes of each channel's panner. */
+	std::vector<std::vector<const block_t*> > lanes(panners.size());
+	for (size_t s = 0; s < panners.size(); s++) {
+		for (std::vector<block_t>::const_iterator w = panners[s]->child.begin(); w != panners[s]->child.end(); ++w) {
+			if (w->content_type == 0x260a)
+				lanes[s].push_back(&*w);
+		}
+	}
+	size_t side = (param == PAN_LEFT_RIGHT_2) ? 1 : 0;
+	std::vector<uint32_t> places;	/* offsets of the 0x1029 */
+	std::vector<const block_t*> points;
+	if (position) {
+		if (side >= lanes.size() || lanes[side].empty())
+			return false;
+		points.push_back(lanes[side][0]);
+		places.push_back(15 + 28 * side);
+		places.push_back(101 + 28 * side);
+		if (lanes[side].size() > 1) {
+			points.push_back(lanes[side][1]);
+			places.push_back(19 + 28 * side);
+			places.push_back(105 + 28 * side);
+		}
+	} else {
+		/* Only a single surround or object panner (a mono strip). */
+		if (lanes.size() != 1 || lanes[0].size() != 14)
+			return false;
+		uint32_t at = (param == PAN_HEIGHT) ? 157 : 165;
+		points.push_back(lanes[0][param == PAN_HEIGHT ? 8 : 9]);
+		places.push_back(at);
+		places.push_back(at + 4);
+	}
+
+	/* Every place holds the current value, as read_lane() lays it out:
+	 * one point. */
+	int32_t old = 0;
+	for (size_t k = 0; k < points.size(); k++) {
+		uint32_t pl = points[k]->offset + 2;
+		if (points[k]->block_size != 32 || u_endian_read4(&_ptfunxored[pl], false) != 0x00014601
+				|| u_endian_read4(&_ptfunxored[pl + 10], false) != 1)
+			return false;
+		int32_t v = (int16_t)u_endian_read2(&_ptfunxored[pl + 26], false);
+		if (k == 0)
+			old = v;
+		else if (v != old)
+			return false;
+	}
+	for (size_t k = 0; k < places.size(); k++) {
+		if ((int32_t)u_endian_read4(&_ptfunxored[settings->offset + places[k]], false) != old)
+			return false;
+	}
+
+	for (size_t k = 0; k < points.size(); k++) {
+		uint32_t pl = points[k]->offset + 2;
+		_ptfunxored[pl + 26] = value & 0xff;
+		_ptfunxored[pl + 27] = (value >> 8) & 0xff;
+	}
+	for (size_t k = 0; k < places.size(); k++)
+		write4le(&_ptfunxored[settings->offset + places[k]], (uint32_t)value);
+	for (std::vector<route_t>::iterator r = _routes.begin(); r != _routes.end(); ++r) {
+		if (r->block != route.block)
+			continue;
+		if (param == PAN_LEFT_RIGHT)
+			r->pan = value;
+		else if (param == PAN_LEFT_RIGHT_2)
+			r->pan_right = value;
+	}
+	if (position) {
+		for (std::vector<automation_t>::iterator a = _automation.begin(); a != _automation.end(); ++a) {
+			if (a->strip_index == route.strip_index && a->slot == route.slot && a->pan == side + 1
+					&& a->points.size() == 1)
+				a->points[0].value = value;
+		}
+	}
+	return true;
+}
+
+bool
 PTFFormat::set_level(const route_t& route, float db)
 {
 	if (!(db >= -80.0f && db <= 12.0f) || is_bigendian)

@@ -394,6 +394,30 @@ public:
 	 * on disk until save(). Not checked in Pro Tools. */
 	bool set_route_destination(const route_t& route, const std::string& destination);
 
+	/* A panner setting of a route for set_pan(): the left/right position
+	 * of the first channel (the mono or left channel, route_t::pan) or of
+	 * the second (route_t::pan_right), from -100 to 100; and, on a mono
+	 * strip with a surround or object panner, the height and the size,
+	 * from 0 to 100. */
+	enum pan_param { PAN_LEFT_RIGHT, PAN_LEFT_RIGHT_2, PAN_HEIGHT, PAN_SIZE };
+
+	/* Set a panner setting of a route of routes(). Each channel of the
+	 * slot has a 0x260c with its own lanes (0x260a): lane 0 is the front
+	 * left/right position and lane 1, when there is one, the rear one,
+	 * linked to it; a surround or object panner has 14 lanes, of which
+	 * lane 8 is the height and lane 9 the size (the X, Z and size of the
+	 * objects of an ADM file imported in Pro Tools land there). The
+	 * slot's 0x1029 holds each value twice: the positions at +15 and
+	 * +101 (front) and +19 and +105 (rear) for the first channel, 28
+	 * bytes later for the second, the height at +157 and +161 and the
+	 * size at +165 and +169. All those places change, and the lanes must
+	 * hold a single point (no automation). False, with nothing changed,
+	 * when the value is out of range, the slot has no such panner or
+	 * channel, or a place does not hold the current value. routes() and
+	 * automation() are updated. Changes nothing on disk until save().
+	 * Not checked in Pro Tools. */
+	bool set_pan(const route_t& route, pan_param param, int32_t value);
+
 	/* Set the input of the track of strips() with this id to the input
 	 * path or bus named input (a main path of the 0x1022 list), or to no
 	 * input when input is empty. The track's mixer strip stores the

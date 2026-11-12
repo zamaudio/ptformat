@@ -219,6 +219,17 @@ Setting another input and back gives the original file in 852 of 904
 tries on 205 sessions (the 52 others had an input missing from the I/O
 setup, which cannot be set again). Not yet checked in Pro Tools.
 
+To write a copy of a PT10 to PT12 session with a panner setting of the
+output or a send of a track changed:
+
+	./ptpan in.ptx out.ptx track out|A-J pan|pan-right|height|size value
+
+pan and pan-right are the left/right positions of the mono or left
+channel and of the right channel (-100 to 100); height and size (0 to
+100) exist on a mono track with a surround or object panner. A setting
+with automation is refused. Setting a value and back gives the original
+file in all 14,777 tries on 205 sessions. Not yet checked in Pro Tools.
+
 To write a copy of a PT10 to PT12 session with an I/O Setup path (input,
 output or bus) renamed:
 
