@@ -601,6 +601,154 @@ PTFFormat::set_level(const route_t& route, float db)
 	return set_slot(route, 0, (int32_t)floor(db * 10.0f + 0.5f));
 }
 
+/* The blocks from b down to the one at offset, outermost first. */
+bool
+PTFFormat::chain_to(const block_t& b, uint32_t offset, std::vector<const block_t*>& chain) const
+{
+	chain.push_back(&b);
+	if (b.offset == offset)
+		return true;
+	for (std::vector<block_t>::const_iterator c = b.child.begin(); c != b.child.end(); ++c) {
+		if (c->offset <= offset && offset < c->offset + c->block_size && chain_to(*c, offset, chain))
+			return true;
+	}
+	chain.pop_back();
+	return false;
+}
+
+/* A destination record (0x260e) at +38: the path name; the record's
+ * payload (after the content type) is 40 + name + 19 bytes. */
+bool
+PTFFormat::dest_payload(const block_t& z, std::string& payload, std::string& name) const
+{
+	const unsigned char *d = _ptfunxored;
+	if (z.content_type != 0x260e || z.block_size < 2 + 40 + 19)
+		return false;
+	uint32_t len = u_endian_read4(&_ptfunxored[z.offset + 38], false);
+	if (len > z.block_size - 2 - 40 - 19 || z.block_size != 2 + 40 + len + 19 || d[z.offset + 10] != 0x2a)
+		return false;
+	payload.assign((const char *)&d[z.offset + 2], z.block_size - 2);
+	name.assign((const char *)&d[z.offset + 42], len);
+	return true;
+}
+
+bool
+PTFFormat::set_route_destination(const route_t& route, const std::string& destination)
+{
+	if (!_ptfunxored || is_bigendian || !route.block || destination.empty() || destination == route.destination)
+		return false;
+	uint32_t oldch = 0, newch = 0;
+	for (std::vector<iopath_t>::const_iterator p = _iopaths.begin(); p != _iopaths.end(); ++p) {
+		if (p->list != 0x2603 || !p->parent.empty())
+			continue;
+		if (p->name == route.destination)
+			oldch = p->channels;
+		if (p->name == destination)
+			newch = p->channels;
+	}
+	if (!oldch || oldch != newch)
+		return false;
+
+	/* The slot, its record, and the model record. */
+	std::vector<const block_t*> chain;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && chain.empty(); ++b) {
+		if (!chain_to(*b, route.block, chain))
+			chain.clear();
+	}
+	if (chain.size() < 3 || chain.back()->content_type != 0x260d)
+		return false;
+	const block_t *strip = chain[chain.size() - 2];
+	const block_t *rec = NULL;
+	std::string oldp, oldname, newp, name;
+	for (std::vector<block_t>::const_iterator z = chain.back()->child.begin(); z != chain.back()->child.end(); ++z) {
+		if (z->content_type == 0x260e) {
+			if (rec)
+				return false;
+			rec = &*z;
+		}
+	}
+	if (!rec || !dest_payload(*rec, oldp, oldname) || oldname != route.destination)
+		return false;
+	bool model = false;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && !model; ++b) {
+		if (b->content_type != 0x2624)
+			continue;
+		for (std::vector<block_t>::const_iterator s = b->child.begin(); s != b->child.end() && !model; ++s)
+		for (std::vector<block_t>::const_iterator x = s->child.begin(); x != s->child.end() && !model; ++x) {
+			if (x->content_type != 0x261b)
+				continue;
+			for (std::vector<block_t>::const_iterator y = x->child.begin(); y != x->child.end() && !model; ++y) {
+				if (y->content_type != 0x260d)
+					continue;
+				for (std::vector<block_t>::const_iterator z = y->child.begin(); z != y->child.end() && !model; ++z) {
+					if (dest_payload(*z, newp, name) && name == destination)
+						model = true;
+				}
+			}
+		}
+	}
+	if (!model)
+		return false;
+	newp[3] = oldp[3];	/* the source byte stays */
+
+	/* The copy under the strip's 0x4856, when it has one: the first
+	 * record equal to the old one. */
+	const block_t *copy = NULL;
+	bool has4856 = false;
+	for (std::vector<block_t>::const_iterator y = strip->child.begin(); y != strip->child.end(); ++y) {
+		if (y->content_type != 0x4856)
+			continue;
+		has4856 = true;
+		for (std::vector<block_t>::const_iterator z = y->child.begin(); z != y->child.end() && !copy; ++z) {
+			std::string p, n;
+			if (dest_payload(*z, p, n) && p == oldp)
+				copy = &*z;
+		}
+	}
+	if (has4856 && !copy)
+		return false;
+
+	std::string saved((const char *)_ptfunxored, _len);
+	uint32_t slotat = route.block, recat = rec->offset;
+	int64_t delta = (int64_t)newp.size() - (int64_t)oldp.size();
+	bool ok = true;
+	if (copy) {
+		/* The copy follows the slot in the file: do it first, so
+		 * the slot keeps its offset. */
+		if (copy->offset < slotat)
+			return false;
+		std::vector<const block_t*> cc;
+		for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && cc.empty(); ++b) {
+			if (!chain_to(*b, copy->offset, cc))
+				cc.clear();
+		}
+		ok = !cc.empty() && splice(copy->offset + 2, oldp.size(), newp, cc,
+			std::vector<std::pair<uint32_t, uint32_t> >());
+	}
+	if (ok) {
+		std::vector<const block_t*> rc;
+		for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && rc.empty(); ++b) {
+			if (!chain_to(*b, recat, rc))
+				rc.clear();
+		}
+		std::string p, n;
+		ok = !rc.empty() && dest_payload(*rc.back(), p, n) && p == oldp
+			&& splice(recat + 2, oldp.size(), newp, rc, std::vector<std::pair<uint32_t, uint32_t> >());
+	}
+	(void)delta;
+	if (!ok) {
+		unsigned char *buf = (unsigned char *)malloc(saved.size());
+		if (buf) {
+			memcpy(buf, saved.data(), saved.size());
+			free(_ptfunxored);
+			_ptfunxored = buf;
+			_len = saved.size();
+		}
+		reparse();
+	}
+	return ok;
+}
+
 bool
 PTFFormat::set_route_muted(const route_t& route, bool muted)
 {

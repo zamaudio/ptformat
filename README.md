@@ -200,6 +200,15 @@ tracks); the playlist of an audio track keeps its name. Renaming and
 renaming back gives the original file in all 790 tries on 200
 sessions. Not yet checked in Pro Tools.
 
+To write a copy of a PT10 to PT12 session with the output or a send of a
+track sent to another output path or bus:
+
+	./ptroute in.ptx out.ptx track out|A-J destination
+
+The destination must have the same number of channels as the current
+one, and another track must already send to it. Not yet checked in Pro
+Tools.
+
 
 Hacking
 =======

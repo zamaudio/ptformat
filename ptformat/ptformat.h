@@ -380,6 +380,20 @@ public:
 	bool set_level(const route_t& route, float db);
 	bool set_route_muted(const route_t& route, bool muted);
 
+	/* Send a route of routes() to another output path or bus of the
+	 * session: the path id, the name and the two flag bytes of its
+	 * destination record (0x260e) are replaced by those of another
+	 * record that already sends to destination, and so is the copy of
+	 * the record under the strip's 0x4856 when the strip has one. The
+	 * route's own source byte is kept. The destination must be an output
+	 * path (0x2603 list) with the same number of channels as the current
+	 * one, and some strip of the session must already send to it (its
+	 * record is the model). False, with nothing changed, otherwise, or
+	 * when the offsets cannot be moved without doubt. routes() is
+	 * updated; earlier copies of route are then stale. Changes nothing
+	 * on disk until save(). Not checked in Pro Tools. */
+	bool set_route_destination(const route_t& route, const std::string& destination);
+
 	/* Move one placement of tracks() to pos, in samples at the target
 	 * rate, from 00:00:00:00: the 8-byte position of its 0x104f entry
 	 * (pt_api format notes, sections 4.2 and 6.1) changes and the audio
@@ -677,6 +691,8 @@ private:
 		std::vector<const block_t*> grow;
 	};
 	bool track_name_fields(const std::string& id, const std::string& name, std::vector<name_field>& out) const;
+	bool dest_payload(const block_t& z, std::string& payload, std::string& name) const;
+	bool chain_to(const block_t& b, uint32_t offset, std::vector<const block_t*>& chain) const;
 	void parsevolumes(void);
 	void parsegains(void);
 	void parsevideo(void);
