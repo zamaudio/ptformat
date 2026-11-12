@@ -262,7 +262,10 @@ volume (the volume automation, or the fader without it) are added in dB;
 between two automation points the volume is taken as a straight line in
 dB, which is not yet checked against Pro Tools. Muted regions are
 silent. Fade-ins, fade-outs and crossfades are applied, linear or equal
-power (a quarter sine); other fade curves are not read. Plugins, clip
+power (a quarter sine); other fade curves are not read. Where regions
+overlap, the one that starts later is taken to be on top and the other
+is not heard there; which one Pro Tools holds on top has not been found
+in the session. Plugins, clip
 gain lines of more than one point, trim, VCA, mute and pan are not
 applied. On a real mono track the result matches the source files with
 the clip gain and the fades applied to within float rounding.

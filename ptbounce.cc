@@ -40,6 +40,9 @@
  * (lane 0 of slot 0) when there is any, else its fader. Between two
  * automation points the volume is taken as a straight line in dB; how
  * Pro Tools draws it is not checked yet. Muted regions are silent.
+ * Where regions overlap, the one that starts later is taken to be on
+ * top and the other is not heard there; which one Pro Tools holds on
+ * top has not been found in the session.
  *
  * Fade-ins, fade-outs and crossfades are applied: linear ones as a
  * straight line in amplitude, equal power ones as a quarter sine. Across
@@ -243,8 +246,15 @@ struct span {
 	int64_t to;
 	fade in;
 	fade out;
-	span () : from (0), to (0) {}
+	bool cross;	/* in is a crossfade from the region before */
+	span () : from (0), to (0), cross (false) {}
 };
+
+static bool
+starts_before(const span& a, const span& b)
+{
+	return a.t.reg.startpos < b.t.reg.startpos;
+}
 
 static bool
 put32(FILE *f, uint32_t v)
@@ -455,6 +465,7 @@ int main (int argc, char **argv) {
 			ramp.shape = fd->shape;
 			if ((fd->type == 3 && fs == rs) || (fd->type == 1 && cut == rs)) {
 				sp.in = ramp;
+				sp.cross = (fd->type == 1);
 				sp.from = min(sp.from, fs);
 			}
 			if ((fd->type == 2 && fe == re) || (fd->type == 1 && cut == re)) {
@@ -463,6 +474,22 @@ int main (int argc, char **argv) {
 			}
 		}
 		spans.push_back(sp);
+	}
+	/* Regions can overlap on a track, and Pro Tools then plays the one
+	 * on top. Which one that is has not been found in the session, so
+	 * the one that starts later is taken to be on top, as when a take
+	 * is recorded over the end of the one before; not checked. */
+	stable_sort(spans.begin(), spans.end(), starts_before);
+	size_t overlaps = 0;
+	for (size_t i = 0; i < spans.size(); i++) {
+		for (size_t k = 0; k < i; k++) {
+			const PTFFormat::region_t& a = spans[k].t.reg;
+			if (spans[k].t.index == spans[i].t.index && !spans[i].cross &&
+					a.startpos + a.length > spans[i].t.reg.startpos) {
+				overlaps++;
+				break;
+			}
+		}
 	}
 
 	/* Index the audio files on disk by name. */
@@ -498,16 +525,23 @@ int main (int argc, char **argv) {
 	for (int64_t b = start; b < end; b += block) {
 		size_t n = (size_t)min((int64_t)block, end - b);
 		mix.assign(n * nch, 0.f);
-		/* Each channel: the regions placed on it, with their fades;
-		 * across a crossfade the two regions add up. */
+		/* Each channel: the regions placed on it in the order they
+		 * start, with their fades. A region replaces what lies under
+		 * it, also when it is muted or its file is missing; across a
+		 * crossfade the two regions add up. */
 		for (size_t i = 0; i < spans.size(); i++) {
 			const span& sp = spans[i];
 			const PTFFormat::track_t& t = sp.t;
 			int64_t rs = t.reg.startpos;
-			if (sp.to <= b || sp.from >= b + (int64_t)n || t.reg.muted)
+			if (sp.to <= b || sp.from >= b + (int64_t)n)
 				continue;
 			uint16_t c = (uint16_t)(find(chans.begin(), chans.end(), t.index) - chans.begin());
 			int64_t from = max(sp.from, b), to = min(sp.to, b + (int64_t)n);
+			int64_t added = sp.cross ? sp.in.start + sp.in.length : from;
+			for (int64_t s = max(from, added); s < to; s++)
+				mix[(size_t)(s - b) * nch + c] = 0.f;
+			if (t.reg.muted)
+				continue;
 			const string& name = t.reg.wave.filename;
 			if (!open.count(name)) {
 				wavfile w;
@@ -557,6 +591,9 @@ int main (int argc, char **argv) {
 		fprintf(stderr, "Cannot write %s\n", out);
 		return 2;
 	}
+	if (overlaps)
+		fprintf(stderr, "%zu region%s overlap%s an earlier one: the later one is taken to be on top\n",
+			overlaps, overlaps == 1 ? "" : "s", overlaps == 1 ? "s" : "");
 	printf("%s: %u channel%s, %" PRId64 " samples from sample %" PRId64 ", %zu region%s\n",
 		track.c_str(), nch, nch == 1 ? "" : "s", (int64_t)total, start, placed.size(), placed.size() == 1 ? "" : "s");
 	return status;
