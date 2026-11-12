@@ -780,7 +780,12 @@ PTFFormat::playlist_of(uint32_t e, const block_t*& list, std::vector<playlist_sl
 			return false;
 		sl.entry = c->child[0].offset;
 		sl.fade = (_ptfunxored[c->offset + 46] == 0x01);
-		int64_t at = (int64_t)(u_endian_read8(&_ptfunxored[sl.entry + 9], false) * _ratefactor);
+		uint64_t stored = u_endian_read8(&_ptfunxored[sl.entry + 9], false);
+		/* A damaged file can hold any value: keep to positions that
+		 * convert safely. */
+		if (stored > ((uint64_t)1 << 48))
+			return false;
+		int64_t at = (int64_t)(stored * _ratefactor);
 		int64_t length = 0;
 		if (sl.fade) {
 			fade_t fd;
@@ -1110,6 +1115,150 @@ PTFFormat::split_region(const track_t& placement, int64_t cut) {
 			set2.push_back(std::make_pair(e + 4, n));
 			set2.push_back(std::make_pair(countat, (uint32_t)slots.size() + 1));
 			ok = splice(slots[self].end, 0, copy, grow2, set2);
+		}
+	}
+	if (!ok) {
+		unsigned char *buf = (unsigned char *)malloc(saved.size());
+		if (buf) {
+			memcpy(buf, saved.data(), saved.size());
+			free(_ptfunxored);
+			_ptfunxored = buf;
+			_len = saved.size();
+		}
+		reparse();
+		return false;
+	}
+	return true;
+}
+
+bool
+PTFFormat::add_fade(const track_t& placement, bool fade_in, int64_t length, uint8_t shape) {
+	if (_ratefactor != 1.0 || length <= 0 || width(length) > 4 || (shape != 1 && shape != 2))
+		return false;
+	const block_t *list;
+	std::vector<playlist_slot> slots;
+	size_t self;
+	uint32_t e = placement.entry;
+	if (!playlist_of(e, list, slots, self))
+		return false;
+	int64_t start = slots[self].from, end = slots[self].to;
+	if (length > end - start)
+		return false;
+	int64_t edge = fade_in ? start : end;
+	for (size_t i = 0; i < slots.size(); i++) {
+		if (i == self)
+			continue;
+		/* No fade on that edge already, and no region touching it (that
+		 * would call for a crossfade). */
+		if (slots[i].fade && slots[i].from <= edge + length && slots[i].to >= edge - length)
+			return false;
+		if (!slots[i].fade && slots[i].from <= end && slots[i].to >= start)
+			return false;
+	}
+
+	/* The fade list: the single top-level 0x2630, a count and the 0x262f
+	 * records; a new record copies the header of an existing one. */
+	const block_t *fades = NULL, *model = NULL;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end(); ++b) {
+		if (b->content_type != 0x2630)
+			continue;
+		if (fades)
+			return false;
+		fades = &*b;
+	}
+	if (!fades || fades->block_size < 6)
+		return false;
+	uint32_t count = u_endian_read4(&_ptfunxored[fades->offset + 2], false), n = 0;
+	for (std::vector<block_t>::const_iterator c = fades->child.begin(); c != fades->child.end(); ++c) {
+		if (c->content_type == 0x262f) {
+			n++;
+			model = &*c;
+		}
+	}
+	if (!model || n != count)
+		return false;
+
+	/* The record as Pro Tools writes them in the sessions seen: 5 zero
+	 * bytes, the widths of two values (high and low nibble), 2 zero
+	 * bytes, the values, the type (3 fade-in, 2 fade-out) and the shape,
+	 * then 10 zero bytes for a fade-in or 13 for a fade-out. A fade-in
+	 * holds its length once, a fade-out twice. */
+	int w = width(length);
+	std::string geo(5, '\0');
+	geo += (char)(fade_in ? (w << 4) : ((w << 4) | w));
+	geo.append(2, '\0');
+	appendle(geo, length, w);
+	if (!fade_in)
+		appendle(geo, length, w);
+	geo += (char)(fade_in ? 3 : 2);
+	geo += (char)shape;
+	geo.append(fade_in ? 10 : 13, '\0');
+	std::string rec((const char *)&_ptfunxored[model->offset - 7], 3);
+	appendle(rec, 2 + geo.size(), 4);
+	rec.append((const char *)&_ptfunxored[model->offset], 2);
+	rec += geo;
+
+	/* The playlist entry: a copy of the region's (a 49-byte 0x1050 ending
+	 * in 00 01 01, the only layout seen in PT12 sessions), with the
+	 * fade's index, where it is stored (its start for a fade-in, its end
+	 * for a fade-out), 01 at +15 as in most fades Pro Tools writes, and
+	 * the fade flag (the first of the last 3 bytes) set. It goes just
+	 * before the region's entry for a fade-in, just after for a
+	 * fade-out. */
+	std::string entry((const char *)&_ptfunxored[slots[self].start], slots[self].end - slots[self].start);
+	uint32_t p = e + 2 - slots[self].start;	/* payload of the 0x104f */
+	uint32_t flag = entry.size() - 3;	/* first of the 3 bytes after it */
+	if (entry.size() != 7 + 49 || p + 35 > entry.size()
+			|| entry.compare(flag, 3, std::string("\0\1\1", 3)) != 0)
+		return false;
+	for (int k = 0; k < 4; k++)
+		entry[p + 2 + k] = (char)((count >> (8 * k)) & 0xff);
+	for (int k = 0; k < 8; k++)
+		entry[p + 7 + k] = (char)(((uint64_t)edge >> (8 * k)) & 0xff);
+	/* The mute stays the region's, as in the fades Pro Tools writes. */
+	entry[p + 15] = 0x01;
+	entry[flag] = 0x01;
+
+	uint32_t pl = list->offset + 2;
+	uint32_t countat = pl + 4 + u_endian_read4(&_ptfunxored[pl], false);
+	if (countat + 4 > list->offset + list->block_size
+			|| u_endian_read4(&_ptfunxored[countat], false) != slots.size())
+		return false;
+
+	std::string saved((const char *)_ptfunxored, _len);
+
+	/* 1. The record at the end of the fade list. */
+	uint32_t at = fades->offset + fades->block_size;
+	std::vector<const block_t*> grow(1, fades);
+	std::vector<std::pair<uint32_t, uint32_t> > set;
+	set.push_back(std::make_pair(fades->offset + 2, count + 1));
+	if (!splice(at, 0, rec, grow, set))
+		return false;
+	if (e >= at)
+		e += rec.size();
+
+	/* 2. The entry in the playlist. */
+	bool ok = playlist_of(e, list, slots, self);
+	if (ok) {
+		pl = list->offset + 2;
+		countat = pl + 4 + u_endian_read4(&_ptfunxored[pl], false);
+		const block_t *map = NULL;
+		for (std::vector<block_t>::const_iterator m = blocks.begin(); m != blocks.end() && !map; ++m) {
+			if (m->content_type != 0x1054)
+				continue;
+			for (std::vector<block_t>::const_iterator l = m->child.begin(); l != m->child.end(); ++l) {
+				if (&*l == list)
+					map = &*m;
+			}
+		}
+		ok = map != NULL;
+		if (ok) {
+			std::vector<const block_t*> grow2;
+			grow2.push_back(list);
+			grow2.push_back(map);
+			std::vector<std::pair<uint32_t, uint32_t> > set2;
+			set2.push_back(std::make_pair(countat, (uint32_t)slots.size() + 1));
+			ok = splice(fade_in ? slots[self].start : slots[self].end, 0, entry, grow2, set2);
 		}
 	}
 	if (!ok) {
@@ -2662,7 +2811,14 @@ PTFFormat::parserest(void) {
 										continue;
 									fd.track = trackname;
 									fd.trackindex = count;
+									/* The stored position is where a fade-in
+									 * starts, where a fade-out ends and the
+									 * cut of a crossfade. */
 									fd.start = (int64_t)(u_endian_read8(&_ptfunxored[e->offset + 9], is_bigendian) * _ratefactor);
+									if (fd.type == 2)
+										fd.start -= fd.length;
+									else if (fd.type == 1)
+										fd.start -= fd.split;
 									_fades.push_back(fd);
 								}
 								continue;

@@ -158,6 +158,15 @@ A split where a fade touches the region, or of a region whose layout
 has no Pro Tools example to follow, is refused. Not yet checked in
 Pro Tools.
 
+To write a copy of a PT10 to PT12 session with a fade-in or fade-out
+on the regions of a track that start at one place:
+
+	./ptfade in.ptx out.ptx track start in|out length [linear|power]
+
+The fade is stored as Pro Tools stores fades in the sessions checked;
+the session must already hold a fade to copy the record header from.
+Not yet checked in Pro Tools.
+
 
 Hacking
 =======

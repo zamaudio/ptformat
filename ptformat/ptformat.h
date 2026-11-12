@@ -282,9 +282,11 @@ public:
 	};
 
 	/* A fade on an audio track. type is 3 for a fade-in (it starts where
-	 * a region starts), 2 for a fade-out (it starts where a region ends)
-	 * and 1 for a crossfade (where one region ends and the next starts).
-	 * start and length are in samples at the target rate. For a
+	 * a region starts), 2 for a fade-out (it ends where a region ends)
+	 * and 1 for a crossfade (across the cut where one region ends and the
+	 * next starts). start and length are in samples at the target rate.
+	 * Before this was corrected, start held the end of a fade-out and the
+	 * cut of a crossfade. For a
 	 * crossfade, split is the part of length before the cut; otherwise it
 	 * equals length. shape is a second byte stored with the type: 1 equal
 	 * power and 2 linear according to the pt_api format notes. trackindex is the position of the track in
@@ -362,6 +364,18 @@ public:
 	 * touches it, or the region or session has a layout not seen. The
 	 * session is then parsed again. Changes nothing on disk until save(). */
 	bool split_region(const track_t& placement, int64_t cut);
+
+	/* Add a fade-in at the start or a fade-out at the end of one
+	 * placement of tracks(), length samples long, with shape 1 (equal
+	 * power) or 2 (linear). A record is added to the fade list (0x2630)
+	 * and an entry to the playlist, both as Pro Tools stores them in the
+	 * sessions seen. Each channel of a multichannel track is a placement
+	 * of its own. Only when the session was loaded at its own rate and
+	 * already holds a fade to copy the record header from; false, with
+	 * nothing changed, when the fade is longer than the region, a fade is
+	 * already on that edge, or another region touches the placement. The
+	 * session is then parsed again. Changes nothing on disk until save(). */
+	bool add_fade(const track_t& placement, bool fade_in, int64_t length, uint8_t shape);
 
 	/* Rename a region of regions() in the loaded session; every
 	 * placement of it shows the new name. The name is stored in the
