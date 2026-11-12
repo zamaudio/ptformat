@@ -1151,6 +1151,32 @@ read_id(unsigned char *buf, uint32_t pos, uint32_t end, bool bigendian, std::str
 	return false;
 }
 
+/* An automation lane (a 0x260a block): the id 01 46 01 00, its size
+ * (payload minus 10), 2 zero bytes, the point count (4 bytes) and 8 more
+ * bytes; then one 6-byte point per count (position in samples, 4 bytes,
+ * and a signed value, 2 bytes) and 2 zero bytes. Fills points with each
+ * value divided by scale; false when the block does not match. */
+static bool
+read_lane(unsigned char *buf, uint32_t offset, uint32_t block_size, bool bigendian, double ratefactor,
+		float scale, std::vector<PTFFormat::autopoint_t>& points)
+{
+	if (block_size < 26)
+		return false;
+	uint32_t pl = offset + 2, len = block_size - 2;
+	if (u_endian_read4(&buf[pl], bigendian) != 0x00014601)
+		return false;
+	uint32_t n = u_endian_read4(&buf[pl + 10], bigendian);
+	if (n > (len - 24) / 6 || len != 24 + 6 * n)
+		return false;
+	for (uint32_t i = 0; i < n; i++) {
+		PTFFormat::autopoint_t pt;
+		pt.pos = (int64_t)(u_endian_read4(&buf[pl + 22 + 6 * i], bigendian) * ratefactor);
+		pt.value = (int16_t)u_endian_read2(&buf[pl + 26 + 6 * i], bigendian) / scale;
+		points.push_back(pt);
+	}
+	return true;
+}
+
 void
 PTFFormat::parseplugins(void) {
 	_plugins.clear();
@@ -1279,38 +1305,48 @@ PTFFormat::parseplugins(void) {
 						_routes.push_back(rt);
 					}
 					/* Automation lanes: the 0x260a blocks directly under
-					 * the slot. A lane holds the id 01 46 01 00, its size
-					 * (payload minus 10), 2 zero bytes, the point count
-					 * (4 bytes) and 8 more bytes; then one 6-byte point per
-					 * count (position in samples, 4 bytes, and a signed
-					 * value in tenths, 2 bytes) and 2 zero bytes. */
+					 * the slot (see read_lane). */
 					uint16_t lane = 0;
 					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
 							z != y->child.end(); ++z) {
 						if (z->content_type != 0x260a)
 							continue;
-						uint16_t this_lane = lane++;
-						if (z->block_size < 26)
-							continue;
-						uint32_t pl = z->offset + 2, len = z->block_size - 2;
-						if (u_endian_read4(&_ptfunxored[pl], is_bigendian) != 0x00014601)
-							continue;
-						uint32_t n = u_endian_read4(&_ptfunxored[pl + 10], is_bigendian);
-						if (n > (len - 24) / 6 || len != 24 + 6 * n)
-							continue;
 						automation_t au;
+						au.lane = lane++;
+						if (!read_lane(_ptfunxored, z->offset, z->block_size, is_bigendian, _ratefactor, 10.0f, au.points))
+							continue;
 						au.strip = strip;
 						au.strip_index = sidx;
 						au.strip_type = s->content_type;
 						au.slot = rslot;
-						au.lane = this_lane;
-						for (uint32_t i = 0; i < n; i++) {
-							autopoint_t pt;
-							pt.pos = (int64_t)(u_endian_read4(&_ptfunxored[pl + 22 + 6 * i], is_bigendian) * _ratefactor);
-							pt.value = (int16_t)u_endian_read2(&_ptfunxored[pl + 26 + 6 * i], is_bigendian) / 10.0f;
-							au.points.push_back(pt);
-						}
 						_automation.push_back(au);
+					}
+					/* Pan: up to two 0x260c under the slot (left or mono,
+					 * then right), each with its own 0x260a lanes. The
+					 * first lane is the pan position, -100 to 100, the
+					 * same value the 0x1029 holds. */
+					uint8_t side = 0;
+					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
+							z != y->child.end(); ++z) {
+						if (z->content_type != 0x260c)
+							continue;
+						if (side < 2)
+							side++;
+						for (vector<PTFFormat::block_t>::iterator w = z->child.begin();
+								w != z->child.end(); ++w) {
+							if (w->content_type != 0x260a)
+								continue;
+							automation_t au;
+							if (read_lane(_ptfunxored, w->offset, w->block_size, is_bigendian, _ratefactor, 1.0f, au.points)) {
+								au.strip = strip;
+								au.strip_index = sidx;
+								au.strip_type = s->content_type;
+								au.slot = rslot;
+								au.pan = side;
+								_automation.push_back(au);
+							}
+							break;
+						}
 					}
 					rslot++;
 				}

@@ -216,9 +216,12 @@ public:
 	 * slot 0 is the track's volume, with values in dB; the meaning of
 	 * the other lanes is not known. Each point is a position in samples
 	 * at the target rate and a value (the stored integer divided by 10).
-	 * A lane with a single point at 0 holds a fixed value. The layout
-	 * comes from the format notes of the pt_api project, and every lane
-	 * of the sessions seen matches it. */
+	 * A lane with a single point at 0 holds a fixed value. pan is 0 for
+	 * those lanes; 1 (left, or the only one of a mono strip) or 2 (right)
+	 * marks the pan position of the slot instead, with values from -100
+	 * (left) to 100 (right) and lane 0. The layout comes from the format
+	 * notes of the pt_api project, and every lane of the sessions seen
+	 * matches it. */
 	struct autopoint_t {
 		int64_t pos;
 		float   value;
@@ -231,8 +234,9 @@ public:
 		uint16_t    strip_type;
 		uint16_t    slot;
 		uint16_t    lane;
+		uint8_t     pan;
 		std::vector<autopoint_t> points;
-		automation_t () : strip_index (0), strip_type (0), slot (0), lane (0) {}
+		automation_t () : strip_index (0), strip_type (0), slot (0), lane (0), pan (0) {}
 	};
 
 	/* A tempo event: its position in ticks from the start of the
@@ -265,8 +269,8 @@ public:
 	 * and 1 for a crossfade (where one region ends and the next starts).
 	 * start and length are in samples at the target rate. For a
 	 * crossfade, split is the part of length before the cut; otherwise it
-	 * equals length. shape is a second byte stored with the type, whose
-	 * meaning is not known. trackindex is the position of the track in
+	 * equals length. shape is a second byte stored with the type: 1 equal
+	 * power and 2 linear according to the pt_api format notes. trackindex is the position of the track in
 	 * the region to track map, from 0. */
 	struct fade_t {
 		std::string track;

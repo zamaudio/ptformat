@@ -195,12 +195,13 @@ int main (int argc, char **argv) {
 			}
 
 			/* Type 1 crossfade, 2 fade-out, 3 fade-in. */
-			printf("\nFade (track) type @ start, length:\n");
+			printf("\nFade (track) type shape @ start, length:\n");
 			for (vector<PTFFormat::fade_t>::const_iterator
 					fd = ptf.fades().begin();
 					fd != ptf.fades().end(); ++fd) {
-				printf("`%s` %s @ %" PRId64 ", %" PRId64 "\n", fd->track.c_str(),
+				printf("`%s` %s %s @ %" PRId64 ", %" PRId64 "\n", fd->track.c_str(),
 					fd->type == 1 ? "cross" : fd->type == 2 ? "out" : fd->type == 3 ? "in" : "?",
+					fd->shape == 1 ? "power" : fd->shape == 2 ? "linear" : "?",
 					fd->start, fd->length);
 			}
 
@@ -266,7 +267,10 @@ int main (int argc, char **argv) {
 					au != ptf.automation().end(); ++au) {
 				if (au->points.size() < 2)
 					continue;
-				printf("`%s` s(%d) slot %d lane %d:", au->strip.c_str(), au->strip_index, au->slot, au->lane);
+				if (au->pan)
+					printf("`%s` s(%d) slot %d pan %c:", au->strip.c_str(), au->strip_index, au->slot, au->pan == 1 ? 'L' : 'R');
+				else
+					printf("`%s` s(%d) slot %d lane %d:", au->strip.c_str(), au->strip_index, au->slot, au->lane);
 				for (size_t i = 0; i < au->points.size(); i++)
 					printf(" (%" PRId64 ", %g)", au->points[i].pos, au->points[i].value);
 				printf("\n");
