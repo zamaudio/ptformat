@@ -922,6 +922,24 @@ PTFFormat::parserest(void) {
 					r.index = rindex;
 					parse_region_info(j, *d, r);
 
+					/* Regions of ADM BWF files store 0xffffffff as their file
+					 * index. Recent PT12 sessions end every region block with
+					 * 0x2a, an 8-byte id, 0x01 and the file index, so take it
+					 * from there when it names a known file. */
+					uint32_t end = c->offset + c->block_size;
+					if (c->content_type == 0x2629 &&
+							u_endian_read4(&_ptfunxored[d->offset + d->block_size], is_bigendian) == 0xffffffff &&
+							c->block_size >= 21 &&
+							u_endian_read4(&_ptfunxored[end - 21], is_bigendian) == 0x2a &&
+							_ptfunxored[end - 9] == 0x01) {
+						wav_t found;
+						uint32_t tindex = u_endian_read4(&_ptfunxored[end - 8], is_bigendian);
+						if (tindex < 0xffff && find_wav(tindex, found)) {
+							r.wave.index = found.index;
+							r.wave.filename = found.filename;
+						}
+					}
+
 					_regions.push_back(r);
 					rindex++;
 				}
