@@ -1,0 +1,5 @@
+# Build outputs
+/ptftool
+/ptunxor
+/ptgenmissing
+*.dSYM/
