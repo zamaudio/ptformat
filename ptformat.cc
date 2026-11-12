@@ -512,9 +512,9 @@ PTFFormat::gen_xor_delta(uint8_t xor_value, uint8_t mul, bool negative) {
 
 void
 PTFFormat::setrates(void) {
-	_ratefactor = 1.f;
+	_ratefactor = 1.0;
 	if (_sessionrate != 0) {
-		_ratefactor = (float)_targetrate / _sessionrate;
+		_ratefactor = (double)_targetrate / _sessionrate;
 	}
 }
 
