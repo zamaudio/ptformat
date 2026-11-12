@@ -208,6 +208,21 @@ public:
 		std::string path;
 	};
 
+	/* A path of the session's I/O setup: its name, its number of
+	 * channels, and for a sub-path (for example "Bus 1.L") the name of
+	 * the path it belongs to. list is the block it comes from: 0x2603
+	 * holds the paths that tracks send to (outputs and buses), 0x1022
+	 * the ones in the sessions seen that look like inputs. id is the
+	 * 8-byte id routes refer to, as 16 hex digits. */
+	struct iopath_t {
+		std::string name;
+		uint32_t    channels;
+		std::string parent;
+		uint16_t    list;
+		std::string id;
+		iopath_t () : channels (0), list (0) {}
+	};
+
 	/* A fade on an audio track. type is 3 for a fade-in (it starts where
 	 * a region starts), 2 for a fade-out (it starts where a region ends)
 	 * and 1 for a crossfade (where one region ends and the next starts).
@@ -384,6 +399,7 @@ public:
 	const std::vector<strip_t>&  strips () const { return _strips ; }
 	const std::vector<video_t>&  videofiles () const { return _videofiles ; }
 	const std::vector<fade_t>&   fades () const { return _fades ; }
+	const std::vector<iopath_t>& iopaths () const { return _iopaths ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -403,6 +419,7 @@ private:
 	std::vector<strip_t>  _strips;
 	std::vector<video_t>  _videofiles;
 	std::vector<fade_t>   _fades;
+	std::vector<iopath_t> _iopaths;
 	std::vector<float>    _gains;
 
 	std::string _path;
@@ -449,6 +466,7 @@ private:
 	void parsevolumes(void);
 	void parsegains(void);
 	void parsevideo(void);
+	void parseio(void);
 	bool parsefade(uint32_t index, fade_t& fade);
 	bool readstring(uint32_t& pos, uint32_t end, std::string& out);
 	bool parserest(void);

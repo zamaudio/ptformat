@@ -296,6 +296,7 @@ PTFFormat::cleanup(void) {
 	_strips.clear();
 	_videofiles.clear();
 	_fades.clear();
+	_iopaths.clear();
 	_fpsnum = 0;
 	_fpsden = 0;
 	free_all_blocks();
@@ -662,6 +663,7 @@ PTFFormat::parse(void) {
 	parsevolumes();
 	parsegains();
 	parsevideo();
+	parseio();
 	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
 	if (!parseaudio())
@@ -849,6 +851,71 @@ PTFFormat::parsevideo(void) {
 			if (!(vf.fps > 0 && vf.fps < 1000))
 				vf.fps = 0;
 			_videofiles.push_back(vf);
+		}
+	}
+}
+
+static bool read_id(unsigned char *buf, uint32_t pos, uint32_t end, bool bigendian, std::string& id);
+
+/* I/O setup: the 0x2603 block holds one 0x2602 per output or bus path
+ * and the 0x1022 block one 0x1021 per input path. Both entries have the
+ * name at +4, then the channel count (4 bytes) and one 2-byte index per
+ * channel, then, within 12 bytes, a 0x2a marker and the path's 8-byte
+ * id. A sub-path holds a second marker and the id of its parent path 4
+ * bytes after its own. */
+void
+PTFFormat::parseio(void) {
+	_iopaths.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		uint16_t item;
+		if (b->content_type == 0x2603)
+			item = 0x2602;
+		else if (b->content_type == 0x1022)
+			item = 0x1021;
+		else
+			continue;
+		size_t first = _iopaths.size();
+		std::vector<std::string> parents;
+		for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
+				c != b->child.end(); ++c) {
+			if (c->content_type != item || c->block_size < 12)
+				continue;
+			/* Only the entry's own bytes: its children follow them. */
+			uint32_t end = c->child.empty() ? c->offset + c->block_size : c->child[0].offset - 7;
+			uint32_t pos = c->offset + 4;
+			iopath_t io;
+			io.list = b->content_type;
+			if (!readstring(pos, end, io.name) || end - pos < 4)
+				continue;
+			io.channels = u_endian_read4(&_ptfunxored[pos], is_bigendian);
+			pos += 4;
+			if (io.channels > 64 || io.channels * 2 > end - pos)
+				continue;
+			pos += io.channels * 2;
+			if (!read_id(_ptfunxored, pos, end, is_bigendian, io.id))
+				continue;
+			/* Skip to the end of the id, then look for the parent's. */
+			std::string parent;
+			for (uint32_t i = pos; i < pos + 12 && i + 12 <= end; i++) {
+				if (u_endian_read4(&_ptfunxored[i], is_bigendian) == 0x2a) {
+					read_id(_ptfunxored, i + 12, end, is_bigendian, parent);
+					break;
+				}
+			}
+			parents.push_back(parent);
+			_iopaths.push_back(io);
+		}
+		for (size_t i = first; i < _iopaths.size(); i++) {
+			const std::string& pid = parents[i - first];
+			if (pid.empty())
+				continue;
+			for (size_t k = first; k < _iopaths.size(); k++) {
+				if (_iopaths[k].id == pid) {
+					_iopaths[i].parent = _iopaths[k].name;
+					break;
+				}
+			}
 		}
 	}
 }

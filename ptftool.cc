@@ -258,6 +258,14 @@ int main (int argc, char **argv) {
 					printf("`%s` s(%d) send %c: %s", r->strip.c_str(), r->strip_index, 'A' + r->slot - 1, r->destination.c_str());
 				printf(", %+.1f dB%s, pan %d/%d\n", r->level, r->muted ? " muted" : "", r->pan, r->pan_right);
 			}
+
+			printf("\nI/O path (list) channels, parent:\n");
+			for (vector<PTFFormat::iopath_t>::const_iterator
+					io = ptf.iopaths().begin();
+					io != ptf.iopaths().end(); ++io) {
+				printf("`%s` (%s) %u%s%s\n", io->name.c_str(), io->list == 0x2603 ? "out" : "in",
+					io->channels, io->parent.empty() ? "" : ", ", io->parent.c_str());
+			}
 		}
 		break;
 	}
