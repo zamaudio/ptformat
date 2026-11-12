@@ -991,6 +991,91 @@ new_uuid(void)
 	return std::string((const char *)b, 16);
 }
 
+/* A memory location (0x2077): its number at +2, the bytes 03 01 00 00 for
+ * a marker, its name at +8 and its start and end (8 bytes each); then
+ * per-track 0x2506 blocks and, 23 bytes after the last of them, its
+ * 16-byte UUID (version 4, unique, referenced nowhere else in all the
+ * sessions seen), before the first 0x4826. The 0x2030 list holds a count
+ * at +2 and the locations in number order; number 10000 is a location
+ * Pro Tools keeps last. */
+bool
+PTFFormat::add_marker(const std::string& name, int64_t pos) {
+	if (!_ptfunxored || is_bigendian || _ratefactor != 1.0 || name.empty()
+			|| name.size() > 0xffff || name.find('\0') != std::string::npos
+			|| pos < 0 || pos > ((int64_t)1 << 48))
+		return false;
+	const block_t *list = NULL;
+	for (std::vector<block_t>::const_iterator b = blocks.begin(); b != blocks.end() && !list; ++b) {
+		if (b->content_type == 0x2030 && b->block_size >= 6)
+			list = &*b;
+	}
+	if (!list)
+		return false;
+	uint32_t count = u_endian_read4(&_ptfunxored[list->offset + 2], false);
+	const block_t *tmpl = NULL, *after = NULL;
+	uint32_t top = 0, n = 0;
+	for (std::vector<block_t>::const_iterator m = list->child.begin(); m != list->child.end(); ++m) {
+		if (m->content_type != 0x2077 || m->block_size < 12)
+			return false;
+		n++;
+		const unsigned char *d = &_ptfunxored[m->offset];
+		uint16_t idx = (uint16_t)readle(&d[2], 2);
+		uint32_t len = (uint32_t)readle(&d[8], 4);
+		if (len > m->block_size - 12 || m->block_size - 12 - len < 16)
+			return false;
+		bool marker = d[4] == 3 && d[5] == 1 && !d[6] && !d[7]
+			&& !memcmp(&d[12 + len], &d[20 + len], 8);
+		if (idx < 10000) {
+			if (idx > top)
+				top = idx;
+			after = &*m;
+			if (marker && !tmpl)
+				tmpl = &*m;
+		}
+	}
+	if (!tmpl || !after || n != count || top + 1 >= 10000)
+		return false;
+
+	/* The template's UUID: 23 bytes after the block before its first
+	 * 0x4826. */
+	uint32_t prevend = 0;
+	bool found = false;
+	for (std::vector<block_t>::const_iterator k = tmpl->child.begin(); k != tmpl->child.end(); ++k) {
+		if (k->content_type == 0x4826) {
+			found = prevend && k->offset - 7 >= prevend + 39;
+			break;
+		}
+		prevend = k->offset + k->block_size;
+	}
+	if (!found)
+		return false;
+	uint32_t head = tmpl->offset - 7;
+	uint32_t oldlen = u_endian_read4(&_ptfunxored[tmpl->offset + 8], false);
+	std::string blk((const char *)&_ptfunxored[head], tmpl->block_size + 7);
+	uint32_t uid = prevend + 23 - head;
+	uint32_t pstart = 7 + 12 + oldlen;	/* start, in blk */
+	std::string out = blk.substr(0, 7 + 8);
+	appendle(out, name.size(), 4);
+	out += name;
+	appendle(out, (uint64_t)pos, 8);
+	appendle(out, (uint64_t)pos, 8);
+	out += blk.substr(pstart + 16, uid - (pstart + 16));
+	out += new_uuid();
+	out += blk.substr(uid + 16);
+	/* Number, then the block size. */
+	out[7 + 2] = (top + 1) & 0xff;
+	out[7 + 3] = ((top + 1) >> 8) & 0xff;
+	uint32_t size = out.size() - 7;
+	out[3] = size & 0xff;
+	out[4] = (size >> 8) & 0xff;
+	out[5] = (size >> 16) & 0xff;
+	out[6] = (size >> 24) & 0xff;
+
+	std::vector<const block_t*> grow(1, list);
+	std::vector<std::pair<uint32_t, uint32_t> > set(1, std::make_pair(list->offset + 2, count + 1));
+	return splice(after->offset + after->block_size, 0, out, grow, set);
+}
+
 /* A new 0x2629 for a part of the region whose 0x2629 is def (with info,
  * its 0x2628): the same bytes with another name, the part's offset and
  * length in the file, a new UUID and the 8-byte id id. Sub-regions

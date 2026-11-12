@@ -177,6 +177,16 @@ dB runs from -80 to +12. A slot whose level or mute holds automation is
 refused. Changing and changing back gives the original file in all
 2,178 tries on 200 sessions. Not yet checked in Pro Tools.
 
+To write a copy of a PT10 to PT12 session with a marker added:
+
+	./ptmarker in.ptx out.ptx name at
+
+at is timecode (hh:mm:ss:ff) or samples. The marker gets the next free
+memory location number and is built from a marker the session already
+holds, so a session with no marker is refused. On the 143 test sessions
+with markers, the copy reads back with the new marker and everything
+else unchanged. Not yet checked in Pro Tools.
+
 
 Hacking
 =======

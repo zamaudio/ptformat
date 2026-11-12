@@ -424,6 +424,18 @@ public:
 	 * without doubt. Changes nothing on disk until save(). */
 	bool rename_region(const region_t& region, const std::string& name);
 
+	/* Add a marker named name at pos (samples at the session rate) to
+	 * the memory locations (0x2030): a copy of the session's first
+	 * marker block with the next free number, the new name and position
+	 * and a new UUID, placed in number order, and the location count
+	 * raised by one. The rest of the copy (window and track properties
+	 * of the location) is the template's. False, with nothing changed,
+	 * when the session holds no marker to copy, the name is empty or
+	 * holds a NUL, the target rate differs from the session rate, or
+	 * the offsets cannot be moved without doubt. Changes nothing on disk
+	 * until save(). Not checked in Pro Tools. */
+	bool add_marker(const std::string& name, int64_t pos);
+
 	/* Set the clip gain of a region of regions() in the loaded session,
 	 * in dB (-HUGE_VALF for -inf); every placement of it follows. When
 	 * no other region shares the region's gain point, its value changes

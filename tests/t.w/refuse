@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # Edits the library cannot make safely are refused and write nothing:
-# a fade or a split on a region that already has fades, and writing
-# over an existing file.
+# a fade or a split on a region that already has fades, a marker in a
+# session with no marker to copy, and writing over an existing file.
 echo "PT12 refused edits write nothing"
 FILE=../../bins/RegionTest.ptx
 DIR=$(mktemp -d)
@@ -10,7 +10,8 @@ trap 'rm -rf "$DIR"' EXIT
 fail() { echo "$1"; echo "[FAIL]"; exit 1; }
 ../../ptfade "$FILE" "$DIR/a.ptx" "Audio 3" 950000 in 1000 2> /dev/null && fail "fade not refused"
 ../../ptsplit "$FILE" "$DIR/b.ptx" "Audio 3" 1200000 2> /dev/null && fail "split not refused"
-[ -e "$DIR/a.ptx" ] || [ -e "$DIR/b.ptx" ] && fail "a refused edit wrote a file"
+../../ptmarker "$FILE" "$DIR/d.ptx" M 1000 2> /dev/null && fail "marker without a model not refused"
+[ -e "$DIR/a.ptx" ] || [ -e "$DIR/b.ptx" ] || [ -e "$DIR/d.ptx" ] && fail "a refused edit wrote a file"
 cp "$FILE" "$DIR/c.ptx"
 ../../ptmute "$FILE" "$DIR/c.ptx" "Audio 1" region_name_region-01 2> /dev/null && fail "wrote over an existing file"
 cmp -s "$FILE" "$DIR/c.ptx" || fail "existing file changed"
