@@ -290,6 +290,7 @@ PTFFormat::cleanup(void) {
 	_inserts.clear();
 	_volumes.clear();
 	_gains.clear();
+	_routes.clear();
 	free_all_blocks();
 }
 
@@ -860,11 +861,13 @@ PTFFormat::parsemarkers(void) {
  * block (0x261c, 0x261e, ...) has a 0x261b with the strip name in
  * 0x102d/0x2619 and the insert slots in 0x2627, where each slot is a
  * 0x2616 (plugin) or a 0x2625 (empty). A 0x2616 holds the same three
- * codes with each one's bytes reversed. */
+ * codes with each one's bytes reversed. The same 0x261b holds the strip's
+ * output and sends (see below). */
 void
 PTFFormat::parseplugins(void) {
 	_plugins.clear();
 	_inserts.clear();
+	_routes.clear();
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type != 0x1018)
@@ -890,12 +893,14 @@ PTFFormat::parseplugins(void) {
 			b != blocks.end(); ++b) {
 		if (b->content_type != 0x2624)
 			continue;
+		uint16_t strip_index = 0;
 		for (vector<PTFFormat::block_t>::iterator s = b->child.begin();
 				s != b->child.end(); ++s) {
 			for (vector<PTFFormat::block_t>::iterator x = s->child.begin();
 					x != s->child.end(); ++x) {
 				if (x->content_type != 0x261b)
 					continue;
+				uint16_t sidx = strip_index++;
 				std::string strip;
 				for (vector<PTFFormat::block_t>::iterator y = x->child.begin();
 						y != x->child.end(); ++y) {
@@ -909,6 +914,30 @@ PTFFormat::parseplugins(void) {
 						}
 					}
 				}
+				/* Output and sends: one 0x260d per slot, in order; an
+				 * assigned slot has a 0x260e with its destination name
+				 * 38 bytes in. */
+				uint16_t rslot = 0;
+				for (vector<PTFFormat::block_t>::iterator y = x->child.begin();
+						y != x->child.end(); ++y) {
+					if (y->content_type != 0x260d)
+						continue;
+					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
+							z != y->child.end(); ++z) {
+						if (z->content_type != 0x260e || z->block_size < 42)
+							continue;
+						route_t rt;
+						uint32_t pos = z->offset + 38;
+						if (!readstring(pos, z->offset + z->block_size, rt.destination))
+							continue;
+						rt.strip = strip;
+						rt.strip_index = sidx;
+						rt.strip_type = s->content_type;
+						rt.slot = rslot;
+						_routes.push_back(rt);
+					}
+					rslot++;
+				}
 				for (vector<PTFFormat::block_t>::iterator y = x->child.begin();
 						y != x->child.end(); ++y) {
 					if (y->content_type != 0x2627)
@@ -919,6 +948,7 @@ PTFFormat::parseplugins(void) {
 						if (i->content_type == 0x2616) {
 							insert_t ins;
 							ins.strip = strip;
+							ins.strip_index = sidx;
 							ins.strip_type = s->content_type;
 							ins.slot = slot;
 							/* Find the reversed codes of a catalog plugin. */

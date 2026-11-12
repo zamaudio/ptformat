@@ -134,16 +134,34 @@ public:
 		std::string bundle;
 	};
 
-	/* A plugin inserted in a mixer strip. slot counts from 0 (insert A);
-	 * strip_type is the strip's block type: 0x261c for audio tracks and
-	 * 0x261e for aux tracks in the sessions seen. plugin is empty when the
-	 * inserted plugin is not in the catalog. */
+	/* A plugin inserted in a mixer strip. slot counts from 0 (insert A).
+	 * strip_index is the strip's position in the mixer, from 0. strip is
+	 * the name the strip stores: the track name for aux tracks, the
+	 * playlist name for audio tracks (for example "DIAL 1.dup2"), and it
+	 * can be empty. strip_type is the strip's block type: 0x261c for
+	 * audio tracks and 0x261e for aux tracks in the sessions seen. plugin
+	 * is empty when the inserted plugin is not in the catalog. */
 	struct insert_t {
 		std::string strip;
+		uint16_t    strip_index;
 		uint16_t    strip_type;
 		uint16_t    slot;
 		plugin_t    plugin;
-		insert_t () : strip_type (0), slot (0) {}
+		insert_t () : strip_index (0), strip_type (0), slot (0) {}
+	};
+
+	/* Where a mixer strip sends its signal: the name of a destination
+	 * path of one of its 11 slots (a slot can have several). In the
+	 * sessions seen, slot 0 is the strip's main output and slots 1 to 10
+	 * are sends A to J; this is deduced from the routing, not checked in
+	 * Pro Tools. strip, strip_index and strip_type are as in insert_t. */
+	struct route_t {
+		std::string strip;
+		uint16_t    strip_index;
+		uint16_t    strip_type;
+		uint16_t    slot;
+		std::string destination;
+		route_t () : strip_index (0), strip_type (0), slot (0) {}
 	};
 
 	/* A volume the session uses: its name and where it was mounted (for
@@ -287,6 +305,7 @@ public:
 	const std::vector<plugin_t>& plugins () const { return _plugins ; }
 	const std::vector<insert_t>& inserts () const { return _inserts ; }
 	const std::vector<volume_t>& volumes () const { return _volumes ; }
+	const std::vector<route_t>&  routes () const { return _routes ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -302,6 +321,7 @@ private:
 	std::vector<plugin_t> _plugins;
 	std::vector<insert_t> _inserts;
 	std::vector<volume_t> _volumes;
+	std::vector<route_t>  _routes;
 	std::vector<float>    _gains;
 
 	std::string _path;
