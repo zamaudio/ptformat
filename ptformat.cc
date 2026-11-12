@@ -283,6 +283,8 @@ PTFFormat::cleanup(void) {
 	_midiregions.clear();
 	_tracks.clear();
 	_miditracks.clear();
+	_sessionpath.clear();
+	_sourcepath.clear();
 	free_all_blocks();
 }
 
@@ -640,6 +642,7 @@ PTFFormat::parse(void) {
 #endif
 	if (!parseheader())
 		return -1;
+	parsepaths();
 	setrates();
 	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
@@ -680,6 +683,71 @@ PTFFormat::parseheader(void) {
 		}
 	}
 	return found;
+}
+
+/* The 0x2067 block holds 11 strings (Info #1..#5, five empty ones, and
+ * the session name in backups), the folders where the session was saved
+ * (the first one is the volume) and its file name, then a 0x2a marker,
+ * an 8-byte id and a second path, folders and file name together: for a
+ * backup, the session it backs up; after a Save As, the session it was
+ * saved from. Either path is left empty when it cannot be read. */
+void
+PTFFormat::parsepaths(void) {
+	_sessionpath.clear();
+	_sourcepath.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2067)
+			continue;
+		uint32_t end = b->offset + b->block_size;
+		uint32_t pos = b->offset + 24;
+		for (int k = 0; k < 11; k++) {
+			if (pos + 4 > end)
+				return;
+			pos += 4 + parsestring(pos).size();
+		}
+		if (pos + 4 > end)
+			return;
+		uint32_t n = u_endian_read4(&_ptfunxored[pos], is_bigendian);
+		pos += 4;
+		if (n == 0 || n > 64)
+			return;
+		std::vector<std::string> path;
+		/* n folders and the file name */
+		for (uint32_t k = 0; k <= n; k++) {
+			if (pos + 4 > end)
+				return;
+			std::string s = parsestring(pos);
+			if (s.empty())
+				return;
+			pos += 4 + s.size();
+			path.push_back(s);
+		}
+		_sessionpath = path;
+
+		/* Skip zero words up to the 0x2a marker and the 8-byte id. */
+		while (pos + 4 <= end && u_endian_read4(&_ptfunxored[pos], is_bigendian) == 0)
+			pos += 4;
+		if (pos + 16 > end || u_endian_read4(&_ptfunxored[pos], is_bigendian) != 0x2a)
+			return;
+		pos += 12;
+		n = u_endian_read4(&_ptfunxored[pos], is_bigendian);
+		pos += 4;
+		if (n == 0 || n > 64)
+			return;
+		path.clear();
+		for (uint32_t k = 0; k < n; k++) {
+			if (pos + 4 > end)
+				return;
+			std::string s = parsestring(pos);
+			if (s.empty())
+				return;
+			pos += 4 + s.size();
+			path.push_back(s);
+		}
+		_sourcepath = path;
+		return;
+	}
 }
 
 std::string

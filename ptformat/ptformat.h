@@ -229,6 +229,12 @@ public:
 	 * floating point; 0 when unknown. */
 	int sessionbitdepth () const { return _sessionbitdepth ; }
 	bool sessionfloat () const { return _sessionfloat ; }
+	/* Where the session was saved, as path components: the volume, the
+	 * folders and the file name. Empty when not stored or not read. */
+	const std::vector<std::string>& sessionpath () const { return _sessionpath ; }
+	/* A second path in the same form: for a backup, the session it backs
+	 * up; after a Save As, the session it was saved from. */
+	const std::vector<std::string>& sourcepath () const { return _sourcepath ; }
 	const std::string& path () { return _path; }
 
 	const std::vector<wav_t>&    audiofiles () const { return _audiofiles ; }
@@ -249,6 +255,8 @@ private:
 	std::vector<track_t>  _miditracks;
 
 	std::string _path;
+	std::vector<std::string> _sessionpath;
+	std::vector<std::string> _sourcepath;
 
 	unsigned char* _ptfunxored;
 	uint64_t       _len;
@@ -281,6 +289,7 @@ private:
 	int parse(void);
 	void parseblocks(void);
 	bool parseheader(void);
+	void parsepaths(void);
 	bool parserest(void);
 	bool parseaudio(void);
 	bool parsemidi(void);

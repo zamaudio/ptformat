@@ -80,6 +80,16 @@ list_dir(const string& dir, set<string>& names)
 	return true;
 }
 
+/* Path components as "/volume/folder/file", or "" when there are none. */
+static string
+join(const vector<string>& parts)
+{
+	string s;
+	for (size_t i = 0; i < parts.size(); i++)
+		s += "/" + parts[i];
+	return s;
+}
+
 static string
 session_dir(const string& path)
 {
@@ -139,6 +149,12 @@ int main (int argc, char **argv) {
 	}
 
 	printf("Session: %s\n", argv[1]);
+	/* Where Pro Tools saved it: tells which volume the media came from. */
+	string saved = join(ptf.sessionpath()), source = join(ptf.sourcepath());
+	if (!saved.empty())
+		printf("Saved at: %s\n", saved.c_str());
+	if (!source.empty() && source != saved)
+		printf("Source session: %s\n", source.c_str());
 	for (vector<string>::const_iterator d = dirs.begin(); d != dirs.end(); ++d)
 		printf("Searched: %s\n", d->c_str());
 	printf("Referenced: %zu, missing: %zu, unused on disk: %zu\n",
