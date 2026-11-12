@@ -259,6 +259,19 @@ int main (int argc, char **argv) {
 				printf(", %+.1f dB%s, pan %d/%d\n", r->level, r->muted ? " muted" : "", r->pan, r->pan_right);
 			}
 
+			/* Lanes with a single point hold a fixed value: skip them. */
+			printf("\nAutomation (strip) slot lane: points (position, value)\n");
+			for (vector<PTFFormat::automation_t>::const_iterator
+					au = ptf.automation().begin();
+					au != ptf.automation().end(); ++au) {
+				if (au->points.size() < 2)
+					continue;
+				printf("`%s` s(%d) slot %d lane %d:", au->strip.c_str(), au->strip_index, au->slot, au->lane);
+				for (size_t i = 0; i < au->points.size(); i++)
+					printf(" (%" PRId64 ", %g)", au->points[i].pos, au->points[i].value);
+				printf("\n");
+			}
+
 			printf("\nTempo @ ticks: bpm\n");
 			for (vector<PTFFormat::tempo_t>::const_iterator
 					t = ptf.tempos().begin();

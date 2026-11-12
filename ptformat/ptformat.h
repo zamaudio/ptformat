@@ -208,6 +208,30 @@ public:
 		std::string path;
 	};
 
+	/* An automation lane of a mixer slot (see route_t for strip and
+	 * slot). lane is its position among the lanes of the slot. Lane 0 of
+	 * slot 0 is the track's volume, with values in dB; the meaning of
+	 * the other lanes is not known. Each point is a position in samples
+	 * at the target rate and a value (the stored integer divided by 10).
+	 * A lane with a single point at 0 holds a fixed value. The layout
+	 * comes from the format notes of the pt_api project, and every lane
+	 * of the sessions seen matches it. */
+	struct autopoint_t {
+		int64_t pos;
+		float   value;
+		autopoint_t () : pos (0), value (0) {}
+	};
+
+	struct automation_t {
+		std::string strip;
+		uint16_t    strip_index;
+		uint16_t    strip_type;
+		uint16_t    slot;
+		uint16_t    lane;
+		std::vector<autopoint_t> points;
+		automation_t () : strip_index (0), strip_type (0), slot (0), lane (0) {}
+	};
+
 	/* A tempo event: its position in ticks from the start of the
 	 * timeline (960000 per quarter note) and the tempo in beats per
 	 * minute. Every session seen holds a single event at 0, so reading
@@ -411,6 +435,7 @@ public:
 	const std::vector<fade_t>&   fades () const { return _fades ; }
 	const std::vector<iopath_t>& iopaths () const { return _iopaths ; }
 	const std::vector<tempo_t>&  tempos () const { return _tempos ; }
+	const std::vector<automation_t>& automation () const { return _automation ; }
 
 	const unsigned char* unxored_data () const { return _ptfunxored; }
 	uint64_t             unxored_size () const { return _len; }
@@ -432,6 +457,7 @@ private:
 	std::vector<fade_t>   _fades;
 	std::vector<iopath_t> _iopaths;
 	std::vector<tempo_t>  _tempos;
+	std::vector<automation_t> _automation;
 	std::vector<float>    _gains;
 
 	std::string _path;

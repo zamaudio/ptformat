@@ -298,6 +298,7 @@ PTFFormat::cleanup(void) {
 	_fades.clear();
 	_iopaths.clear();
 	_tempos.clear();
+	_automation.clear();
 	_fpsnum = 0;
 	_fpsden = 0;
 	free_all_blocks();
@@ -1121,6 +1122,7 @@ PTFFormat::parseplugins(void) {
 	_inserts.clear();
 	_routes.clear();
 	_strips.clear();
+	_automation.clear();
 	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
 			b != blocks.end(); ++b) {
 		if (b->content_type != 0x2519)
@@ -1240,6 +1242,40 @@ PTFFormat::parseplugins(void) {
 						rt.strip_type = s->content_type;
 						rt.slot = rslot;
 						_routes.push_back(rt);
+					}
+					/* Automation lanes: the 0x260a blocks directly under
+					 * the slot. A lane holds the id 01 46 01 00, its size
+					 * (payload minus 10), 2 zero bytes, the point count
+					 * (4 bytes) and 8 more bytes; then one 6-byte point per
+					 * count (position in samples, 4 bytes, and a signed
+					 * value in tenths, 2 bytes) and 2 zero bytes. */
+					uint16_t lane = 0;
+					for (vector<PTFFormat::block_t>::iterator z = y->child.begin();
+							z != y->child.end(); ++z) {
+						if (z->content_type != 0x260a)
+							continue;
+						uint16_t this_lane = lane++;
+						if (z->block_size < 26)
+							continue;
+						uint32_t pl = z->offset + 2, len = z->block_size - 2;
+						if (u_endian_read4(&_ptfunxored[pl], is_bigendian) != 0x00014601)
+							continue;
+						uint32_t n = u_endian_read4(&_ptfunxored[pl + 10], is_bigendian);
+						if (n > (len - 24) / 6 || len != 24 + 6 * n)
+							continue;
+						automation_t au;
+						au.strip = strip;
+						au.strip_index = sidx;
+						au.strip_type = s->content_type;
+						au.slot = rslot;
+						au.lane = this_lane;
+						for (uint32_t i = 0; i < n; i++) {
+							autopoint_t pt;
+							pt.pos = (int64_t)(u_endian_read4(&_ptfunxored[pl + 22 + 6 * i], is_bigendian) * _ratefactor);
+							pt.value = (int16_t)u_endian_read2(&_ptfunxored[pl + 26 + 6 * i], is_bigendian) / 10.0f;
+							au.points.push_back(pt);
+						}
+						_automation.push_back(au);
 					}
 					rslot++;
 				}
