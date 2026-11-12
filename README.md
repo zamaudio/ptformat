@@ -15,6 +15,10 @@ Decrypt and parse a PT file:
 	make
 	./ptftool file.pt{s,5,f,x}
 
+`./ptftool -v file.pt{s,5,f,x}` also prints the bit depth, where the
+session was saved, the creation date of each audio file, and the UUID of
+each region.
+
 API
 ===
 

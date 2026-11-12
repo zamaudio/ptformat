@@ -80,6 +80,8 @@ PTFFormat::PTFFormat()
 	: _ptfunxored(0)
 	, _len(0)
 	, _sessionrate(0)
+	, _sessionbitdepth(0)
+	, _sessionfloat(false)
 	, _version(0)
 	, _product(NULL)
 	, _targetrate (0)
@@ -270,6 +272,8 @@ void
 PTFFormat::cleanup(void) {
 	_len = 0;
 	_sessionrate = 0;
+	_sessionbitdepth = 0;
+	_sessionfloat = false;
 	_version = 0;
 	free(_ptfunxored);
 	_ptfunxored = NULL;
@@ -280,6 +284,8 @@ PTFFormat::cleanup(void) {
 	_midiregions.clear();
 	_tracks.clear();
 	_miditracks.clear();
+	_sessionpath.clear();
+	_sourcepath.clear();
 	free_all_blocks();
 }
 
@@ -629,6 +635,7 @@ PTFFormat::parse(void) {
 #endif
 	if (!parseheader())
 		return -1;
+	parsepaths();
 	setrates();
 	if (_sessionrate < 44100 || _sessionrate > 192000)
 		return -2;
@@ -649,10 +656,92 @@ PTFFormat::parseheader(void) {
 			b != blocks.end(); ++b) {
 		if (b->content_type == 0x1028) {
 			_sessionrate = u_endian_read4(&_ptfunxored[b->offset+4], is_bigendian);
+			/* Bit depth: the byte before the rate holds 16 or 24 (24 also
+			 * for 32-bit float sessions). Recent sessions end the block
+			 * with 02 02 <float flag> <?> <bits>, a byte nearer or
+			 * farther from the end depending on the version. */
+			_sessionbitdepth = _ptfunxored[b->offset+3];
+			_sessionfloat = false;
+			uint32_t end = b->offset + b->block_size;
+			uint32_t from = (b->block_size > 16) ? end - 16 : b->offset;
+			for (uint32_t i = from; i + 5 <= end; i++) {
+				const unsigned char *t = &_ptfunxored[i];
+				if (t[0] == 2 && t[1] == 2 && t[2] <= 1 && t[3] <= 1 &&
+						(t[4] == 16 || t[4] == 24 || t[4] == 32)) {
+					_sessionfloat = (t[2] == 1);
+					_sessionbitdepth = t[4];
+				}
+			}
 			found = true;
 		}
 	}
 	return found;
+}
+
+/* The 0x2067 block holds 11 strings (Info #1..#5, five empty ones, and
+ * the session name in backups), the folders where the session was saved
+ * (the first one is the volume) and its file name, then a 0x2a marker,
+ * an 8-byte id and a second path, folders and file name together: for a
+ * backup, the session it backs up; after a Save As, the session it was
+ * saved from. Either path is left empty when it cannot be read. */
+void
+PTFFormat::parsepaths(void) {
+	_sessionpath.clear();
+	_sourcepath.clear();
+	for (vector<PTFFormat::block_t>::iterator b = blocks.begin();
+			b != blocks.end(); ++b) {
+		if (b->content_type != 0x2067)
+			continue;
+		uint32_t end = b->offset + b->block_size;
+		uint32_t pos = b->offset + 24;
+		/* Every string must fit in the block before it is read. */
+		for (int k = 0; k < 11; k++) {
+			if (pos + 4 > end || u_endian_read4(&_ptfunxored[pos], is_bigendian) > end - pos - 4)
+				return;
+			pos += 4 + u_endian_read4(&_ptfunxored[pos], is_bigendian);
+		}
+		if (pos + 4 > end)
+			return;
+		uint32_t n = u_endian_read4(&_ptfunxored[pos], is_bigendian);
+		pos += 4;
+		if (n == 0 || n > 64)
+			return;
+		std::vector<std::string> path;
+		/* n folders and the file name */
+		for (uint32_t k = 0; k <= n; k++) {
+			if (pos + 4 > end || u_endian_read4(&_ptfunxored[pos], is_bigendian) > end - pos - 4)
+				return;
+			std::string s = parsestring(pos);
+			if (s.empty())
+				return;
+			pos += 4 + s.size();
+			path.push_back(s);
+		}
+		_sessionpath = path;
+
+		/* Skip zero words up to the 0x2a marker and the 8-byte id. */
+		while (pos + 4 <= end && u_endian_read4(&_ptfunxored[pos], is_bigendian) == 0)
+			pos += 4;
+		if (pos + 16 > end || u_endian_read4(&_ptfunxored[pos], is_bigendian) != 0x2a)
+			return;
+		pos += 12;
+		n = u_endian_read4(&_ptfunxored[pos], is_bigendian);
+		pos += 4;
+		if (n == 0 || n > 64)
+			return;
+		path.clear();
+		for (uint32_t k = 0; k < n; k++) {
+			if (pos + 4 > end || u_endian_read4(&_ptfunxored[pos], is_bigendian) > end - pos - 4)
+				return;
+			std::string s = parsestring(pos);
+			if (s.empty())
+				return;
+			pos += 4 + s.size();
+			path.push_back(s);
+		}
+		_sourcepath = path;
+		return;
+	}
 }
 
 std::string
@@ -752,10 +841,25 @@ PTFFormat::parseaudio(void) {
 			for (vector<PTFFormat::block_t>::iterator c = b->child.begin();
 					c != b->child.end(); ++c) {
 				if (c->content_type == 0x1003) {
+					/* The 0x2106 metadata of a file holds its creation time
+					 * as a Windows FILETIME (100 ns units since 1601) 31
+					 * bytes into the block. */
+					int64_t created = 0;
+					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
+							d != c->child.end(); ++d) {
+						if (d->content_type == 0x2106 && d->block_size >= 39) {
+							uint64_t ft = u_endian_read8(&_ptfunxored[d->offset+31], false);
+							int64_t t = (int64_t)(ft / 10000000ULL) - 11644473600LL;
+							/* Keep 1990..2100 only; other values are not dates. */
+							if (t >= 631152000LL && t < 4102444800LL)
+								created = t;
+						}
+					}
 					for (vector<PTFFormat::block_t>::iterator d = c->child.begin();
 							d != c->child.end(); ++d) {
 						if (d->content_type == 0x1001) {
 							(*wav).length = u_endian_read8(&_ptfunxored[d->offset+8], is_bigendian);
+							(*wav).created = created;
 							wav++;
 						}
 					}
@@ -857,6 +961,18 @@ PTFFormat::parse_region_info(uint32_t j, block_t& blk, region_t& r) {
 	parse_three_point(j, start, sampleoffset, length);
 
 	findex = u_endian_read4(&_ptfunxored[blk.offset + blk.block_size], is_bigendian);
+	/* PT12 sessions follow the file index, the channel and two floats
+	 * with 8 zero bytes, 0xff and a 16-byte UUID per region that persists
+	 * across saves. */
+	uint32_t u = blk.offset + blk.block_size + 22;
+	r.uid.clear();
+	if (_version >= 10 && u + 17 <= _len && _ptfunxored[u] == 0xff) {
+		static const char hexdigits[] = "0123456789abcdef";
+		for (uint32_t k = 1; k <= 16; k++) {
+			r.uid += hexdigits[_ptfunxored[u + k] >> 4];
+			r.uid += hexdigits[_ptfunxored[u + k] & 0x0f];
+		}
+	}
 	wav_t f (findex);
 	f.posabsolute = start * _ratefactor;
 	f.length = length * _ratefactor;
@@ -864,6 +980,7 @@ PTFFormat::parse_region_info(uint32_t j, block_t& blk, region_t& r) {
 	wav_t found;
 	if (find_wav(findex, found)) {
 		f.filename = found.filename;
+		f.created = found.created;
 	}
 
 	std::vector<midi_ev_t> m;

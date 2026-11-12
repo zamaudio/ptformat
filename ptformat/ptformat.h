@@ -54,6 +54,9 @@ public:
 
 		int64_t     posabsolute;
 		int64_t     length;
+		/* When the file was created, in seconds since 1970-01-01 UTC;
+		 * 0 when the session does not hold a valid date for it. */
+		int64_t     created;
 
 		bool operator <(const struct wav_t& other) const {
 			std::string a (this->filename);
@@ -68,7 +71,7 @@ public:
 				this->index == other.index);
 		}
 
-		wav_t (uint16_t idx = 0) : index (idx), posabsolute (0), length (0) {}
+		wav_t (uint16_t idx = 0) : index (idx), posabsolute (0), length (0), created (0) {}
 	};
 
 	struct midi_ev_t {
@@ -86,6 +89,10 @@ public:
 		int64_t     sampleoffset;
 		int64_t     length;
 		wav_t       wave;
+		/* UUID that stays the same across saves of a session, as 32 hex
+		 * digits; empty when the session does not store one (PT12
+		 * sessions do, PT5 and PT8 do not, PT10 and PT11 untested). */
+		std::string uid;
 		std::vector<midi_ev_t> midi;
 
 		bool operator ==(const region_t& other) const {
@@ -215,6 +222,16 @@ public:
 
 	uint8_t version () const { return _version; }
 	int64_t sessionrate () const { return _sessionrate ; }
+	/* Bits per sample of the session (16, 24 or 32), and whether it is
+	 * floating point; 0 when unknown. */
+	int sessionbitdepth () const { return _sessionbitdepth ; }
+	bool sessionfloat () const { return _sessionfloat ; }
+	/* Where the session was saved, as path components: the volume, the
+	 * folders and the file name. Empty when not stored or not read. */
+	const std::vector<std::string>& sessionpath () const { return _sessionpath ; }
+	/* A second path in the same form: for a backup, the session it backs
+	 * up; after a Save As, the session it was saved from. */
+	const std::vector<std::string>& sourcepath () const { return _sourcepath ; }
 	const std::string& path () { return _path; }
 
 	const std::vector<wav_t>&    audiofiles () const { return _audiofiles ; }
@@ -235,10 +252,14 @@ private:
 	std::vector<track_t>  _miditracks;
 
 	std::string _path;
+	std::vector<std::string> _sessionpath;
+	std::vector<std::string> _sourcepath;
 
 	unsigned char* _ptfunxored;
 	uint64_t       _len;
 	int64_t        _sessionrate;
+	int            _sessionbitdepth;
+	bool           _sessionfloat;
 	uint8_t        _version;
 	uint8_t*       _product;
 	int64_t        _targetrate;
@@ -265,6 +286,7 @@ private:
 	int parse(void);
 	void parseblocks(void);
 	bool parseheader(void);
+	void parsepaths(void);
 	bool parserest(void);
 	bool parseaudio(void);
 	bool parsemidi(void);

@@ -22,21 +22,39 @@
 #include "ptformat/ptformat.h"
 #include <inttypes.h> // PRIxyy
 #include <cstdio>
+#include <cstring>
+#include <ctime>
 #include <stdlib.h>
 
 using namespace std;
 using std::string;
 
+/* Path components as "/volume/folder/file". */
+static string
+join(const vector<string>& parts)
+{
+	string s;
+	for (size_t i = 0; i < parts.size(); i++)
+		s += "/" + parts[i];
+	return s;
+}
+
 int main (int argc, char **argv) {
 	PTFFormat ptf;
 	int ok;
 
-	if (argc == 1) {
+	/* -v adds what the default output leaves out (bit depth, saved paths,
+	 * file creation dates and region UUIDs); without it the output stays
+	 * as the regression tests expect. */
+	bool verbose = (argc > 1 && strcmp(argv[1], "-v") == 0);
+	int arg = verbose ? 2 : 1;
+
+	if (argc <= arg) {
 		printf("No ptf file specified, quit\n");
 		exit(0);
 	}
 
-	ok = ptf.load(argv[1], 48000);
+	ok = ptf.load(argv[arg], 48000);
 
 	switch (ok) {
 	default:
@@ -58,6 +76,14 @@ int main (int argc, char **argv) {
 		break;
 	case 0:
 		printf("ProTools %d Session: Samplerate = %" PRId64 "Hz\nTarget samplerate = 48000\n\n", ptf.version(), ptf.sessionrate());
+		if (verbose) {
+			printf("Bit depth = %d%s\n", ptf.sessionbitdepth(), ptf.sessionfloat() ? " float" : "");
+			if (!ptf.sessionpath().empty())
+				printf("Saved at = %s\n", join(ptf.sessionpath()).c_str());
+			if (!ptf.sourcepath().empty())
+				printf("Source session = %s\n", join(ptf.sourcepath()).c_str());
+			printf("\n");
+		}
 		printf("%zu wavs, %zu regions, %zu active regions\n\n",
 			ptf.audiofiles().size(),
 			ptf.regions().size(),
@@ -67,23 +93,33 @@ int main (int argc, char **argv) {
 		for (vector<PTFFormat::wav_t>::const_iterator
 				a = ptf.audiofiles().begin();
 				a != ptf.audiofiles().end(); ++a) {
-			printf("`%s` w(%d) @ %" PRIu64 ", %" PRIu64 "\n",
+			printf("`%s` w(%d) @ %" PRIu64 ", %" PRIu64,
 				a->filename.c_str(),
 				a->index,
 				a->posabsolute,
 				a->length);
+			if (verbose && a->created) {
+				char buf[32];
+				time_t t = (time_t)a->created;
+				strftime(buf, sizeof buf, "%Y-%m-%d %H:%M:%S", gmtime(&t));
+				printf(" created %s UTC", buf);
+			}
+			printf("\n");
 		}
 
 		printf("\nRegion (Region#) (WAV#) @ into-sample, length:\n");
 		for (vector<PTFFormat::region_t>::const_iterator
 				a = ptf.regions().begin();
 				a != ptf.regions().end(); ++a) {
-			printf("`%s` r(%d) w(%d) @ %" PRIu64 ", %" PRIu64 "\n",
+			printf("`%s` r(%d) w(%d) @ %" PRIu64 ", %" PRIu64,
 				a->name.c_str(),
 				a->index,
 				a->wave.index,
 				a->sampleoffset,
 				a->length);
+			if (verbose && !a->uid.empty())
+				printf(" uid(%s)", a->uid.c_str());
+			printf("\n");
 		}
 
 		printf("\nMIDI Region (Region#) @ into-sample, length:\n");
