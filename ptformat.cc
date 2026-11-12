@@ -2918,6 +2918,17 @@ PTFFormat::parseaudio(void) {
 								break;
 							(*wav).length = u_endian_read8(&_ptfunxored[d->offset+8], is_bigendian);
 							(*wav).created = created;
+							/* The file id: 8 bytes at +24 of the 33-byte
+							 * block, after the rate, format, length and
+							 * 8 bytes 03 00 .. 00. */
+							if (_version >= 10 && d->block_size == 33) {
+								static const char hexdigits[] = "0123456789abcdef";
+								(*wav).uid.clear();
+								for (uint32_t k = 24; k < 32; k++) {
+									(*wav).uid += hexdigits[_ptfunxored[d->offset + k] >> 4];
+									(*wav).uid += hexdigits[_ptfunxored[d->offset + k] & 0x0f];
+								}
+							}
 							wav++;
 						}
 					}

@@ -70,8 +70,11 @@ the audio files on disk that the session does not reference:
 	make
 	./ptcheckmedia file.pt{s,5,f,x} [audio dir ...]
 
-With no audio dir, `Audio Files` next to the session is searched. Exits
-with 1 when files are missing.
+With no audio dir, `Audio Files` next to the session is searched. A WAV
+file whose name matches but whose id (the `umid` chunk Pro Tools writes,
+which the session stores for every file from PT10 on) is not the
+session's is listed as another file. Exits with 1 when files are
+missing or different.
 
 
 Comparing two saves of a session

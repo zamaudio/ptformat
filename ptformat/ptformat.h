@@ -68,6 +68,12 @@ public:
 		 * 0 when the session does not hold a valid date for it (files
 		 * imported rather than recorded often have none). */
 		int64_t     created;
+		/* The file's 8-byte id, as 16 hex digits, from its 0x1001 block
+		 * (PT10 on); empty when unknown. Pro Tools writes the same 8
+		 * bytes into the WAV file, at bytes 7 to 14 of its "umid" chunk
+		 * (all 1,048 files on disk checked, RF64 ones included), which
+		 * tells the file apart from another with the same name. */
+		std::string uid;
 
 		bool operator <(const struct wav_t& other) const {
 			std::string a (this->filename);

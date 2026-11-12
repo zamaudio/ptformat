@@ -107,6 +107,8 @@ int main (int argc, char **argv) {
 				strftime(buf, sizeof buf, "%Y-%m-%d %H:%M:%S", gmtime(&t));
 				printf(" created %s UTC", buf);
 			}
+			if (verbose && !a->uid.empty())
+				printf(" uid(%s)", a->uid.c_str());
 			printf("\n");
 		}
 
