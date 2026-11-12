@@ -1201,6 +1201,13 @@ PTFFormat::parseplugins(void) {
 			/* The channel format code follows the name. */
 			if (end - pos >= 2)
 				st.format = u_endian_read2(&_ptfunxored[pos], is_bigendian);
+			/* The display position follows the 0x2a marker and the id. */
+			for (uint32_t i = pos; i < pos + 12 && i + 14 <= end; i++) {
+				if (u_endian_read4(&_ptfunxored[i], is_bigendian) != 0x2a)
+					continue;
+				st.order = u_endian_read2(&_ptfunxored[i + 12], is_bigendian);
+				break;
+			}
 			/* Skip the second copy of the list. */
 			bool seen = false;
 			for (vector<strip_t>::const_iterator o = _strips.begin(); o != _strips.end(); ++o) {

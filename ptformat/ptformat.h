@@ -151,14 +151,19 @@ public:
 	 *
 	 * format is the track's channel format code: 0 mono, 1 stereo, 6 for
 	 * 5.1 and 14 for 7.1 in the sessions seen, where it matches the
-	 * number of channels of the track; a video track holds 12. */
+	 * number of channels of the track; a video track holds 12.
+	 *
+	 * order is the track's position among the shown tracks, from 1, and 0
+	 * for a hidden track (video tracks hold 0 too), as described in the
+	 * format notes of the pt_api project. */
 	struct strip_t {
 		std::string name;
 		uint16_t    type;
 		uint16_t    format;
+		uint16_t    order;
 		std::string id;
 		std::string playlist;
-		strip_t () : type (0), format (0) {}
+		strip_t () : type (0), format (0), order (0) {}
 	};
 
 	/* A plugin inserted in a mixer strip. slot counts from 0 (insert A).
