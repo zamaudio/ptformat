@@ -86,6 +86,8 @@ public:
 		int64_t     sampleoffset;
 		int64_t     length;
 		wav_t       wave;
+		/* Channel of wave this region plays; read from PT10 on, 0 before. */
+		uint32_t    channel;
 		std::vector<midi_ev_t> midi;
 
 		bool operator ==(const region_t& other) const {
@@ -99,7 +101,7 @@ public:
 			std::transform (b.begin(), b.end(), b.begin(), ::tolower);
 			return a < b;
 		}
-		region_t (uint16_t idx = 0) : index (idx), startpos (0), sampleoffset (0), length (0) {}
+		region_t (uint16_t idx = 0) : index (idx), startpos (0), sampleoffset (0), length (0), channel (0) {}
 	};
 
 	struct track_t {
