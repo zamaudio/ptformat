@@ -704,7 +704,9 @@ PTFFormat::parseaudio(void) {
 									foundin(wavtype, std::string("AIFF")) ||
 									foundin(wavtype, std::string("FFIA")) ||
 									foundin(wavtype, std::string("fFXM")) ||
-									foundin(wavtype, std::string("MXFf"))) ) {
+									foundin(wavtype, std::string("MXFf")) ||
+									foundin(wavtype, std::string("Sd2f")) ||
+									foundin(wavtype, std::string("f2dS"))) ) {
 								continue;
 							}
 						} else {
