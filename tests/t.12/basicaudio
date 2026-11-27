@@ -13,7 +13,7 @@ Audio file (WAV#) @ offset, length:
 `region_name_WAV.wav` w(0) @ 0, 5910132
 
 Region (Region#) (WAV#) @ into-sample, length:
-`region_name_region` r(0) w(0) @ 0, 6432797
+`region_name_region` r(0) w(0) @ 0, 6432796
 `region_name_region-01` r(1) w(0) @ 0, 2884353
 `region_name_region-03` r(2) w(0) @ 1034013, 1404081
 
