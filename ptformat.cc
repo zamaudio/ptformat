@@ -549,7 +549,9 @@ PTFFormat::parse_block_at(uint32_t pos, struct block_t *block, struct block_t *p
 	block->offset = b.offset;
 	block->child.clear();
 
-	for (i = 1; (i < block->block_size) && (pos + i + childjump < max); i += childjump ? childjump : 1) {
+	/* Skip block header and possibly a 4 byte count */
+	i = (block->content_type == 0x1004) ? 13 : 1;
+	for (; (i < block->block_size) && (pos + i + childjump < max); i += childjump ? childjump : 1) {
 		int p = pos + i;
 		struct block_t bchild;
 		childjump = 0;
